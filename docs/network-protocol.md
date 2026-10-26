@@ -322,3 +322,14 @@ Hello of this connection: send IV `d1 26 32 e1`, receive IV `12 9a db 06` (the f
   numbers with the text `All`: a bulk data table, not packets), and later high-entropy bytes that I could not frame. In-game framed packets (`a ^ 0xfffe`) were not found in the first 31 KB; the game packets of this account are on a connection I did not isolate.
 * **Wire opcode numbers differ again.** The 2-byte keepalive of this connection is `0x51f8` (three of them in a row); the older capture's was `0x3fd2`; jib01's live one is `0x8786`, shurella2's `0xf5e8`. Four connections, four numbers. For jib01 the keepalive, move and attack numbers (`0x8786`, `0x5f28`, `0x25d8` against internal `0x02f0`, `0x00db`, `0x00e1`) differ from their internal numbers by no common xor or offset, so the numbering is a per-opcode scramble (a table or a seeded generator), not a shift. Its seed is not obviously the hello IVs (two connections is too few to tell).
 
+### Wire opcode numbering across connections (2026-10-26 19:55)
+| Connection | keepalive (internal 0x02f0) | attack (0x00e1) | move/jump (0x00db) | hello IVs (send / receive) |
+|---|---|---|---|---|
+| jib01 (live, mid-stream) | `0x8786` | `0x25d8` | `0x5f28` | not seen |
+| jib02 (relaunched, whole connection) | `0x51f8` | `0x90b6` | `0xd34b` | `d1 26 32 e1` / `12 9a db 06` |
+| shurella2 (live, mid-stream) | `0xf5e8` | not tried | not tried | not seen |
+| first capture (connection start) | `0x3fd2` | not tried | not tried | `2d ef c2 e1` / `09 27 cf 40` |
+
+On jib02 the attack key press produced one `0x90b6` per press (6/6) and the jump key one `0xd34b` (6/6); `wiremap.py` derived keepalive and attack for that connection by itself (keepalive from the ping reply, attack from the internal fixture's bytes),
+so the per-connection map pipeline works on a fresh connection without hand work. The differences wire-internal are not a common xor/offset in either connection. `0x00c5` and `0x009c` are the same on all connections that were looked at.
+
