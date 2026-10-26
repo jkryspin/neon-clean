@@ -987,7 +987,7 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 id = 0x02bb
 dir = "in"
 status = "structure"
-summary = "131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26) Lifecycle (lifecycle.py, pooled captures): arrival-like. In the 5 s before it that player sent 265 movement packets over the 198 events, in the 5 s after 2038 (the same players at random times: 0 and 8), so it marks a player becoming visible or active; exactly what it adds to the 888-byte PlayerSpawn is unknown."
+summary = "OPEN (2026-10-26, 146 exact-decoded packets, 94 players): all zero except flag bytes: 127 packets are exactly {@39 = 0x80, @130 = 0x01}; the rest add a single bit at @14 (0x08, 9), @35 (0x20, 8) or @14 + @25 (0x08, 0x10, 2). It looks like a status/buff bit mask, but nothing independent supports that yet, and no player that has one also has a 0x022d spawn in the pool, so it is not simply a companion of the spawn. 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26) Lifecycle (lifecycle.py, pooled captures): arrival-like. In the 5 s before it that player sent 265 movement packets over the 198 events, in the 5 s after 2038 (the same players at random times: 0 and 8), so it marks a player becoming visible or active; exactly what it adds to the 888-byte PlayerSpawn is unknown."
 len_min = 131
 len_max = 131
 field = [
