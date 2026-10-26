@@ -344,3 +344,41 @@ fn a_respawn_packet_adds_a_mob_with_its_template() {
     let Some(Event::MobSpawn { template, .. }) = event_from_packet(&r, &p) else { panic!("0x03d5 must become a MobSpawn event") };
     assert!(template >= 2);
 }
+
+#[test]
+fn the_activity_feed_records_what_happened_to_us() {
+    let r = Registry::builtin().unwrap();
+    let lines: Vec<String> = include_str!("fixtures/exp_session.log").lines().map(String::from).collect();
+    let (w, _) = replay(&r, lines);
+    let f = &w.snapshot().feed;
+    assert!(f.iter().filter(|i| i.text.ends_with("EXP")).count() >= 8, "{f:?}");
+    assert!(f.len() <= 40);
+    let mut w = World::new();
+    w.apply(&Event::Stats(StatUpdate { level: Some(10), ..Default::default() }), 0);
+    w.apply(&Event::Stats(StatUpdate { level: Some(11), ..Default::default() }), 5);
+    w.apply(&Event::MapEnter { map: 1020 }, 6);
+    for i in 0..60 {
+        w.apply(&Event::Pickup { item: 4000000 + i, qty: 1 }, 10 + u64::from(i));
+    }
+    let texts: Vec<_> = w.snapshot().feed.iter().map(|i| i.text.clone()).collect();
+    assert_eq!(texts.len(), 40, "ring of 40");
+    assert!(texts.iter().all(|t| t.starts_with("picked up")), "oldest entries (level up, map) were pushed out: {texts:?}");
+}
+
+#[test]
+fn name_tables_are_served_only_from_the_whitelist() {
+    let base = std::env::temp_dir().join(format!("neon-data-test-{}", std::process::id()));
+    let maps = base.join("maps");
+    std::fs::create_dir_all(&maps).unwrap();
+    std::fs::write(base.join("mob-names.json"), r#"{"2":"Snail"}"#).unwrap();
+    std::fs::write(base.join("chains.json"), "secret").unwrap();
+    let sh = Shared { maps_dir: Some(maps), ..Shared::default() };
+    let reg = Registry::builtin().unwrap();
+    let st = |p: &str| match view::route(p, &sh, &reg) { view::Route::Body { status, body, .. } => (status, body), _ => panic!() };
+    assert_eq!(st("/data/mob-names"), (200, r#"{"2":"Snail"}"#.to_string()));
+    assert_eq!(st("/data/map-names").0, 404, "whitelisted but missing");
+    for bad in ["/data/chains", "/data/../chains", "/data/mob-names.json", "/data/"] {
+        assert_eq!(st(bad).0, 404, "{bad}");
+    }
+    let _ = std::fs::remove_dir_all(base);
+}

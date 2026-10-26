@@ -37,6 +37,7 @@
   <aside>
     <h2>Me</h2><ul id="me"></ul>
     <h2>Party</h2><ul id="party"></ul>
+    <h2>Activity</h2><ul id="feed"></ul>
     <h2>Players</h2><ul id="players"></ul>
     <h2>Mobs</h2><ul id="mobs"></ul>
     <h2>Drops</h2><ul id="drops"></ul>
@@ -53,7 +54,10 @@
 <script>
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-let snap = null, geo = null, geoId = null;
+let snap = null, geo = null, geoId = null, mobNames = {}, mapNames = {};
+fetch('data/mob-names').then(r => r.ok ? r.json() : {}).then(j => { mobNames = j; if (snap) render(snap); });
+fetch('data/map-names').then(r => r.ok ? r.json() : {}).then(j => { mapNames = j; if (snap) render(snap); });
+const mobName = t => t == null ? 'unknown' : (mobNames[String(t)] || 'template ' + t);
 function loadGeo(id) {
   if (!id || id === geoId) return;
   geoId = id; geo = null;
@@ -63,7 +67,7 @@ document.getElementById('mapid').onchange = e => { geoId = null; loadGeo(e.targe
 function pts(s) {
   const out = [];
   for (const [id, p] of Object.entries(s.players)) if (p.x != null) out.push({k:'player', x:p.x, y:p.y, label:p.name || id});
-  for (const [id, m] of Object.entries(s.mobs)) out.push({k:'mob', x:m.x, y:m.y, label:m.template != null ? '#' + m.template : '?'});
+  for (const [id, m] of Object.entries(s.mobs)) out.push({k:'mob', x:m.x, y:m.y, label:m.template != null ? (mobNames[String(m.template)] || '#' + m.template) : '?'});
   for (const [id, d] of Object.entries(s.drops)) out.push({k:'drop', x:d.x, y:d.y, label:''});
   if (s.me && s.me.x != null) out.push({k:'me', x:s.me.x, y:s.me.y, label:'me'});
   return out;
@@ -97,7 +101,8 @@ function list(id, rows) { document.getElementById(id).innerHTML = rows.slice(0, 
 const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function render(s) {
   snap = s;
-  document.getElementById('map').textContent = 'map: ' + (s.map ?? '-');
+  const mn = s.map != null && mapNames[String(s.map)] ? ' ' + mapNames[String(s.map)].name : '';
+  document.getElementById('map').textContent = 'map: ' + (s.map ?? '-') + mn;
   if (s.map != null) { const box = document.getElementById('mapid'); if (document.activeElement !== box) box.value = s.map; loadGeo(String(s.map)); }
   document.getElementById('counts').textContent = s.events + ' events';
   const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
@@ -110,9 +115,10 @@ function render(s) {
     '<span>EXP gained</span><span>' + s.exp_gained + ' in ' + s.exp_messages + ' kills</span>',
     '<span>Meso</span><span>' + (m.meso ?? '?') + '</span>',
     '<span>Last pickup</span><span>' + (s.pickups.length ? s.pickups[s.pickups.length - 1][0] + ' x' + s.pickups[s.pickups.length - 1][1] : '-') + '</span>']);
+  list('feed', s.feed.slice().reverse().map(f => '<span>' + esc(f.text) + '</span><span class="dim">' + (f.t_ms / 1000).toFixed(0) + 's</span>'));
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
   list('players', Object.entries(s.players).map(([id, p]) => '<span><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
-  list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + (m.template != null ? 'template ' + m.template : 'unknown') + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));
+  list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + mobName(m.template) + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + id + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));
   draw();
 }

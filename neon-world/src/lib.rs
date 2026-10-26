@@ -59,6 +59,12 @@ pub struct Drop {
     pub last_ms: u64,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct FeedItem {
+    pub t_ms: u64,
+    pub text: String,
+}
+
 /// Our own character, as far as stat updates have told us.
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
 pub struct Me {
@@ -92,6 +98,8 @@ pub struct Snapshot {
     /// EXP messages seen and their sum since the view started (one message per kill of ours).
     pub exp_messages: u64,
     pub exp_gained: u64,
+    /// Notable things that happened to us, newest last (at most 40).
+    pub feed: Vec<FeedItem>,
     pub events: u64,
     pub now_ms: u64,
     pub mobs: BTreeMap<u32, Mob>,
@@ -109,7 +117,36 @@ impl World {
         Self::default()
     }
 
+    fn note(&mut self, now_ms: u64, text: String) {
+        self.s.feed.push(FeedItem { t_ms: now_ms, text });
+        if self.s.feed.len() > 40 {
+            self.s.feed.remove(0);
+        }
+    }
+
     pub fn apply(&mut self, e: &Event, now_ms: u64) {
+        match e {
+            Event::ExpGain { amount } => self.note(now_ms, format!("+{amount} EXP")),
+            Event::Pickup { item, qty } => self.note(now_ms, format!("picked up item {item} x{qty}")),
+            Event::MapEnter { map } => self.note(now_ms, format!("entered map {map}")),
+            Event::Stats(u) => {
+                if let (Some(new), Some(old)) = (u.level, self.s.me.level) {
+                    if new > old {
+                        self.note(now_ms, format!("level up: {old} -> {new}"));
+                    }
+                }
+                if let Some(m) = u.meso {
+                    if let Some(old) = self.s.me.meso {
+                        if m != old {
+                            self.note(now_ms, format!("mesos {old} -> {m}"));
+                        }
+                    }
+                }
+            }
+            Event::Party(decode::PartyMsg::List { members, .. }) => self.note(now_ms, format!("party: {} member(s)", members.len())),
+            Event::Party(decode::PartyMsg::Left { .. }) => self.note(now_ms, "party: someone left".to_string()),
+            _ => {}
+        }
         let s = &mut self.s;
         s.events += 1;
         s.now_ms = now_ms;

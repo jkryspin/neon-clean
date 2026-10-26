@@ -20,6 +20,19 @@ pub fn route(path: &str, sh: &Shared, reg: &Registry) -> Route {
     let limit = query.split('&').find_map(|kv| kv.strip_prefix("limit=")).and_then(|n| n.parse().ok()).unwrap_or(100usize).min(400);
     let json = |v: String| Route::Body { status: 200, content_type: "application/json", body: v };
     match p {
+        m if m.starts_with("/data/") => {
+            // Only these name tables, read from the maps directory's parent (neon-calib/).
+            const OK: [&str; 3] = ["mob-names", "map-names", "npc-names"];
+            let name = &m[6..];
+            let dir = sh.maps_dir.as_ref().and_then(|d| d.parent());
+            match (OK.contains(&name), dir) {
+                (true, Some(d)) => match std::fs::read_to_string(d.join(format!("{name}.json"))) {
+                    Ok(body) => json(body),
+                    Err(_) => Route::Body { status: 404, content_type: "text/plain", body: "missing".into() },
+                },
+                _ => Route::Body { status: 404, content_type: "text/plain", body: "not found".into() },
+            }
+        }
         m if m.starts_with("/map/") => {
             let id = &m[5..];
             // Digits only: the id becomes part of a file name, so nothing else may get through.
