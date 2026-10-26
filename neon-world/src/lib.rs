@@ -15,7 +15,7 @@ pub enum Event {
     MobSpawn { oid: u32, template: u32, x: i32, y: i32, hp: Option<u32> },
     MobMove { oid: u32, x: i32, y: i32 },
     MobKill { oid: u32 },
-    PlayerSpawn { char_id: u32, name: String, equips: Vec<(u8, u32)> },
+    PlayerSpawn { char_id: u32, name: String, level: u32, equips: Vec<(u8, u32)> },
     PlayerMove { char_id: u32, x: i32, y: i32 },
     /// Our own movement, read from the packet we send (the server never echoes it to us).
     SelfMove { x: i32, y: i32, tick: u32 },
@@ -53,6 +53,7 @@ pub struct Mob {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Player {
     pub name: Option<String>,
+    pub level: Option<u32>,
     /// (slot, item id) of what they wear, from their spawn packet.
     pub equips: Vec<(u8, u32)>,
     pub x: Option<i32>,
@@ -193,14 +194,15 @@ impl World {
             Event::MobKill { oid } => {
                 s.mobs.remove(oid);
             }
-            Event::PlayerSpawn { char_id, name, equips } => {
-                let p = s.players.entry(*char_id).or_insert(Player { name: None, equips: vec![], x: None, y: None, last_ms: now_ms });
+            Event::PlayerSpawn { char_id, name, level, equips } => {
+                let p = s.players.entry(*char_id).or_insert(Player { name: None, level: None, equips: vec![], x: None, y: None, last_ms: now_ms });
                 p.name = Some(name.clone());
                 p.equips = equips.clone();
+                p.level = Some(*level).filter(|l| *l > 0);
                 p.last_ms = now_ms;
             }
             Event::PlayerMove { char_id, x, y } => {
-                let p = s.players.entry(*char_id).or_insert(Player { name: None, equips: vec![], x: None, y: None, last_ms: now_ms });
+                let p = s.players.entry(*char_id).or_insert(Player { name: None, level: None, equips: vec![], x: None, y: None, last_ms: now_ms });
                 p.x = Some(*x);
                 p.y = Some(*y);
                 p.last_ms = now_ms;
@@ -375,7 +377,7 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
         "MobKill" => Event::MobKill { oid: int(&d, "oid")? as u32 },
         "PlayerSpawn" => {
             let neon_protocol::Value::Str(n) = d.get("name")? else { return None };
-            Event::PlayerSpawn { char_id: int(&d, "char_id")? as u32, name: n.clone(), equips: decode::parse_equips(plain) }
+            Event::PlayerSpawn { char_id: int(&d, "char_id")? as u32, name: n.clone(), level: int(&d, "level")? as u32, equips: decode::parse_equips(plain) }
         }
         "PlayerMove" => {
             let (x, y) = end_position(&d)?;

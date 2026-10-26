@@ -46,8 +46,9 @@ fn real_packets_become_the_expected_events() {
         })
     );
     assert_eq!(event_from_packet(&r, &fx("0x3d4")), Some(Event::MobKill { oid: 20598982 }));
-    let Some(Event::PlayerSpawn { char_id, name, equips }) = event_from_packet(&r, &fx("0x22d")) else { panic!("0x022d must become a PlayerSpawn") };
+    let Some(Event::PlayerSpawn { char_id, name, level, equips }) = event_from_packet(&r, &fx("0x22d")) else { panic!("0x022d must become a PlayerSpawn") };
     assert_eq!((char_id, name.as_str()), (329787, "alex5"));
+    assert!((1..=250).contains(&level), "a real spawn carries the player's level: {level}");
     assert!(equips.len() >= 3, "a real spawn lists what the player wears: {equips:?}");
     // the packet starts at x = -185 and its one 21-byte fragment ends at x = -262, on the same ground line
     assert_eq!(event_from_packet(&r, &fx("0x29d")), Some(Event::PlayerMove { char_id: 562142, x: -262, y: 274 }));
@@ -101,7 +102,7 @@ fn world_semantics() {
     w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0, item: Some(4000001), mesos: None }, 31); // sent twice by the server
     assert_eq!(w.snapshot().drops.len(), 1);
     w.apply(&Event::PlayerMove { char_id: 4, x: 9, y: 9 }, 40);
-    w.apply(&Event::PlayerSpawn { char_id: 4, name: "Ann".into(), equips: vec![(11, 1302000)] }, 41);
+    w.apply(&Event::PlayerSpawn { char_id: 4, name: "Ann".into(), level: 12, equips: vec![(11, 1302000)] }, 41);
     let p = &w.snapshot().players[&4];
     assert_eq!((p.name.as_deref(), p.x, p.y), (Some("Ann"), Some(9), Some(9)));
     w.apply(&Event::MobKill { oid: 7 }, 50);

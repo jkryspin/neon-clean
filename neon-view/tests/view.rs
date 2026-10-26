@@ -26,7 +26,7 @@ fn view_server_serves_page_state_and_404_over_a_real_socket() {
     let reg = Registry::builtin().unwrap();
     let mut sh = Shared::default();
     sh.world.apply(&Event::MapEnter { map: 1010 }, 0);
-    sh.world.apply(&Event::PlayerSpawn { char_id: 5, name: "Zed".into(), equips: vec![] }, 1);
+    sh.world.apply(&Event::PlayerSpawn { char_id: 5, name: "Zed".into(), level: 1, equips: vec![] }, 1);
     sh.feed(&reg, Dir::In, &fx("0x3c9"), 5);
     sh.feed(&reg, Dir::In, &fx("0x44d"), 6);
     sh.feed(&reg, Dir::Out, &[0xfe, 0x02, 1, 2, 3], 7);

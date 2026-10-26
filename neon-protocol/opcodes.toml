@@ -92,10 +92,11 @@ id = 0x022d
 dir = "in"
 name = "PlayerSpawn"
 status = "verified"
-summary = "Another player (or us) appears on the map. After the name there is, at an offset that shifts with the name length, an equipment list of [slot u8][item id u32] entries (stride 5) ended by 0xFF, then a second list for the cash items (not decoded): 55 of 55 real spawn packets have it and every slot holds a single item category (slot 1 caps 100xxxx, 5 tops 104/105, 6 bottoms 106, 7 shoes 107, 8 gloves 108, 10 shields 109, 11 weapons 13x/14x, ...). Parsed by neon-world decode::parse_equips because the offset is not fixed. Other bytes (about 280) are unexplained: looks, stats, guild, pets"
+summary = "Another player (or us) appears on the map. Level is the u32 @14 (before the name length): 5 to 11 for the 18 players of a beginner town (Amherst), 11 to 49 for the 37 of a hunting map (Perion); one packet had 0. After the name there is, at an offset that shifts with the name length, an equipment list of [slot u8][item id u32] entries (stride 5) ended by 0xFF, then a second list for the cash items (not decoded): 55 of 55 real spawn packets have it and every slot holds a single item category (slot 1 caps 100xxxx, 5 tops 104/105, 6 bottoms 106, 7 shoes 107, 8 gloves 108, 10 shields 109, 11 weapons 13x/14x, ...). Parsed by neon-world decode::parse_equips because the offset is not fixed. Other bytes (about 280) are unexplained: looks, stats, guild, pets"
 len_min = 24
 field = [
   { name = "char_id", ty = "u32", off = 6 },
+  { name = "level", ty = "u32", off = 14, min = 0, max = 250 },
   { name = "name", ty = "str16", off = 18, min = 1, max = 16, charset = "ident" },
 ]
 
