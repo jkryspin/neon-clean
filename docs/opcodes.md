@@ -143,7 +143,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0454` | 1 | 0.0 | 68 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0456` | 4274 | 21.9 | 12-152 | NpcMove | verified: An NPC walked: the NPC's object id @2 (small: 138, 139, 140 in Amherst), start x @16 / y @18, fragment count @24, then n 21-byte movement fragments (same layout as PlayerMove) and 1 trailing byte; length = 26 + 21n. Evidence (2026-10-26, Amherst, 1092 packets): the start positions cluster within ~50 px of the map file's NPC 17 (1790, 154) and NPC 18 (547, 274) with exactly their y values, and the id takes one value per moving NPC. The other form of this opcode is 12 bytes (an NPC action without a move, meaning unknown) |
 | `0x045f` | 1 | 0.0 | 965 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x0471` | 171 | 0.9 | 107-123 | DropSpawn | verified: A drop of ours appeared (sent twice: flag byte 1 then 0; dedupe by oid). Only our own kills' drops are sent to us |
+| `0x0471` | 171 | 0.9 | 107-123 | DropSpawnItem | verified: An item dropped (sent twice: flag byte @3 = 1 then 0; dedupe by oid). Only drops of our own kills are sent to us. @8 = 0 marks an item (123 bytes), item id u32@21: the six item ids in the pickup messages of a real grind (4000001, 4000005, 2060000, 4000002, 4010000, 4010001) are exactly the ids found here, with matching counts (2026-10-26) |
 | `0x0472` | 3785 | 19.4 | 7-15 | DropRemove | verified: A drop is gone: reason u8@6 (2 picked up, 5 pet loot, 0 expired), picker char id u32@7 |
 | `0x047b` | 51 | 0.3 | 22 |  | observed |
 | `0x0487` | 60 | 0.3 | 19 |  | observed |

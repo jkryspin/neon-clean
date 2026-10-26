@@ -21,7 +21,8 @@ pub enum Event {
     SelfMove { x: i32, y: i32, tick: u32 },
     /// An NPC walked (object id, end of its last fragment).
     NpcMove { oid: u32, x: i32, y: i32 },
-    DropSpawn { oid: u32, owner: u32, x: i32, y: i32 },
+    /// A drop of ours appeared: an item (`item`) or mesos (`mesos`).
+    DropSpawn { oid: u32, owner: u32, x: i32, y: i32, item: Option<u32>, mesos: Option<u32> },
     DropRemove { oid: u32 },
     /// We entered a map (set-field).
     MapEnter { map: u32 },
@@ -66,6 +67,8 @@ pub struct Npc {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Drop {
+    pub item: Option<u32>,
+    pub mesos: Option<u32>,
     pub owner: u32,
     pub x: i32,
     pub y: i32,
@@ -207,8 +210,8 @@ impl World {
             Event::NpcMove { oid, x, y } => {
                 s.npcs.insert(*oid, Npc { x: *x, y: *y, last_ms: now_ms });
             }
-            Event::DropSpawn { oid, owner, x, y } => {
-                s.drops.insert(*oid, Drop { owner: *owner, x: *x, y: *y, last_ms: now_ms });
+            Event::DropSpawn { oid, owner, x, y, item, mesos } => {
+                s.drops.insert(*oid, Drop { item: *item, mesos: *mesos, owner: *owner, x: *x, y: *y, last_ms: now_ms });
             }
             Event::DropRemove { oid } => {
                 s.drops.remove(oid);
@@ -378,7 +381,14 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
             let (x, y) = end_position(&d)?;
             Event::NpcMove { oid: int(&d, "oid")? as u32, x, y }
         }
-        "DropSpawn" => Event::DropSpawn { oid: int(&d, "oid")? as u32, owner: int(&d, "owner")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
+        "DropSpawnItem" | "DropSpawnMeso" => Event::DropSpawn {
+            oid: int(&d, "oid")? as u32,
+            owner: int(&d, "owner")? as u32,
+            x: int(&d, "x")? as i32,
+            y: int(&d, "y")? as i32,
+            item: int(&d, "item").map(|v| v as u32),
+            mesos: int(&d, "amount").map(|v| v as u32),
+        },
         "DropRemove" => Event::DropRemove { oid: int(&d, "oid")? as u32 },
         "StatUpdate" => Event::StatMask { mask: int(&d, "mask")? as u32 },
         _ => return None,

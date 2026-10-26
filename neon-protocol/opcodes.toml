@@ -143,12 +143,30 @@ field = [
 [[opcode]]
 id = 0x0471
 dir = "in"
-name = "DropSpawn"
+when = { off = 8, eq = 0 }
+name = "DropSpawnItem"
 status = "verified"
-summary = "A drop of ours appeared (sent twice: flag byte 1 then 0; dedupe by oid). Only our own kills' drops are sent to us"
+summary = "An item dropped (sent twice: flag byte @3 = 1 then 0; dedupe by oid). Only drops of our own kills are sent to us. @8 = 0 marks an item (123 bytes), item id u32@21: the six item ids in the pickup messages of a real grind (4000001, 4000005, 2060000, 4000002, 4010000, 4010001) are exactly the ids found here, with matching counts (2026-10-26)"
 len_min = 40
 field = [
   { name = "oid", ty = "u32", off = 4 },
+  { name = "item", ty = "u32", off = 21, min = 1000000, max = 10000000 },
+  { name = "owner", ty = "u32", off = 25 },
+  { name = "x", ty = "i16", off = 30, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 32, min = -20000, max = 20000 },
+]
+
+[[opcode]]
+id = 0x0471
+dir = "in"
+when = { off = 8, eq = 1 }
+name = "DropSpawnMeso"
+status = "verified"
+summary = "Mesos dropped (@8 = 1, 115 bytes): the u32 @21 is the amount (4 to 14 in 16 real drops, the size of a low-level mob's mesos; the item form carries an item id there). Same oid/owner/position fields as the item form"
+len_min = 40
+field = [
+  { name = "oid", ty = "u32", off = 4 },
+  { name = "amount", ty = "u32", off = 21, min = 1, max = 1000000000 },
   { name = "owner", ty = "u32", off = 25 },
   { name = "x", ty = "i16", off = 30, min = -20000, max = 20000 },
   { name = "y", ty = "i16", off = 32, min = -20000, max = 20000 },

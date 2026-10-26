@@ -46,7 +46,10 @@ fn real_packets_become_the_expected_events() {
     assert!(equips.len() >= 3, "a real spawn lists what the player wears: {equips:?}");
     // the packet starts at x = -185 and its one 21-byte fragment ends at x = -262, on the same ground line
     assert_eq!(event_from_packet(&r, &fx("0x29d")), Some(Event::PlayerMove { char_id: 562142, x: -262, y: 274 }));
-    assert_eq!(event_from_packet(&r, &fx("0x471")), Some(Event::DropSpawn { oid: 1342746, owner: 334426, x: 1677, y: 215 }));
+    // the real meso drop recorded with the fixtures: mesos, not an item
+    let Some(Event::DropSpawn { oid, owner, x, y, item, mesos }) = event_from_packet(&r, &fx("0x471")) else { panic!("0x0471 must become a DropSpawn") };
+    assert_eq!((oid, owner, x, y), (1342746, 334426, 1677, 215));
+    assert!(item.is_none() && mesos.is_some(), "the 115-byte form carries mesos: item {item:?}, mesos {mesos:?}");
     assert_eq!(event_from_packet(&r, &fx("0x472")), Some(Event::DropRemove { oid: 1342613 }));
     assert_eq!(
         event_from_packet(&r, &fx("0x7e_hp")),
@@ -89,8 +92,8 @@ fn world_semantics() {
     assert_eq!(w.snapshot().mobs[&7].template, None, "move before spawn: template unknown");
     w.apply(&Event::MobSpawn { oid: 7, template: 9, x: 5, y: 6 }, 20);
     assert_eq!(w.snapshot().mobs[&7].template, Some(9));
-    w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0 }, 30);
-    w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0 }, 31); // sent twice by the server
+    w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0, item: Some(4000001), mesos: None }, 30);
+    w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0, item: Some(4000001), mesos: None }, 31); // sent twice by the server
     assert_eq!(w.snapshot().drops.len(), 1);
     w.apply(&Event::PlayerMove { char_id: 4, x: 9, y: 9 }, 40);
     w.apply(&Event::PlayerSpawn { char_id: 4, name: "Ann".into(), equips: vec![(11, 1302000)] }, 41);
@@ -379,4 +382,18 @@ fn equipment_slots_hold_one_item_category_each_in_a_real_spawn() {
     assert_eq!(w.snapshot().players[&329787].equips, eq);
     // a packet that is not a spawn has no equipment list
     assert!(decode::parse_equips(&fx("0x29d")).is_empty());
+}
+
+#[test]
+fn a_real_item_drop_names_its_item() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("../../neon-protocol/tests/fixtures/combat_packets.json")).unwrap();
+    let p = plain(c["0x471_item"]["plain"].as_str().unwrap());
+    assert_eq!(p.len(), 123);
+    let Some(Event::DropSpawn { item, mesos, owner, .. }) = event_from_packet(&r, &p) else { panic!() };
+    assert!(mesos.is_none() && item.is_some_and(|i| (1_000_000..10_000_000).contains(&i)), "{item:?}");
+    assert_eq!(owner, 334426, "our own drop");
+    let mut w = World::new();
+    w.apply(&event_from_packet(&r, &p).unwrap(), 0);
+    assert_eq!(w.snapshot().drops.values().next().unwrap().item, item);
 }

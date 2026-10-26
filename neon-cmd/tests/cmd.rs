@@ -116,7 +116,7 @@ fn executor(seed: u64) -> (Executor<XtestActuator<impl FnMut(&[String]) -> Resul
 fn a_command_is_confirmed_when_the_world_shows_its_effect() {
     let (mut ex, log) = executor(1);
     let mut w = World::new();
-    w.apply(&Event::DropSpawn { oid: 42, owner: 1, x: 0, y: 0 }, 0);
+    w.apply(&Event::DropSpawn { oid: 42, owner: 1, x: 0, y: 0, item: None, mesos: None }, 0);
     let (s, _) = ex.submit(Command::Tap("z".into()), Expect::DropGone(42), 2000, 100);
     assert_eq!(s, Submit::Sent(1));
     assert_eq!(log.borrow().len(), 1);
