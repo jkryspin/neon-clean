@@ -187,10 +187,19 @@ fn real_combat_packets_decode_with_the_registered_layouts() {
 fn a_real_player_attack_broadcast_decodes() {
     let r = Registry::builtin().unwrap();
     let c: serde_json::Value = serde_json::from_str(include_str!("fixtures/combat_packets.json")).unwrap();
-    let d = r.decode(Dir::In, &plain(c["0x2a8"]["plain"].as_str().unwrap())).expect("0x02a8 decodes");
+    let p = plain(c["0x2a8"]["plain"].as_str().unwrap());
+    let d = r.decode(Dir::In, &p).expect("0x02a8 decodes");
     assert_eq!(d.name.as_deref(), Some("PlayerAttack"));
-    let (pl, mob, val) = (d.get("char_id").unwrap().as_i64().unwrap(), d.get("mob_oid").unwrap().as_i64().unwrap(), d.get("value").unwrap().as_i64().unwrap());
+    let pl = d.get("char_id").unwrap().as_i64().unwrap();
     assert!((100_000..10_000_000).contains(&pl), "player id {pl}");
+    // Length is 63 + 24n; the first target record starts at @63 with the mob oid and (probably the damage) at +8.
+    assert_eq!((p.len() - 63) % 24, 0, "length {} is not 63 + 24n", p.len());
+    assert!(p.len() >= 87);
+    let mob = u32::from_le_bytes(p[63..67].try_into().unwrap());
+    let dmg = u32::from_le_bytes(p[71..75].try_into().unwrap());
     assert!((10_000_000..100_000_000).contains(&mob), "mob oid {mob}");
-    assert!((1..10_000).contains(&val), "value {val} (probably damage)");
+    assert!((1..10_000).contains(&dmg), "value {dmg}");
+    // a swing at nothing is 63 bytes and still decodes
+    assert!(r.decode(Dir::In, &p[..63]).is_some());
+    assert!(r.decode(Dir::In, &p[..62]).is_none());
 }

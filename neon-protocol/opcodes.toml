@@ -849,40 +849,25 @@ id = 0x02a8
 dir = "in"
 name = "PlayerAttack"
 status = "structure"
-summary = "Another player's attack on a mob, as the server broadcasts it (our own attacks are not echoed back). char_id@2 is a known player in 100% of packets; mob_oid@63 is a known mob in 94%; it pairs with a 0x044d for the same (player, mob) within 0.6 s in 28% of packets (381/1325), against 0 of 1325 when the mob ids are shuffled. value@71 is probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). 2026-10-26, Perion grind."
-len_min = 87
-len_max = 87
-field = [
-  { name = "char_id", ty = "u32", off = 2 },
-  { name = "mob_oid", ty = "u32", off = 63 },
-  { name = "value", ty = "u32", off = 71 },
-]
+summary = "Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (63, 87, 111, 135, 159 seen: n = 0..4 targets): a 63-byte header whose char_id@2 is a known player in 100% of packets, then n 24-byte target records starting at @63, each beginning with the mob oid (known mob in 94% of the first records) and, at +8, probably the damage (u32; medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). With no target (n = 0) it is a swing at nothing: 36 of them seen in a mob-less town. Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. 2026-10-26"
+len_min = 63
+field = [{ name = "char_id", ty = "u32", off = 2 }]
 
 [[opcode]]
 id = 0x02a9
 dir = "in"
 status = "structure"
-summary = "Same layout as 0x02a8 (char_id@2 100%, mob_oid@63 91%): a second attack variant (which weapon or skill kind is not known). Pairs with 0x044d in 52% of packets (69/131)."
-len_min = 87
-len_max = 87
-field = [
-  { name = "char_id", ty = "u32", off = 2 },
-  { name = "mob_oid", ty = "u32", off = 63 },
-  { name = "value", ty = "u32", off = 71 },
-]
+summary = "Same header as 0x02a8 (char_id@2 100%) and mob oid at @63 in 91% of the 87-byte packets: a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111. Pairs with 0x044d in 52% of the 87-byte packets (69/131)."
+len_min = 63
+field = [{ name = "char_id", ty = "u32", off = 2 }]
 
 [[opcode]]
 id = 0x02aa
 dir = "in"
 status = "structure"
-summary = "Same layout as 0x02a8 (char_id@2, mob_oid@63 96%): a third attack variant (kind not known). Pairs with 0x044d in 39% of packets (37/94)."
-len_min = 87
-len_max = 87
-field = [
-  { name = "char_id", ty = "u32", off = 2 },
-  { name = "mob_oid", ty = "u32", off = 63 },
-  { name = "value", ty = "u32", off = 71 },
-]
+summary = "Same header as 0x02a8 and mob oid at @63 in 96% of the 87-byte packets: a third attack variant (kind not known). Lengths seen 63, 87, 97. Pairs with 0x044d in 39% (37/94)."
+len_min = 63
+field = [{ name = "char_id", ty = "u32", off = 2 }]
 
 [[opcode]]
 id = 0x02af
