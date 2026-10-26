@@ -35,6 +35,13 @@ STRUCT = {
     0x02db: "7 bytes: op + 5 bytes (10 0a 00 00 00 seen)",
     0x001b: "48 bytes, mostly zeros with two u64-looking values near the end; about 1 per 10 s",
 }
+import tomllib
+REG = {}
+try:
+    for o in tomllib.load(open("neon-protocol/opcodes.toml", "rb"))["opcode"]:
+        REG[(o["dir"], o["id"])] = o
+except OSError:
+    pass
 paths = sys.argv[1:] or sorted(glob.glob("run/opcodes/*.json"))
 # Capture length per log = file birth time to last rewrite (ctime would reset on every rewrite).
 import subprocess
@@ -65,15 +72,15 @@ out = [
 ]
 for op in sorted(agg):
     a = agg[op]
-    name, status = KNOWN.get(op, ("", "observed only"))
-    if op in STRUCT and not name:
-        status = "structure only: " + STRUCT[op]
+    r = REG.get(("in", op), {})
+    name = r.get("name", "")
+    status = r.get("status", "observed") + (": " + r["summary"] if r.get("summary") else "")
     size = f"{a['min']}" if a["min"] == a["max"] else f"{a['min']}-{a['max']}"
     per_min = a["count"] / span * 60 / max(1, len(paths))
-    if not name and a["min"] == a["max"] and per_min >= 5:
-        status = "observed only; fixed-size and frequent (heartbeat-like)"
+    if r.get("status", "observed") == "observed" and a["min"] == a["max"] and per_min >= 5:
+        status = "observed; fixed-size and frequent (heartbeat-like)"
     out.append(f"| `0x{op:04x}` | {a['count']} | {per_min:.1f} | {size} | {name} | {status} |")
-missing = sorted(set(KNOWN) - set(agg))
+missing = sorted(o for (d, o), v in REG.items() if d == "in" and v["status"] in ("verified", "decoded") and o not in agg)
 if missing:
     out += ["", "Documented but not seen in these logs: " + ", ".join(f"`0x{o:04x}`" for o in missing) + "."]
 try:
@@ -109,7 +116,9 @@ NOTE = {
 for k in sorted(ops):
     v = ops[k]
     lens = ", ".join(f"{l}x{n}" if n > 1 else l for l, n in sorted(v["next_send_wire_lens"].items(), key=lambda t: int(t[0])))
-    out.append(f"| `{k}` | {v['count']} | {lens[:70]}{'...' if len(lens) > 70 else ''} | {NOTE.get(k, '')} |")
+    ro = REG.get(("out", int(k, 16)), {})
+    note = ro.get("summary") or NOTE.get(k, "")
+    out.append(f"| `{k}` | {v['count']} | {lens[:70]}{'...' if len(lens) > 70 else ''} | {note} |")
 out += ["", f"Total: {len(ops)} distinct outgoing opcodes, {sum(v['count'] for v in ops.values())} packets in one short capture; "
         "rarer actions (chat, NPC, shop, skills, party) have not been triggered yet and are absent.", ""]
 open("docs/opcodes.md", "w").write("\n".join(out))

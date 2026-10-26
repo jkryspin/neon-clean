@@ -1,0 +1,1168 @@
+# Opcode registry for MapleStory Classic World (client v1.0.1).
+# status:
+#   verified  - field layout below was tested against real captured packets (neon-protocol/tests)
+#   decoded   - decoded in neon-stream/src/net.rs but the layout is not expressed here yet
+#   structure - sizes/shape known from payloads, meaning not known
+#   observed  - seen on the wire only
+# Never guess names: add a name only with evidence from an isolated action or a fixture. Offsets are into the
+# decoded plaintext, which starts with the 2-byte little-endian opcode. Types: u8 u16 u32 i16 i32 str16 (u16 length, then bytes at off+2).
+
+[[opcode]]
+id = 0x03c9
+dir = "in"
+name = "MobSpawn"
+status = "verified"
+summary = "A mob appears (also sent for mobs already on the map when we enter it)"
+len_min = 313
+len_max = 313
+field = [
+  { name = "oid", ty = "u32", off = 3 },
+  { name = "template", ty = "u32", off = 8 },
+  { name = "x", ty = "i16", off = 206 },
+  { name = "y", ty = "i16", off = 208 },
+]
+
+[[opcode]]
+id = 0x03dc
+dir = "in"
+name = "MobMove"
+status = "verified"
+summary = "Mob movement; x,y is where the move starts (later fragments are not decoded)"
+len_min = 83
+field = [
+  { name = "oid", ty = "u32", off = 2 },
+  { name = "x", ty = "i16", off = 30 },
+  { name = "y", ty = "i16", off = 32 },
+]
+
+[[opcode]]
+id = 0x03d4
+dir = "in"
+name = "MobKill"
+status = "verified"
+summary = "A mob was removed (killed)"
+len_min = 16
+len_max = 16
+field = [{ name = "oid", ty = "u32", off = 2 }]
+
+[[opcode]]
+id = 0x044d
+dir = "in"
+name = "MobDamaged"
+status = "structure"
+summary = "Mob damaged: oid u32@2, attacker char id u32@6, damage u32@10 (layout from docs, not yet tested; unused)"
+len_min = 14
+len_max = 14
+
+[[opcode]]
+id = 0x022d
+dir = "in"
+name = "PlayerSpawn"
+status = "verified"
+summary = "Another player (or us) appears on the map"
+len_min = 24
+field = [
+  { name = "char_id", ty = "u32", off = 6 },
+  { name = "name", ty = "str16", off = 18 },
+]
+
+[[opcode]]
+id = 0x029d
+dir = "in"
+name = "PlayerMove"
+status = "verified"
+summary = "Another player moved"
+len_min = 14
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+  { name = "x", ty = "i16", off = 10 },
+  { name = "y", ty = "i16", off = 12 },
+]
+
+[[opcode]]
+id = 0x0471
+dir = "in"
+name = "DropSpawn"
+status = "verified"
+summary = "A drop of ours appeared (sent twice: flag byte 1 then 0; dedupe by oid). Only our own kills' drops are sent to us"
+len_min = 40
+field = [
+  { name = "oid", ty = "u32", off = 4 },
+  { name = "owner", ty = "u32", off = 25 },
+  { name = "x", ty = "i16", off = 30 },
+  { name = "y", ty = "i16", off = 32 },
+]
+
+[[opcode]]
+id = 0x0472
+dir = "in"
+name = "DropRemove"
+status = "verified"
+summary = "A drop is gone: reason u8@6 (2 picked up, 5 pet loot, 0 expired), picker char id u32@7"
+len_min = 11
+len_max = 11
+field = [{ name = "oid", ty = "u32", off = 2 }]
+
+[[opcode]]
+id = 0x007e
+dir = "in"
+name = "StatUpdate"
+status = "verified"
+summary = "Own stat update: a bitmask of stats, values follow in ascending bit order (sizes in neon-stream/src/net.rs; some unverified)"
+len_min = 11
+field = [{ name = "mask", ty = "u32", off = 5 }]
+
+[[opcode]]
+id = 0x008b
+dir = "in"
+name = "StatusMessage"
+status = "decoded"
+summary = "Pickup message (type 0: item or mesos), quest progress (type 1); decoded in neon-stream"
+
+[[opcode]]
+id = 0x0072
+dir = "in"
+name = "InventoryChange"
+status = "decoded"
+summary = "One inventory slot changed; decoded in neon-stream"
+
+[[opcode]]
+id = 0x01a9
+dir = "in"
+name = "InventoryAll"
+status = "decoded"
+summary = "The whole Use/Set-up/Etc inventory at login; decoded in neon-stream"
+
+[[opcode]]
+id = 0x00a7
+dir = "in"
+name = "PartyUpdate"
+status = "decoded"
+summary = "Party create (mode 0x0e), member joined (0x13), member left (0x10); decoded in neon-stream"
+
+[[opcode]]
+id = 0x0281
+dir = "in"
+name = "PetSpawn"
+status = "decoded"
+summary = "Pet spawn (name only); not mobs"
+
+[[opcode]]
+id = 0x0282
+dir = "in"
+name = "PetMove"
+status = "decoded"
+summary = "Pet move (name only)"
+
+[[opcode]]
+id = 0x00ae
+dir = "in"
+name = "Chat"
+status = "decoded"
+summary = "Chat / megaphone text"
+
+[[opcode]]
+id = 0x0456
+dir = "in"
+status = "structure"
+summary = "Busiest opcode in a crowded town; sizes 12 or 26+21n (n=1..5: 47,68,89,110,131): u16 op, u32 small counter, then 21-byte records. Meaning unknown"
+
+[[opcode]]
+id = 0x004f
+dir = "in"
+status = "structure"
+summary = "3 bytes: op + one byte (0/1 seen)"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x0028
+dir = "in"
+status = "structure"
+summary = "Bare opcode, no fields, about 1 per 10 s"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x02db
+dir = "in"
+status = "structure"
+summary = "7 bytes: op + 5 bytes (10 0a 00 00 00 seen)"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x001b
+dir = "in"
+status = "structure"
+summary = "48 bytes, mostly zeros with two u64-looking values near the end; about 1 per 10 s"
+len_min = 48
+len_max = 48
+
+[[opcode]]
+id = 0x02fe
+dir = "out"
+status = "structure"
+summary = "Most frequent outgoing opcode by far; payload carries a small incrementing counter. Probably movement (unverified)"
+
+[[opcode]]
+id = 0x00de
+dir = "out"
+status = "structure"
+summary = "Bare opcode, no fields"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x0155
+dir = "out"
+status = "structure"
+summary = "Bare opcode, no fields"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x02f0
+dir = "out"
+status = "structure"
+summary = "Bare opcode, no fields"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x0013
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x0014
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x001c
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x001d
+dir = "in"
+status = "observed"
+len_min = 22
+len_max = 22
+
+[[opcode]]
+id = 0x001e
+dir = "in"
+status = "observed"
+len_min = 8
+len_max = 8
+
+[[opcode]]
+id = 0x0020
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x0024
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x0026
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x0027
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x002c
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x002e
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x0037
+dir = "in"
+status = "observed"
+len_min = 18
+len_max = 18
+
+[[opcode]]
+id = 0x0039
+dir = "in"
+status = "observed"
+len_min = 193
+len_max = 193
+
+[[opcode]]
+id = 0x003a
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x003b
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x003c
+dir = "in"
+status = "observed"
+len_min = 77
+len_max = 77
+
+[[opcode]]
+id = 0x003d
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 10
+
+[[opcode]]
+id = 0x0055
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x005c
+dir = "in"
+status = "observed"
+len_min = 12
+len_max = 12
+
+[[opcode]]
+id = 0x0065
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x006e
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 11
+
+[[opcode]]
+id = 0x0070
+dir = "in"
+status = "observed"
+len_min = 15
+len_max = 15
+
+[[opcode]]
+id = 0x0077
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x007f
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 157
+
+[[opcode]]
+id = 0x0080
+dir = "in"
+status = "observed"
+len_min = 129
+len_max = 129
+
+[[opcode]]
+id = 0x0081
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x0082
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x0085
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x008d
+dir = "in"
+status = "observed"
+len_min = 11
+len_max = 11
+
+[[opcode]]
+id = 0x008e
+dir = "in"
+status = "observed"
+len_min = 7037
+len_max = 7364
+
+[[opcode]]
+id = 0x0090
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x0094
+dir = "in"
+status = "observed"
+len_min = 4
+len_max = 4
+
+[[opcode]]
+id = 0x0095
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x0096
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x0097
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x0098
+dir = "in"
+status = "observed"
+len_min = 19
+len_max = 19
+
+[[opcode]]
+id = 0x009a
+dir = "in"
+status = "observed"
+len_min = 14
+len_max = 14
+
+[[opcode]]
+id = 0x00a9
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x00ab
+dir = "in"
+status = "observed"
+len_min = 8
+len_max = 42
+
+[[opcode]]
+id = 0x00b7
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x00be
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x00c1
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x00c6
+dir = "in"
+status = "observed"
+len_min = 11
+len_max = 17
+
+[[opcode]]
+id = 0x00c9
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x00cb
+dir = "in"
+status = "observed"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x00cf
+dir = "in"
+status = "observed"
+len_min = 1450
+len_max = 1450
+
+[[opcode]]
+id = 0x00d2
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x00e5
+dir = "in"
+status = "observed"
+len_min = 115
+len_max = 115
+
+[[opcode]]
+id = 0x00f1
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x00f2
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x00f9
+dir = "in"
+status = "observed"
+len_min = 3
+len_max = 3
+
+[[opcode]]
+id = 0x00fe
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x010e
+dir = "in"
+status = "observed"
+len_min = 17
+len_max = 17
+
+[[opcode]]
+id = 0x0113
+dir = "in"
+status = "observed"
+len_min = 24
+len_max = 24
+
+[[opcode]]
+id = 0x0118
+dir = "in"
+status = "observed"
+len_min = 38
+len_max = 38
+
+[[opcode]]
+id = 0x012c
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x0131
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x0137
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x013c
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x0149
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x0165
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x016b
+dir = "in"
+status = "observed"
+len_min = 35
+len_max = 35
+
+[[opcode]]
+id = 0x016c
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x016d
+dir = "in"
+status = "observed"
+len_min = 9
+len_max = 9
+
+[[opcode]]
+id = 0x016f
+dir = "in"
+status = "observed"
+len_min = 11
+len_max = 11
+
+[[opcode]]
+id = 0x0178
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x0183
+dir = "in"
+status = "observed"
+len_min = 1926
+len_max = 1926
+
+[[opcode]]
+id = 0x0184
+dir = "in"
+status = "observed"
+len_min = 970
+len_max = 970
+
+[[opcode]]
+id = 0x0194
+dir = "in"
+status = "observed"
+len_min = 36
+len_max = 36
+
+[[opcode]]
+id = 0x019f
+dir = "in"
+status = "observed"
+len_min = 15
+len_max = 15
+
+[[opcode]]
+id = 0x01a5
+dir = "in"
+status = "observed"
+len_min = 25
+len_max = 25
+
+[[opcode]]
+id = 0x01ae
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x01f1
+dir = "in"
+status = "observed"
+len_min = 1342
+len_max = 1342
+
+[[opcode]]
+id = 0x01f4
+dir = "in"
+status = "observed"
+len_min = 5
+len_max = 5
+
+[[opcode]]
+id = 0x0209
+dir = "in"
+status = "observed"
+len_min = 12
+len_max = 13
+
+[[opcode]]
+id = 0x020f
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x0211
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x022e
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x022f
+dir = "in"
+status = "observed"
+len_min = 75
+len_max = 123
+
+[[opcode]]
+id = 0x0234
+dir = "in"
+status = "observed"
+len_min = 5206
+len_max = 5206
+
+[[opcode]]
+id = 0x023d
+dir = "in"
+status = "observed"
+len_min = 24
+len_max = 37
+
+[[opcode]]
+id = 0x023f
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x024b
+dir = "in"
+status = "observed"
+len_min = 14
+len_max = 14
+
+[[opcode]]
+id = 0x026f
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x0270
+dir = "in"
+status = "observed"
+len_min = 11
+len_max = 11
+
+[[opcode]]
+id = 0x0279
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 7
+
+[[opcode]]
+id = 0x0283
+dir = "in"
+status = "observed"
+len_min = 17
+len_max = 17
+
+[[opcode]]
+id = 0x02a8
+dir = "in"
+status = "observed"
+len_min = 63
+len_max = 207
+
+[[opcode]]
+id = 0x02a9
+dir = "in"
+status = "observed"
+len_min = 63
+len_max = 111
+
+[[opcode]]
+id = 0x02aa
+dir = "in"
+status = "observed"
+len_min = 63
+len_max = 97
+
+[[opcode]]
+id = 0x02af
+dir = "in"
+status = "observed"
+len_min = 164
+len_max = 164
+
+[[opcode]]
+id = 0x02b0
+dir = "in"
+status = "observed"
+len_min = 15
+len_max = 15
+
+[[opcode]]
+id = 0x02b7
+dir = "in"
+status = "observed"
+len_min = 15
+len_max = 15
+
+[[opcode]]
+id = 0x02b8
+dir = "in"
+status = "observed"
+len_min = 366
+len_max = 421
+
+[[opcode]]
+id = 0x02b9
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 19
+
+[[opcode]]
+id = 0x02ba
+dir = "in"
+status = "observed"
+len_min = 156
+len_max = 157
+
+[[opcode]]
+id = 0x02bb
+dir = "in"
+status = "observed"
+len_min = 131
+len_max = 131
+
+[[opcode]]
+id = 0x02bd
+dir = "in"
+status = "observed"
+len_min = 22
+len_max = 22
+
+[[opcode]]
+id = 0x031f
+dir = "in"
+status = "observed"
+len_min = 25
+len_max = 25
+
+[[opcode]]
+id = 0x0340
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x0345
+dir = "in"
+status = "observed"
+len_min = 14
+len_max = 14
+
+[[opcode]]
+id = 0x0362
+dir = "in"
+status = "observed"
+len_min = 14
+len_max = 14
+
+[[opcode]]
+id = 0x0370
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x0371
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 11
+
+[[opcode]]
+id = 0x037a
+dir = "in"
+status = "observed"
+len_min = 22
+len_max = 22
+
+[[opcode]]
+id = 0x0381
+dir = "in"
+status = "observed"
+len_min = 18
+len_max = 18
+
+[[opcode]]
+id = 0x03d5
+dir = "in"
+status = "observed"
+len_min = 7
+len_max = 313
+
+[[opcode]]
+id = 0x03e7
+dir = "in"
+status = "observed"
+len_min = 28
+len_max = 28
+
+[[opcode]]
+id = 0x03e9
+dir = "in"
+status = "observed"
+len_min = 40
+len_max = 40
+
+[[opcode]]
+id = 0x03f3
+dir = "in"
+status = "observed"
+len_min = 11
+len_max = 11
+
+[[opcode]]
+id = 0x0415
+dir = "in"
+status = "observed"
+len_min = 4
+len_max = 4
+
+[[opcode]]
+id = 0x0441
+dir = "in"
+status = "observed"
+len_min = 10
+len_max = 10
+
+[[opcode]]
+id = 0x0452
+dir = "in"
+status = "observed"
+len_min = 67
+len_max = 67
+
+[[opcode]]
+id = 0x0453
+dir = "in"
+status = "observed"
+len_min = 6
+len_max = 6
+
+[[opcode]]
+id = 0x0454
+dir = "in"
+status = "observed"
+len_min = 68
+len_max = 68
+
+[[opcode]]
+id = 0x045f
+dir = "in"
+status = "observed"
+len_min = 965
+len_max = 965
+
+[[opcode]]
+id = 0x047b
+dir = "in"
+status = "observed"
+len_min = 22
+len_max = 22
+
+[[opcode]]
+id = 0x0487
+dir = "in"
+status = "observed"
+len_min = 19
+len_max = 19
+
+[[opcode]]
+id = 0x048f
+dir = "in"
+status = "observed"
+len_min = 13
+len_max = 13
+
+[[opcode]]
+id = 0x0070
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x0073
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x0077
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x008f
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x0090
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x009e
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x00d3
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x00db
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x00e1
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x00e7
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x013e
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x013f
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x0186
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x0196
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x01ef
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x0228
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x02ab
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x02da
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x02e7
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x02ef
+dir = "out"
+status = "observed"
+
+[[opcode]]
+id = 0x032b
+dir = "out"
+status = "observed"

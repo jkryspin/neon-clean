@@ -1,0 +1,12 @@
+[package]
+name = "neon-protocol"
+version = "0.1.0"
+edition = "2021"
+description = "Neon opcode registry: one source of truth for MapleStory Classic World packets"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
+[dev-dependencies]
+serde_json = "1"
