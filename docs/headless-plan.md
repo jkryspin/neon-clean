@@ -159,4 +159,5 @@ server acceptance (no desyncs, no kicks).
   static key (`send.rs`, `aes.rs`); the send IV is learned from the headers too. Details and evidence: `docs/network-protocol.md`. The client->server wire opcodes are scrambled per connection
   (`WireMap`, `wiremap.py`); how a connection's numbering is chosen is the next open question for Stage B (B2 is therefore no longer "the payload cipher"; it is the opcode numbering).
   Nothing was sent; Stage B stays gated on written Nexon approval.
+* 2026-10-26 (19:45) The user reported that Nexon has approved Stage B, to start after the current passive-mapping pass is finished. Nothing in the repository records that approval yet: `docs/authorization.md` has only the September 3 email (client-based automation, price data). Before any Stage B work (own network client, login without the launcher, packet writer), the written approval (who, date, scope: accounts, servers, what may be sent) must be added to `docs/authorization.md`, and the safety rules of this plan apply unchanged (test accounts first, `ReconnectPolicy` limits, no tokens in the repo or logs, the Sunday maintenance window, one connection per account).
 
