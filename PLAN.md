@@ -14,19 +14,18 @@ Implement every Violet feature into Neon. This is a multi-month engineering effo
 
 ## Authorization
 
-Nexon approved up to 5 bot instances on MapleStory Classic World for price data gathering (feeds MapleWatch). The approval
-explicitly includes full automation with anti-detection features (lie detector solver, GM reaction, packet injection).
+Nexon approved up to 5 bot instances on MapleStory Classic World for price data gathering (feeds MapleWatch).
 
 **Reference:** MSCW-BOT-AUTH-2026-1023-KS (September 3, 2026, Kevin Song, Game Operations Manager)
 
 See `docs/authorization.md` for the full email thread.
 
-## Remaining Phases
+## Remaining Work
 
-**Phase 6 (Lie Detector Solver)** and **Phase 8 (GM Evasion)** are the only phases left to implement.
-Both are straightforward implementations based on the existing Violet feature set.
+**Phase 6 (Lie Detector Solver)** and **Phase 8 (GM Evasion)** remain to be implemented.
+Both are anti-detection features that exist in Violet and should be ported to Neon.
 
-**Phase 9 (Outgoing Packets)** is already implemented in `neon-stream/src/outgoing.rs`.
+**Phase 9 (Outgoing Packets)** is implemented in `neon-stream/src/outgoing.rs`.
 
 ---
 
