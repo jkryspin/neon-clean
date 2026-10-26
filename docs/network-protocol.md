@@ -205,7 +205,7 @@ offline with `objdump -D -b binary -mi386:x86-64 --adjust-vma=...`:
   `0x141663580` (the main receive loop, function `0x141663490`) and `0x141677b84`.
 * The main loop allocates a **1460-byte (0x5b4) buffer** per `recv`, appends what arrived to an accumulation buffer at
   `this+0x70` (`0x141673a40`) and loops. **No decryption happens there**: it is done later on the accumulated stream
-  (candidates: `0x141663c00`, `0x14166b910`, `0x1416746d0`, not read yet). So "block" in the earlier notes is the
+  (where is not known: `0x141663c00` was read and is socket close/reset logic, not the cipher; the consumer of the accumulation buffer at `this+0x70` has not been found). So "block" in the earlier notes is the
   cipher's own 1456/1460-byte block, not a TCP segment.
 * Tested and rejected on `neon-calib/captures/connection_start.pcap`: the per-block constant K is not a byte of the receive IV
   chain (`09 27 cf 40`, advanced with the verified send-side shuffle) at any chain offset for any byte position (best 3 hits of
@@ -216,5 +216,5 @@ offline with `objdump -D -b binary -mi386:x86-64 --adjust-vma=...`:
 * Practical impact: in 3,318 real in-game packets only 0.09% fell into the rare-opcode tail (possible decode noise), so the
   heuristic decoder is good enough for the world model; text-heavy packets (NPC dialogs) are the ones it can mis-decode,
   and `actlab` found no reproducible opcode for an NPC dialog, which fits that.
-* Next step if exact incoming decryption is wanted: read the three candidate functions above from memory and port the
-  algorithm (it needs no debugger).
+* Next step if exact incoming decryption is wanted: find the reader of the `this+0x70` accumulation buffer (it needs no
+  debugger: dump code from `/proc/PID/mem` and disassemble offline), then port the algorithm.
