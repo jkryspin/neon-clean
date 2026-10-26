@@ -19,6 +19,8 @@ pub enum Event {
     PlayerMove { char_id: u32, x: i32, y: i32 },
     /// Our own movement, read from the packet we send (the server never echoes it to us).
     SelfMove { x: i32, y: i32, tick: u32 },
+    /// A player left the map.
+    PlayerLeave { char_id: u32 },
     /// An NPC walked (object id, end of its last fragment).
     NpcMove { oid: u32, x: i32, y: i32 },
     /// A drop of ours appeared: an item (`item`) or mesos (`mesos`).
@@ -207,6 +209,9 @@ impl World {
                 p.y = Some(*y);
                 p.last_ms = now_ms;
             }
+            Event::PlayerLeave { char_id } => {
+                s.players.remove(char_id);
+            }
             Event::SelfMove { x, y, .. } => {
                 s.me.x = Some(*x);
                 s.me.y = Some(*y);
@@ -387,6 +392,7 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
             let neon_protocol::Value::Str(t) = d.get("text")? else { return None };
             Event::Chat { kind: int(&d, "kind")? as u8, text: t.clone() }
         }
+        "PlayerLeave" => Event::PlayerLeave { char_id: int(&d, "char_id")? as u32 },
         "NpcMove" => {
             let (x, y) = end_position(&d)?;
             Event::NpcMove { oid: int(&d, "oid")? as u32, x, y }

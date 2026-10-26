@@ -403,3 +403,20 @@ fn a_real_item_drop_names_its_item() {
     w.apply(&event_from_packet(&r, &p).unwrap(), 0);
     assert_eq!(w.snapshot().drops.values().next().unwrap().item, item);
 }
+
+#[test]
+fn a_real_removal_packet_removes_the_player_from_the_world() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("../../neon-protocol/tests/fixtures/combat_packets.json")).unwrap();
+    let p = plain(c["0x209_leave"]["plain"].as_str().unwrap());
+    assert_eq!(p.len(), 13);
+    let Some(Event::PlayerLeave { char_id }) = event_from_packet(&r, &p) else { panic!("0x0209 must become a PlayerLeave") };
+    let mut w = World::new();
+    w.apply(&Event::PlayerSpawn { char_id, name: "Gone".into(), level: 9, equips: vec![] }, 0);
+    w.apply(&Event::PlayerMove { char_id, x: 5, y: 6 }, 1);
+    w.apply(&Event::PlayerSpawn { char_id: char_id + 1, name: "Stays".into(), level: 9, equips: vec![] }, 2);
+    assert_eq!(w.snapshot().players.len(), 2);
+    w.apply(&Event::PlayerLeave { char_id }, 3);
+    let names: Vec<_> = w.snapshot().players.values().filter_map(|p| p.name.clone()).collect();
+    assert_eq!(names, vec!["Stays".to_string()]);
+}

@@ -78,7 +78,7 @@ My character id is in my own `0x022d` spawn (name `shurelia2` -> `0x51a5a`).
 
 ## Not identified yet
 
-* Player removal (players are expired after 15 s without a packet).
+* ~~Player removal~~: identified on 2026-10-26 as incoming `0x0209` (13 bytes, char id then zeros); evidence in `neon-protocol/opcodes.toml`. (`neon-stream` still expires players after 15 s without a packet; `neon-world` removes them on `0x0209`.)
 * **Stat-update bits other than HP/EXP:** the sizes of LEVEL/STR/DEX/INT/LUK/AP/SP/MESO are unverified, so a
   packet mixing them with HP or EXP is only decoded up to the first unknown bit. (EXP verified over three kills:
   55 -> 59 -> 70 -> 78 on the wire and on screen; the 15-byte variants carried HP 141 and 138.)

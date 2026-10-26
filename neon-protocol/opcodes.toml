@@ -859,13 +859,12 @@ len_max = 5
 [[opcode]]
 id = 0x0209
 dir = "in"
-status = "structure"
-summary = "13 bytes: char id@2 is a known player in 34 of 36 packets (28 distinct). About a player; meaning unknown (2026-10-26)."
+name = "PlayerLeave"
+status = "verified"
+summary = "A player left the map: 13 bytes, the char id u32@2 followed by nine zero bytes (always, 275 of 275). Evidence (pooled captures 2026-10-26): in the 5 s before it that player sent 1992 movement packets over the 275 events, in the 5 s after 180 (the same players at random times: 1 and 5), and 76 of the 275 are followed by that player's spawn again within 60 s. This is the removal packet the protocol notes had open"
 len_min = 13
 len_max = 13
-field = [
-  { name = "char_id", ty = "u32", off = 2 },
-]
+field = [{ name = "char_id", ty = "u32", off = 2, min = 1 }]
 
 [[opcode]]
 id = 0x020f
