@@ -420,3 +420,28 @@ fn a_real_removal_packet_removes_the_player_from_the_world() {
     let names: Vec<_> = w.snapshot().players.values().filter_map(|p| p.name.clone()).collect();
     assert_eq!(names, vec!["Stays".to_string()]);
 }
+
+#[test]
+fn damage_from_other_players_accumulates_on_the_mob_until_it_is_killed() {
+    use neon_world::{event_from_packet, Event, World};
+    let reg = neon_protocol::Registry::builtin().unwrap();
+    let f: serde_json::Value = serde_json::from_str(include_str!("fixtures/damage_kill.json")).unwrap();
+    let hex = |s: &str| -> Vec<u8> { (0..s.len() / 2).map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap()).collect() };
+    let mut w = World::new();
+    let spawn = event_from_packet(&reg, &hex(f["mob_spawn"]["plain"].as_str().unwrap())).expect("spawn");
+    let Event::MobSpawn { oid, hp, .. } = spawn.clone() else { panic!("not a spawn") };
+    w.apply(&spawn, 0);
+    let mut total = 0;
+    for (i, a) in f["attacks"].as_array().unwrap().iter().enumerate() {
+        let e = event_from_packet(&reg, &hex(a["plain"].as_str().unwrap())).expect("attack event");
+        let Event::MobHits { hits, .. } = &e else { panic!("not hits: {e:?}") };
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].0, oid);
+        total += hits[0].1;
+        w.apply(&e, 100 * (i as u64 + 1));
+        assert_eq!(w.snapshot().mobs.get(&oid).map(|m| m.damage_seen), Some(total));
+    }
+    assert!(total >= hp.unwrap() && total <= hp.unwrap() * 12 / 10);
+    w.apply(&Event::MobKill { oid }, 1000);
+    assert_eq!(w.snapshot().mobs.get(&oid).map(|m| m.damage_seen), None, "a killed mob is gone");
+}

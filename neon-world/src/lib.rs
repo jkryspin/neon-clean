@@ -15,6 +15,8 @@ pub enum Event {
     MobSpawn { oid: u32, template: u32, x: i32, y: i32, hp: Option<u32> },
     MobMove { oid: u32, x: i32, y: i32 },
     MobKill { oid: u32 },
+    /// Another player's attack and what it did to each target (oid, damage). Our own attacks are not echoed by the server.
+    MobHits { char_id: u32, hits: Vec<(u32, u32)> },
     PlayerSpawn { char_id: u32, name: String, level: u32, equips: Vec<(u8, u32)> },
     PlayerMove { char_id: u32, x: i32, y: i32 },
     /// Our own movement, read from the packet we send (the server never echoes it to us).
@@ -47,6 +49,8 @@ pub struct Mob {
     pub template: Option<u32>,
     /// HP when it spawned (the spawn packet carries it).
     pub hp: Option<u32>,
+    /// Damage other players are seen to have dealt to it since we first saw it (a lower bound on what it took: our own hits are not echoed).
+    pub damage_seen: u32,
     pub x: i32,
     pub y: i32,
     pub last_ms: u64,
@@ -184,17 +188,25 @@ impl World {
         s.now_ms = now_ms;
         match e {
             Event::MobSpawn { oid, template, x, y, hp } => {
-                s.mobs.insert(*oid, Mob { template: Some(*template), hp: *hp, x: *x, y: *y, last_ms: now_ms });
+                s.mobs.insert(*oid, Mob { template: Some(*template), hp: *hp, damage_seen: 0, x: *x, y: *y, last_ms: now_ms });
             }
             Event::MobMove { oid, x, y } => {
                 // A move can arrive for a mob that spawned before we joined: template unknown.
-                let m = s.mobs.entry(*oid).or_insert(Mob { template: None, hp: None, x: *x, y: *y, last_ms: now_ms });
+                let m = s.mobs.entry(*oid).or_insert(Mob { template: None, hp: None, damage_seen: 0, x: *x, y: *y, last_ms: now_ms });
                 m.x = *x;
                 m.y = *y;
                 m.last_ms = now_ms;
             }
             Event::MobKill { oid } => {
                 s.mobs.remove(oid);
+            }
+            Event::MobHits { hits, .. } => {
+                for (oid, dmg) in hits {
+                    if let Some(m) = s.mobs.get_mut(oid) {
+                        m.damage_seen = m.damage_seen.saturating_add(*dmg);
+                        m.last_ms = now_ms;
+                    }
+                }
             }
             Event::PlayerSpawn { char_id, name, level, equips } => {
                 let p = s.players.entry(*char_id).or_insert(Player { name: None, level: None, equips: vec![], x: None, y: None, last_ms: now_ms });
@@ -366,6 +378,15 @@ pub fn event_from_out_packet(reg: &Registry, plain: &[u8]) -> Option<Event> {
 
 fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
     let d = reg.decode(Dir::In, plain)?;
+    // the three attack broadcasts share one layout: a header and 24-byte target records (mob oid, ..., damage)
+    if matches!(d.id, 0x02a8 | 0x02a9 | 0x02aa) {
+        let mut hits = vec![];
+        for i in 0.. {
+            let (Some(oid), Some(dmg)) = (int(&d, &format!("target[{i}].mob_oid")), int(&d, &format!("target[{i}].damage"))) else { break };
+            hits.push((oid as u32, dmg as u32));
+        }
+        return Some(Event::MobHits { char_id: int(&d, "char_id")? as u32, hits });
+    }
     let name = d.name.as_deref()?;
     Some(match name {
         "MobSpawn" | "MobControl" => Event::MobSpawn {
