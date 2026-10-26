@@ -262,7 +262,7 @@ fn records_expand_and_layout_reports_every_explained_byte() {
     let p87 = plain(c["0x2a8"]["plain"].as_str().unwrap());
     assert_eq!(p87.len(), 87);
     let d = r.decode(Dir::In, &p87).unwrap();
-    assert!(d.get("target[0].mob_oid").is_some() && d.get("target[0].value").is_some() && d.get("target[1].mob_oid").is_none());
+    assert!(d.get("target[0].mob_oid").is_some() && d.get("target[0].damage").is_some() && d.get("target[1].mob_oid").is_none());
     // the same packet with a second target record appended: 111 bytes, two records
     let mut p111 = p87.clone();
     p111.extend_from_slice(&p87[63..87]);
@@ -276,7 +276,7 @@ fn records_expand_and_layout_reports_every_explained_byte() {
     let spans = r.layout(Dir::In, &p111);
     let bytes: usize = spans.iter().map(|s| s.size).sum();
     assert_eq!(bytes, 2 + 4 + 1 + 16 + 2 * (4 + 4));
-    assert!(spans.iter().any(|s| s.name == "target[1].value" && s.off == 63 + 24 + 8));
+    assert!(spans.iter().any(|s| s.name == "target[1].damage" && s.off == 63 + 24 + 8));
     // a mode byte counts as explained too
     let exp = plain(c["0x8b_exp"]["plain"].as_str().unwrap());
     assert!(r.layout(Dir::In, &exp).iter().any(|s| s.name == "mode" && s.off == 2));
@@ -498,4 +498,25 @@ fn the_server_ping_is_a_bare_two_byte_packet_decoded_by_name() {
     let d = r.decode(Dir::In, &[0x2e, 0x06]).expect("0x062e");
     assert_eq!(d.name.as_deref(), Some("Ping"));
     assert!(r.decode(Dir::In, &[0x2e, 0x06, 0x00]).is_none(), "any extra byte is not a ping");
+}
+
+#[test]
+fn attack_damage_adds_up_to_the_mobs_hp_for_a_real_kill() {
+    // Independent evidence for the damage field: one real mob, its spawn HP (verified field), the three attack broadcasts that hit it and its kill
+    let r = Registry::builtin().unwrap();
+    let f: serde_json::Value = serde_json::from_str(include_str!("fixtures/damage_kill.json")).unwrap();
+    let spawn = r.decode(Dir::In, &plain(f["mob_spawn"]["plain"].as_str().unwrap())).expect("spawn decodes");
+    let hp = spawn.get("hp").unwrap().as_i64().unwrap();
+    let mob = u32::from_le_bytes(plain(f["mob_spawn"]["plain"].as_str().unwrap())[3..7].try_into().unwrap());
+    let mut total = 0;
+    for a in f["attacks"].as_array().unwrap() {
+        let p = plain(a["plain"].as_str().unwrap());
+        let d = r.decode(Dir::In, &p).expect("attack decodes");
+        assert_eq!(d.name.as_deref(), Some("PlayerAttack"));
+        assert_eq!(u32::from_le_bytes(p[63..67].try_into().unwrap()), mob, "the attack targets this mob");
+        total += i64::from(u32::from_le_bytes(p[71..75].try_into().unwrap()));
+    }
+    assert!(total >= hp && total <= hp + hp / 5, "damage {total} vs hp {hp}: the last hit may overkill a little");
+    let kill = plain(f["mob_kill"]["plain"].as_str().unwrap());
+    assert_eq!(u32::from_le_bytes(kill[2..6].try_into().unwrap()), mob, "and the mob is then killed");
 }

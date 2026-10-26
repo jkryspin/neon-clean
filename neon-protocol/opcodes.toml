@@ -1415,7 +1415,7 @@ id = 0x02a8
 dir = "in"
 name = "PlayerAttack"
 status = "structure"
-summary = "Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (n = 0..4 targets). char_id@2 is a known player in 100% of packets; each target record starts with the mob oid (known mob in 94% of first records) and has, at +8, probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). n = 0 is a swing at nothing (36 seen in a mob-less town). Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. The attacker's position is stored twice as 32-bit pairs, x @17 / y @21 and x2 @25 / y2 @29: within 30 px of that player's last position (from PlayerMove) in 77% of 1483 packets, near 0% at other offsets. @6 is a property of the attacker, not of the attack: in 1468 of 1487 packets it equals that attacker's most common value (17, 18, 20, 23, 12, 14 for different players; probably weapon or animation set, unknown). Still unexplained: the bytes @7-16 and @33-62"
+summary = "DAMAGE (target record +8) CONFIRMED 2026-10-26 from exact-decoded logs: for 2286 killed mobs whose spawn HP (0x03c9 @225, verified against the public DB) is known, the sum of the +8 values over every 0x02a8 that targeted the mob is 0.7 to 1.6 times its HP in 71% of the kills (median 1.21, other players only: our own hits are not echoed); the same test at offsets +0, +4, +12, +16, +20 gives 0%. Real example (test fixture damage_kill.json): HP 133, three hits 46 + 41 + 53 = 140. Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (n = 0..4 targets). char_id@2 is a known player in 100% of packets; each target record starts with the mob oid (known mob in 94% of first records) and has, at +8, probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). n = 0 is a swing at nothing (36 seen in a mob-less town). Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. The attacker's position is stored twice as 32-bit pairs, x @17 / y @21 and x2 @25 / y2 @29: within 30 px of that player's last position (from PlayerMove) in 77% of 1483 packets, near 0% at other offsets. @6 is a property of the attacker, not of the attack: in 1468 of 1487 packets it equals that attacker's most common value (17, 18, 20, 23, 12, 14 for different players; probably weapon or animation set, unknown). Still unexplained: the bytes @7-16 and @33-62"
 len_min = 63
 field = [
   { name = "char_id", ty = "u32", off = 2 },
@@ -1432,7 +1432,7 @@ start = 63
 stride = 24
 field = [
   { name = "mob_oid", ty = "u32", off = 0 },
-  { name = "value", ty = "u32", off = 8, min = 0, max = 10000000 },
+  { name = "damage", ty = "u32", off = 8, min = 0, max = 10000000 },
 ]
 
 [[opcode]]
