@@ -8,68 +8,74 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 
 | Opcode | Seen | Size (min-max) | Meaning | Status |
 |---|---:|---|---|---|
-| `0x0013` | 2 | 3 |  | observed only |
-| `0x0014` | 2 | 3 |  | observed only |
-| `0x001b` | 10 | 48 |  | observed only |
-| `0x001d` | 1 | 22 |  | observed only |
-| `0x0028` | 10 | 2 |  | observed only |
-| `0x002c` | 8 | 6 |  | observed only |
-| `0x003d` | 135 | 10 |  | observed only |
-| `0x004f` | 6 | 3 |  | observed only |
-| `0x006e` | 1 | 11 |  | observed only |
-| `0x0072` | 5 | 9-15 | inventory change | seen with pickups, not decoded |
-| `0x0077` | 5 | 7 |  | observed only |
-| `0x007e` | 81 | 11-19 | own stat update | decoded (bitmask; some sizes unverified) |
-| `0x007f` | 4 | 3-157 |  | observed only |
-| `0x0080` | 6 | 129 |  | observed only |
-| `0x0081` | 2 | 3 |  | observed only |
-| `0x0082` | 2 | 2 |  | observed only |
+| `0x0013` | 4 | 3 |  | observed only |
+| `0x0014` | 4 | 3 |  | observed only |
+| `0x001b` | 18 | 48 |  | observed only |
+| `0x001d` | 2 | 22 |  | observed only |
+| `0x0020` | 1 | 3 |  | observed only |
+| `0x0028` | 18 | 2 |  | observed only |
+| `0x002c` | 12 | 6 |  | observed only |
+| `0x003d` | 268 | 10 |  | observed only |
+| `0x004f` | 18 | 3 |  | observed only |
+| `0x006e` | 2 | 7-11 |  | observed only |
+| `0x0072` | 6 | 9-15 | inventory change | seen with pickups, not decoded |
+| `0x0077` | 9 | 7 |  | observed only |
+| `0x007e` | 106 | 11-19 | own stat update | decoded (bitmask; some sizes unverified) |
+| `0x007f` | 6 | 3-157 |  | observed only |
+| `0x0080` | 10 | 129 |  | observed only |
+| `0x0081` | 4 | 3 |  | observed only |
+| `0x0082` | 4 | 2 |  | observed only |
 | `0x0085` | 5 | 6 |  | observed only |
-| `0x008b` | 23 | 6-31 | pickup message | decoded |
-| `0x00a7` | 2 | 738 | party update | decoded (create/leave/join) |
-| `0x00ae` | 16 | 4-259 | chat / megaphone | text |
-| `0x00d2` | 8 | 7 |  | observed only |
-| `0x00f9` | 2 | 3 |  | observed only |
-| `0x0165` | 2 | 6 |  | observed only |
-| `0x01a9` | 2 | 103 |  | observed only |
-| `0x01f4` | 2 | 5 |  | observed only |
-| `0x0209` | 10 | 12-13 |  | observed only |
-| `0x020f` | 2 | 7 |  | observed only |
-| `0x0211` | 2 | 6 |  | observed only |
-| `0x022d` | 11 | 886-968 | player spawn | decoded (id, name) |
-| `0x023d` | 29 | 24-37 |  | observed only |
-| `0x026f` | 2 | 10 |  | observed only |
+| `0x008b` | 28 | 6-31 | pickup message | decoded |
+| `0x00a7` | 4 | 738 | party update | decoded (create/leave/join) |
+| `0x00ae` | 28 | 4-278 | chat / megaphone | text |
+| `0x00d2` | 10 | 7 |  | observed only |
+| `0x00f9` | 4 | 3 |  | observed only |
+| `0x0165` | 4 | 6 |  | observed only |
+| `0x01a9` | 4 | 103 |  | observed only |
+| `0x01f4` | 4 | 5 |  | observed only |
+| `0x0209` | 14 | 12-13 |  | observed only |
+| `0x020f` | 4 | 7 |  | observed only |
+| `0x0211` | 4 | 6 |  | observed only |
+| `0x022d` | 18 | 886-968 | player spawn | decoded (id, name) |
+| `0x022f` | 2 | 75-79 |  | observed only |
+| `0x023d` | 35 | 24-37 |  | observed only |
+| `0x023f` | 6 | 10 |  | observed only |
+| `0x026f` | 4 | 10 |  | observed only |
 | `0x0281` | 2 | 52 | pet spawn | name only |
-| `0x0282` | 142 | 45-285 | pet move | name only |
-| `0x029d` | 565 | 41-265 | player move | decoded |
-| `0x02a8` | 124 | 63-87 |  | observed only |
-| `0x02a9` | 41 | 63-97 |  | observed only |
+| `0x0282` | 182 | 45-285 | pet move | name only |
+| `0x029d` | 900 | 41-265 | player move | decoded |
+| `0x02a8` | 213 | 63-87 |  | observed only |
+| `0x02a9` | 72 | 63-97 |  | observed only |
 | `0x02aa` | 5 | 87 |  | observed only |
-| `0x02af` | 47 | 164 |  | observed only |
-| `0x02bb` | 3 | 131 |  | observed only |
+| `0x02af` | 59 | 164 |  | observed only |
+| `0x02bb` | 5 | 131 |  | observed only |
 | `0x02bd` | 1 | 22 |  | observed only |
-| `0x02db` | 9 | 7 |  | observed only |
+| `0x02db` | 11 | 7 |  | observed only |
 | `0x0345` | 2 | 14 |  | observed only |
-| `0x0370` | 2 | 6 |  | observed only |
+| `0x0370` | 4 | 6 |  | observed only |
 | `0x0381` | 1 | 18 |  | observed only |
-| `0x03c9` | 49 | 313 | mob spawn | decoded |
-| `0x03d4` | 55 | 16 | mob removed | decoded |
-| `0x03d5` | 6 | 313 |  | observed only |
-| `0x03dc` | 1055 | 62-335 | mob update/move | decoded (start position only) |
-| `0x03e7` | 417 | 28 |  | observed only |
-| `0x03f3` | 31 | 11 |  | observed only |
-| `0x0415` | 2 | 4 |  | observed only |
+| `0x03c9` | 115 | 313 | mob spawn | decoded |
+| `0x03d4` | 98 | 16 | mob removed | decoded |
+| `0x03d5` | 25 | 313 |  | observed only |
+| `0x03dc` | 1864 | 62-335 | mob update/move | decoded (start position only) |
+| `0x03e7` | 644 | 28 |  | observed only |
+| `0x03f3` | 38 | 11 |  | observed only |
+| `0x0415` | 4 | 4 |  | observed only |
 | `0x0441` | 17 | 10 |  | observed only |
-| `0x044d` | 54 | 14 | mob damaged | layout known, unused |
-| `0x0452` | 4 | 67 |  | observed only |
+| `0x044d` | 92 | 14 | mob damaged | layout known, unused |
+| `0x0452` | 7 | 67 |  | observed only |
+| `0x0453` | 2 | 6 |  | observed only |
 | `0x0454` | 1 | 68 |  | observed only |
-| `0x0456` | 30 | 12-131 |  | observed only |
-| `0x0471` | 18 | 115-123 | drop spawn (own kills only) | decoded |
-| `0x0472` | 85 | 7-15 | drop removed | decoded |
+| `0x0456` | 55 | 12-131 |  | observed only |
+| `0x045f` | 1 | 965 |  | observed only |
+| `0x0471` | 28 | 115-123 | drop spawn (own kills only) | decoded |
+| `0x0472` | 188 | 7-15 | drop removed | decoded |
 | `0x047b` | 1 | 22 |  | observed only |
-| `0x0487` | 8 | 19 |  | observed only |
+| `0x0487` | 14 | 19 |  | observed only |
+| `0x048f` | 2 | 13 |  | observed only |
 
-Total: 60 distinct incoming opcodes, 3175 packets.
+Total: 66 distinct incoming opcodes, 5323 packets.
 
 ## Outgoing (client -> server)
 
