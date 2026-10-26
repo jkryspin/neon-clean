@@ -77,6 +77,8 @@ Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRe
 
 ### Corrections made along the way (kept visible on purpose)
 
+* `0x003d`, `0x002c`, `0x006e`, `0x023f` ("1 s ticks", counters with constant `fe`/`fc` tails) never existed: they were frames the old per-block heuristic decrypted with the wrong constant. After exact decryption (docs/network-protocol.md, 2026-10-26 18:40) none of them occurs in 1,600 packets (they were 900 in 30 min). The registry entries are removed. Treat any entry derived from logs written before commit `ab800c1` as unconfirmed until it reappears in an exact-decoded log.
+
 * `0x02fe` was first read as movement; it is the mob-movement report (`0x00db` is our movement).
 * `0x0456` "sequential ids" were x coordinates; it is NPC movement.
 * `0x03d5` "respawn" is a control assignment (26/26 are for mobs already announced).

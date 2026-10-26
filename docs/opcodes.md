@@ -19,19 +19,19 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0026` | 5 | 0.0 | 2 |  | observed |
 | `0x0027` | 9 | 0.0 | 2 |  | observed |
 | `0x0028` | 502 | 2.6 | 2 |  | structure: Bare opcode, no fields, about 1 per 10 s |
-| `0x002c` | 287 | 1.5 | 6 |  | structure: Unverified. 6 bytes (op + 2 varying bytes + 3 bytes ending in fe); 234 seen in a 30 min capture, irregular spacing (1-15 s), no known player/mob id in any 4-byte window (idscan). Same shape as 0x003d/0x023f (short, constant last byte), meaning unknown. |
+| `0x002c` | 287 | 1.5 | 6 |  | observed |
 | `0x002e` | 1 | 0.0 | 2 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0037` | 1 | 0.0 | 18 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0039` | 1 | 0.0 | 193 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x003a` | 1 | 0.0 | 6 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x003b` | 1 | 0.0 | 6 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x003c` | 1 | 0.0 | 77 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x003d` | 5774 | 29.5 | 2-10 |  | structure: Unverified. Always 10 bytes, arrives in bursts once per second (periodic.py: 90% of 2267 gaps within 15% of 1.0 s). Bytes 6-8 take a small recurring set of values (about 5, e.g. 90 d7 01) and look like a stream/entity key; the u16 at 2 counts up by 1 per packet within one key (a6 3a, a7 3a, a8 3a, a9 3a); the u16 at 4 drifts slowly upward (7a fe -> 7b fe) like a clock. Several streams in step. Meaning not established; the incoming cipher key estimate may garble bytes. |
+| `0x003d` | 5774 | 29.5 | 2-10 |  | observed |
 | `0x004f` | 516 | 2.6 | 3 |  | structure: 3 bytes: op + one byte. Arrives as a burst of six packets with the byte counting 0,1,2,3,4,5 about 0.1 s apart, one burst every 60 s (9 bursts in 8 min on jib01, starting before any test action; every one of the 6 values seen exactly 9 times). A mark test that opened/closed the stats, inventory, equipment, skills and quest windows on a 60 s loop appeared to link it to opening the stats window (3/3), but that was phase-locking of the loop with the timer: bursts also occur with no action. Not caused by those windows. Meaning unknown. |
 | `0x0055` | 2 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x005c` | 1 | 0.0 | 12 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0065` | 1 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x006e` | 118 | 0.6 | 7-11 |  | structure: Unverified. 7 or 11 bytes, constant tail (fc / fe .. fc); the u16 at 2 grows slowly (72 0c .. 74 0c) across packets; bursts of 3 packets in the same millisecond with consecutive counters (a9, b7, b8). 140 seen. No id references found. Meaning unknown. |
+| `0x006e` | 118 | 0.6 | 7-11 |  | observed |
 | `0x0070` | 1 | 0.0 | 15 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0072` | 124 | 0.6 | 9-54 | InventoryChange | decoded: One inventory slot changed; decoded in neon-stream |
 | `0x0077` | 200 | 1.0 | 7 |  | structure: 7 bytes: op, a 3-byte id (e.g. 8f b8 07, 73 b9 07; the same ids appear in both 0x0077 and 0x00b7, at different times) then fe and a flag byte (flag byte ff seen). Not tied to talking to an NPC: actlab npc_talk_open (3 repeats) found no reproducible incoming opcode. Meaning unknown (2026-10-26) |
@@ -99,7 +99,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x022f` | 13 | 0.1 | 75-123 |  | observed |
 | `0x0234` | 1 | 0.0 | 5206 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x023d` | 482 | 2.5 | 24-37 |  | structure: 24 bytes: char id@2 is a known player in 51 of 51 packets. About a player; meaning unknown (2026-10-26). |
-| `0x023f` | 76 | 0.4 | 10 |  | structure: Unverified. Always 10 bytes, ends in fe; u16 at 2 climbs steadily across packets (6a f7 -> 71 a2 -> 74 f5 -> 78 48 -> 7b 84) at 1-20 s spacing, and bytes 6-8 repeat a few values (92 d9 03 seen 3 times) like a stream key. 118 seen. Meaning unknown. |
+| `0x023f` | 76 | 0.4 | 10 |  | observed |
 | `0x024b` | 1 | 0.0 | 14 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x026f` | 16 | 0.1 | 10 |  | observed |
 | `0x0270` | 8 | 0.0 | 11 |  | observed |
