@@ -13,4 +13,5 @@ for c in neon-protocol neon-world neon-view neon-cmd neon-stream; do
     echo "ok    $c  (${n:-0} tests)"
   fi
 done
+if python3 -I neon-calib/tools/test_tools.py >/dev/null 2>&1; then echo "ok    neon-calib tools"; else echo "FAIL  neon-calib tools"; fail=1; fi
 exit $fail

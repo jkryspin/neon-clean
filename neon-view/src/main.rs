@@ -1,4 +1,4 @@
-//! neon-view [--log <packet log> [--log <more>]] [--sessions <dir>] [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps]
+//! neon-view [--log <packet log> [--log <more>]] [--sessions <dir>] [--marks <file>] [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps]
 //!             [--mem <file with the latest neon-stream line>] [--start <ms>] [--speed 1.0]
 //!
 //! Two modes, one page:
@@ -37,6 +37,7 @@ fn main() {
     let mut app = App::new(Registry::builtin().expect("registry"), Shared { maps_dir: maps, ..Shared::default() });
     app.sessions_dir = sessions;
     app.live = follow;
+    app.marks_path = get("--marks").map(std::path::PathBuf::from);
     let app = Arc::new(app);
     let listener = std::net::TcpListener::bind((host.as_str(), port)).expect("bind (is the port taken or the host wrong?)");
     eprintln!("neon-view on http://{host}:{port}/  (log {log}, {}; no authentication)", if follow { "live" } else { "replay" });

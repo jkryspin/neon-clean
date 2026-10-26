@@ -64,13 +64,15 @@ pub struct App {
     pub reg: Registry,
     /// Directory the page may load sessions from (`/sessions`, `POST /replay/load`). None: no browser.
     pub sessions_dir: Option<std::path::PathBuf>,
+    /// Where marks (human labels dropped into the timeline) are appended, as JSON lines `{"t": unix ms, "label": "..."}`.
+    pub marks_path: Option<std::path::PathBuf>,
     /// True when a live follower feeds `shared`: loading a replay would fight it, so it is refused.
     pub live: bool,
 }
 
 impl App {
     pub fn new(reg: Registry, shared: Shared) -> Self {
-        App { shared: Mutex::new(shared), replay: Mutex::new(None), reg, sessions_dir: None, live: false }
+        App { shared: Mutex::new(shared), replay: Mutex::new(None), reg, sessions_dir: None, marks_path: None, live: false }
     }
 
     /// Advance an active replay by `dt_ms` of wall time (call about every 50 ms).
@@ -150,6 +152,25 @@ impl App {
         rp.seek(&mut ViewSink { shared: &mut sh, reg: &self.reg }, u64::MAX);
         *self.replay.lock().unwrap() = Some(rp);
         Ok(())
+    }
+
+    /// Record a label at the current wall-clock time. Labels are short plain text; anything else is refused.
+    pub fn add_mark(&self, label: &str, now_unix_ms: u64) -> Result<(), String> {
+        let path = self.marks_path.as_ref().ok_or("marks are not enabled on this server")?;
+        let label = label.replace('+', " ");
+        let ok = !label.trim().is_empty() && label.len() <= 80 && label.chars().all(|c| c.is_ascii_alphanumeric() || " -_.,:/()".contains(c));
+        if !ok {
+            return Err("a mark is 1-80 characters: letters, digits, spaces and - _ . , : / ( )".into());
+        }
+        use std::io::Write;
+        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(path).map_err(|e| e.to_string())?;
+        writeln!(f, "{}", serde_json::json!({"t": now_unix_ms, "label": label.trim()})).map_err(|e| e.to_string())
+    }
+
+    pub fn list_marks(&self) -> String {
+        let Some(path) = &self.marks_path else { return "[]".into() };
+        let rows: Vec<serde_json::Value> = std::fs::read_to_string(path).unwrap_or_default().lines().filter_map(|l| serde_json::from_str(l).ok()).collect();
+        serde_json::to_string(&rows).unwrap()
     }
 
     pub fn replay_status(&self) -> String {

@@ -104,6 +104,15 @@ fn handle(mut stream: TcpStream, app: Arc<App>, tick: Duration) {
     let (method, path) = (parts.next().unwrap_or(""), parts.next().unwrap_or("/"));
     let r = match (method, path) {
         ("GET", p) if p == "/replay" || p.starts_with("/replay?") => Route::Body { status: 200, content_type: "application/json", body: app.replay_status() },
+        ("GET", "/marks") => Route::Body { status: 200, content_type: "application/json", body: app.list_marks() },
+        ("POST", p) if p.starts_with("/mark?label=") => {
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+            match app.add_mark(&p["/mark?label=".len()..].replace("%20", " ").replace("%2C", ",").replace("%3A", ":").replace("%2F", "/").replace("%28", "(").replace("%29", ")"), now) {
+                Ok(()) => Route::Body { status: 200, content_type: "application/json", body: app.list_marks() },
+                Err(e) => Route::Body { status: 400, content_type: "text/plain", body: e },
+            }
+        }
+        ("GET", p) if p.starts_with("/mark?") => Route::Body { status: 405, content_type: "text/plain", body: "use POST".into() },
         ("GET", "/sessions") => Route::Body { status: 200, content_type: "application/json", body: app.list_sessions() },
         ("POST", p) if p.starts_with("/replay/load?name=") => match app.load_session(&p["/replay/load?name=".len()..]) {
             Ok(()) => Route::Body { status: 200, content_type: "application/json", body: app.replay_status() },

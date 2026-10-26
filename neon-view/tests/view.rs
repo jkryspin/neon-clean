@@ -224,3 +224,51 @@ fn the_session_browser_lists_loads_and_refuses_bad_names() {
     assert_eq!(serde_json::from_str::<serde_json::Value>(&body(&req(laddr, "GET", "/replay"))).unwrap()["mode"], "live");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn marks_are_stored_with_a_time_read_back_in_order_and_unsafe_labels_are_refused() {
+    use std::io::{Read, Write};
+    use std::sync::Arc;
+    let path = std::env::temp_dir().join(format!("neon-marks-test-{}.jsonl", std::process::id()));
+    let _ = std::fs::remove_file(&path);
+    let mk = |marks: Option<std::path::PathBuf>| {
+        let mut app = App::new(Registry::builtin().unwrap(), Shared::default());
+        app.marks_path = marks;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let a2 = Arc::new(app);
+        std::thread::spawn(move || server::serve(listener, a2, std::time::Duration::from_millis(20)));
+        addr
+    };
+    let req = |addr: std::net::SocketAddr, method: &str, path: &str| {
+        let mut s = std::net::TcpStream::connect(addr).unwrap();
+        write!(s, "{method} {path} HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        let mut out = String::new();
+        s.read_to_string(&mut out).unwrap();
+        out
+    };
+    let body = |r: &str| r.split("\r\n\r\n").nth(1).unwrap().to_string();
+    let addr = mk(Some(path.clone()));
+    let before = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+    assert!(req(addr, "POST", "/mark?label=opened%20the%20shop").starts_with("HTTP/1.1 200"));
+    assert!(req(addr, "POST", "/mark?label=bought%20a%20potion%20(2)%3A%20ok").starts_with("HTTP/1.1 200"));
+    let marks: serde_json::Value = serde_json::from_str(&body(&req(addr, "GET", "/marks"))).unwrap();
+    let rows = marks.as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["label"], "opened the shop");
+    assert_eq!(rows[1]["label"], "bought a potion (2): ok");
+    assert!(rows[0]["t"].as_u64().unwrap() >= before && rows[1]["t"].as_u64() >= rows[0]["t"].as_u64(), "times are wall-clock and ordered");
+    // the file is what an offline tool reads: one JSON object per line
+    assert_eq!(std::fs::read_to_string(&path).unwrap().lines().count(), 2);
+    for bad in ["%3Cscript%3E", "", "x%00y", "a%0Ab", "%2E%2E%2F%2E%2E", &"y".repeat(81)] {
+        let r = req(addr, "POST", &format!("/mark?label={bad}"));
+        assert!(r.starts_with("HTTP/1.1 400"), "{bad:?}: {}", r.lines().next().unwrap());
+    }
+    assert!(req(addr, "GET", "/mark?label=x").starts_with("HTTP/1.1 405"), "marking is a POST");
+    assert_eq!(std::fs::read_to_string(&path).unwrap().lines().count(), 2, "refused labels were not written");
+    // a server without a marks file says so and lists nothing
+    let off = mk(None);
+    assert!(req(off, "POST", "/mark?label=x").starts_with("HTTP/1.1 400"));
+    assert_eq!(body(&req(off, "GET", "/marks")), "[]");
+    let _ = std::fs::remove_file(path);
+}

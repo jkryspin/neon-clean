@@ -35,6 +35,7 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 | `neon-calib/tools/poscorr.py` | Does a field hold the position of the entity the packet refers to? | attacker position pairs in `0x02a8` (77% within 30 px) |
 | `neon-calib/tools/actlab.py` | Which opcodes does one isolated action produce (baseline + repeats)? | party create/leave |
 | Map geometry (`neon-calib/maps/<id>.json`) | Do decoded positions lie on real platforms / at real NPC positions? | spawns 383/384, NPC moves vs the NPC list |
+| **Marks** + `neon-calib/tools/marklab.py MARKS LOG...` | Which opcodes follow a hand-made action? Type a label into the page's Mark box (stored in `run/marks.jsonl`, `POST /mark?label=`) when you do something in the game; `marklab.py run/marks.jsonl run/sessions/X.log` lists, per mark, the opcodes whose count in the next 15 s is far above their background rate. Repeat the action: an opcode that follows every repeat is the candidate (then confirm with the evidence rules). | needs logs with real capture times |
 | Aligned outgoing capture | Which sent packet belongs to which key press? | attack `0x00e1` at each `ctrl`; movement `0x00db` |
 
 ## Evidence rules (what gets a name)
