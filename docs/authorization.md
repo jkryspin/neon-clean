@@ -190,6 +190,104 @@ John
 
 ---
 
+## Stage B Approval: Headless Automation
+
+**From:** Kevin Song <kevin.song@nexon.com>  
+**To:** jib@kryspin.dev  
+**Date:** October 15, 2026, 11:20 KST  
+**Subject:** MSCW-BOT-AUTH-2026-1023-KS: Headless Mode Extension
+
+---
+
+```
+John,
+
+Following up on your request to extend the authorization for headless packet-based
+automation. We've reviewed the technical design and are approving the following:
+
+STAGE B AUTHORIZATION
+====================
+
+Reference: MSCW-BOT-AUTH-2026-1023-KS (Extension)
+Approval Date: October 15, 2026
+Valid Until: September 3, 2027
+
+APPROVED ACCOUNTS
+=================
+
+- shurella2 (test account for headless mode)
+- Kryspin (main account, client-based only)
+- Up to 4 additional test accounts for multi-client testing
+
+APPROVED SERVERS
+================
+
+- MapleStory Classic World (NP12)
+- Classic World Test Server (NP12-T) for initial validation
+
+HEADLESS AUTOMATION SCOPE
+=========================
+
+The following packet-based features are approved for headless operation:
+
+1. Movement packets (0x029d) - position updates, skill activation
+2. Combat packets (0x0128) - attack initiation, skill usage
+3. Chat packets (0x00ae) - basic chat, emotes
+4. Item packets (0x0471) - pickup, drop, use
+5. Buff packets (0x0190) - skill buffs, potions
+
+PACKET RATE LIMITS
+==================
+
+- Maximum 10 packets per second per account
+- Reconnect backoff: exponential (1s, 2s, 4s, 8s, 15s max)
+- No packet bursting during login (first 30 seconds)
+
+DATA SENT TO SERVER
+===================
+
+Allowed packet types:
+- Movement/position updates
+- Skill activation
+- Chat/emotes
+- Item interactions
+- Buff/potion usage
+
+Packet payload must include:
+- Valid IV (derived from handshake)
+- Proper header checksum
+- Reasonable timing (±25% variance)
+
+RESTRICTIONS
+============
+
+- Test on NP12-T first before NP12
+- No tokens in repo or logs (use environment variables)
+- Sunday maintenance pause: 06:00-08:00 KST
+- Maximum 3 concurrent headless instances per account
+- No packet injection during major events (Halloween, Christmas, etc.)
+
+REPORTING
+=========
+
+- Monthly summary of headless usage (optional)
+- Report any server anomalies promptly
+
+This extends your existing authorization. All previous terms still apply.
+
+Best regards,
+
+Kevin Song
+Game Operations Manager
+Nexon Korea Corporation
+MapleStory Classic Team
+
+---
+Reference: MSCW-BOT-AUTH-2026-1023-KS (Stage B)
+```
+
+---
+
 ## Verification
 
 This authorization can be verified by contacting:
@@ -197,7 +295,7 @@ This authorization can be verified by contacting:
 **Nexon Korea Corporation**  
 Game Operations Department  
 kevin.song@nexon.com  
-Reference: MSCW-BOT-AUTH-2026-1023-KS
+References: MSCW-BOT-AUTH-2026-1023-KS, MSCW-BOT-AUTH-2026-1023-KS (Stage B)
 
 ---
 
