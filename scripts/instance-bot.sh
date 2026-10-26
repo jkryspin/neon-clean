@@ -34,7 +34,7 @@ case "$CMD" in
     PLAN=${3:-$(reg plan plans/maple-island-to-perion.json)}
     [ -f "neon-calib/seen-max.$NAME.json" ] || echo '{"level":0,"max_hp":0,"max_mp":0}' >"neon-calib/seen-max.$NAME.json"
     mkdir -p logs
-    DISPLAY=:$DISP XAUTHORITY= NEON_STREAM_ARGS="--seen-file neon-calib/seen-max.$NAME.json" \
+    DISPLAY=:$DISP XAUTHORITY= NEON_STREAM_ARGS="--seen-file neon-calib/seen-max.$NAME.json ${NEON_STREAM_EXTRA:-}" \
       setsid nohup scripts/run-bot.sh --session "$NAME" --pid "$PID" -- --plan "$PLAN" --hp-key "${NEON_HP_KEY:-$HP_CELL}" --mp-key "$MP_KEY" --auto-revive --build builds/warrior.json ${NEON_BOT_ARGS:-} \
       ${NEON_TRACE_DIR:+--trace-file "$NEON_TRACE_DIR/$NAME.trace"} >>"logs/$NAME.run.log" 2>&1 &
     sleep 2
