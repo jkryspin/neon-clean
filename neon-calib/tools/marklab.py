@@ -13,8 +13,10 @@ after every repeat is the one to look at. Reads the same formats as neon-view (.
 import collections, json, re, sys
 
 def load(paths):
+    """A path ending in .wire holds client->server packets (decrypted from the wire); every other text log is server->client."""
     recs = []
     for path in paths:
+        text_dir = "out" if path.endswith(".wire") else "in"
         for line in open(path, errors="replace"):
             line = line.strip()
             if line.startswith("{"):
@@ -28,7 +30,7 @@ def load(paths):
             else:
                 m = re.match(r"(\S+) op (\w+) len (\d+):", line)
                 if m:
-                    recs.append((float(m[1]), "in", int(m[2], 16), int(m[3])))
+                    recs.append((float(m[1]), text_dir, int(m[2], 16), int(m[3])))
     recs.sort()
     return recs
 

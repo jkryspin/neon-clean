@@ -366,7 +366,8 @@ len_max = 2
 [[opcode]]
 id = 0x001d
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "22 bytes every 300 s: u32@2 is a millisecond tick (the same clock as the client's own packets), u32@6 and u32@14 vary. The client answers within 0.1 s with the wire packet 0xfc6b whose u32@18 equals this u32@2 (5 of 5). Meaning not established (2026-10-26)"
 len_min = 22
 len_max = 22
 
@@ -1585,10 +1586,22 @@ dir = "out"
 name = "NpcMoveReport"
 status = "structure"
 wire_opcode = 0x7cec
-summary = "WIRE-ONLY ENTRY (id is the wire number; the client's internal number is not known). The client reports the movement of an NPC it was told about: about 2.8 per second standing in Amherst, 85% of all client->server packets. Evidence: u32@2 is an NPC id, and the number of reports per id equals the number of incoming NpcMove 0x0456 packets for that id (ids 138/139/140: 1188/1158/227 reports against 1188/1157/228 incoming, totals 2573 and 2573 in one 11-minute capture of jib01). Lengths 12 (header only), 48, 69, 90, 111, 132, 153 (48 + 21n: movement fragments like PlayerMove's, coordinate pairs in the body) and 57. Fields after @6 unexplained (2026-10-26)"
+summary = "WIRE-ONLY ENTRY (id is the wire number; the client's internal number is not known). The client reports the movement of an NPC it was told about: about 2.8 per second standing in Amherst, 85% of all client->server packets. Evidence: u32@2 is an NPC id, and the number of reports per id equals the number of incoming NpcMove 0x0456 packets for that id (ids 138/139/140: 1188/1158/227 reports against 1188/1157/228 incoming, totals 2573 and 2573 in one 11-minute capture of jib01). Lengths 12 (header only), 48, 69, 90, 111, 132, 153 (48 + 21n: movement fragments like PlayerMove's, coordinate pairs in the body) and 57. Fields after @6 unexplained. pairscan.py over the same capture: the report repeats the incoming NpcMove (0x0456) payload byte for byte at the same offsets (91% of 2573 reports match at offsets 13-44), so the layout of 0x0456 is the layout of this packet (2026-10-26)"
 len_min = 12
 field = [
   { name = "npc_id", ty = "u32", off = 2, min = 1, max = 100000 },
+]
+
+[[opcode]]
+id = 0xfc6b
+dir = "out"
+status = "structure"
+wire_opcode = 0xfc6b
+summary = "WIRE-ONLY ENTRY (id is the wire number). 22 bytes, once every 300 s (5 in 25 minutes on jib01), always sent within 0.1 s of the incoming 0x001d (also 22 bytes, every 300 s): u32@18 equals that 0x001d's u32@2 in 5 of 5 pairs (a millisecond tick value), and u32@10 equals the previous 0x001d's u32@14. u32@2 and u32@10.. otherwise unexplained. Looks like a periodic time/health exchange; meaning not established (2026-10-26)"
+len_min = 22
+len_max = 22
+field = [
+  { name = "server_tick", ty = "u32", off = 18 },
 ]
 
 [[opcode]]

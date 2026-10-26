@@ -30,6 +30,13 @@ class MarkLab(unittest.TestCase):
         self.assertEqual(marklab.analyse([], [pkt(1, "in", 1)]), [])
         self.assertEqual(marklab.analyse([{"t": 1000, "label": "x"}], []), [])
 
+    def test_a_wire_file_is_outgoing(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        w = os.path.join(d, "x.log.wire")
+        open(w, "w").write("1793051150.500 op 8786 len 2: 86 87\n")
+        self.assertEqual([(d_, op) for t, d_, op, n in marklab.load([w])], [("out", 0x8786)])
+
     def test_loading_both_log_formats(self):
         import tempfile
         d = tempfile.mkdtemp()

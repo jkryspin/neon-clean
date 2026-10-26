@@ -14,6 +14,7 @@ import collections, json, random, re, struct, sys
 
 recs = []
 for path in sys.argv[1:]:
+    text_dir = "out" if path.endswith(".wire") else "in"   # a .wire file holds client->server packets (wire opcodes)
     for line in open(path, errors="replace"):
         line = line.strip()
         if line.startswith("{"):
@@ -25,7 +26,7 @@ for path in sys.argv[1:]:
         else:
             m = re.match(r"(\S+) op \w+ len \d+: ?(.*)", line)
             if m and m[2].strip():
-                recs.append((float(m[1]), "in", bytes.fromhex(m[2].replace(" ", ""))))
+                recs.append((float(m[1]), text_dir, bytes.fromhex(m[2].replace(" ", ""))))
 recs.sort(key=lambda r: r[0])
 ins = [r for r in recs if r[1] == "in"]
 outs = [r for r in recs if r[1] == "out"]
