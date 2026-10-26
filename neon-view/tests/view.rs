@@ -14,11 +14,6 @@ fn fx(key: &str) -> Vec<u8> {
     plain(fixtures()[key]["plain"].as_str().unwrap())
 }
 
-fn line(t: f64, p: &[u8]) -> String {
-    let op = u16::from_le_bytes([p[0], p[1]]);
-    format!("{t:.3} op {op:04x} len {}: {}", p.len(), p.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "))
-}
-
 #[test]
 fn view_server_serves_page_state_and_404_over_a_real_socket() {
     use std::io::{Read, Write};
