@@ -27,7 +27,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x003b` | 1 | 0.0 | 6 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x003c` | 1 | 0.0 | 77 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x003d` | 5774 | 29.5 | 2-10 |  | observed |
-| `0x004f` | 516 | 2.6 | 3 |  | structure: 3 bytes: op + one byte. Arrives as a burst of six packets with the byte counting 0,1,2,3,4,5 about 0.1 s apart, one burst every 60 s (9 bursts in 8 min on jib01, starting before any test action; every one of the 6 values seen exactly 9 times). A mark test that opened/closed the stats, inventory, equipment, skills and quest windows on a 60 s loop appeared to link it to opening the stats window (3/3), but that was phase-locking of the loop with the timer: bursts also occur with no action. Not caused by those windows. Meaning unknown. |
+| `0x004f` | 516 | 2.6 | 3 | SeqRequest | structure: 3 bytes: op + a counter byte. Arrives as a burst of six (counter 0,1,2,3,4,5, about 0.1 s apart) once every 60 s, and every one is answered by the client's wire packet 0x00c5 (c5 00 NN 01) carrying the same counter byte: 144 of 144 on jib01 and 143 of 144 on shurella2, median delay 12-13 ms (2026-10-26, from the exact decoder; the number 0x00c5 is the same on both accounts). Purpose unknown; it is not tied to opening any window (marks test, first read as the stats window was a phase-lock of my own 60 s test loop) |
 | `0x0055` | 2 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x005c` | 1 | 0.0 | 12 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0065` | 1 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
@@ -160,7 +160,9 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x0077` | 1 | 1460 | bulk, ~1460 bytes |
 | `0x008f` | 1 | 585 | text log line ("ELog|..|VERSION...") |
 | `0x0090` | 1 | 1460 | text log lines, bulk |
+| `0x009c` | later capture | (see summary) | 149 bytes every 10.0 s (97% of 141 gaps within 15%), the same number on both accounts (wire number; internal not seen). Starts 9c 00 64 00 00 00 15 cd 5b 07, a repeated block of mostly zeros with a few small signed values (-32, -4, -8 seen) and the 4-byte value 15 cd 5b 07 twice; a periodic state report of the client. The same packet is sent in the login phase. Meaning unknown (2026-10-26) |
 | `0x009e` | 1 | 51 |  |
+| `0x00c5` | later capture | (see summary) | SeqReply (structure): 4 bytes: c5 00 NN 01. The client's answer to every incoming 0x004f burst packet, same counter byte NN, 12-13 ms later (144/144 on jib01, 143/144 on shurella2). Unlike most client->server packets, the number 0x00c5 on the wire is the same on both accounts (it equals the number here, so this entry's id is the wire number; the internal number was not seen). One burst of six per 60 s (2026-10-26) |
 | `0x00d3` | 1 | 41 |  |
 | `0x00db` | 88 | 61x5, 63, 78, 82x17, 84, 103x17, 124x8, 133x4, 138, 145x8, 147, 149x2,... | MoveSelf (structure): Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players. On the wire it has a per-connection opcode (jib01 2026-10-26: 0x5f28; 6/6 jump key presses produce one; same layout: 01 6a 4d e8 f1 prefix, tick u32@7, x/y fragments) |
 | `0x00de` | 1 | 6 | Bare opcode, no fields |
@@ -185,4 +187,4 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x032b` | 2 | 40x2 | PickupDrop (structure): We ask to pick up a drop (the bot's loot key): 36 bytes, tick u32@3 (same ms clock as MoveSelf), our position x i16@11 / y i16@13, the drop's oid u32@15. In 6 of 6 packets the oid is a drop that had spawned, and each was answered 0.6 to 1.2 s later by the incoming 0x0472 DropRemove with reason 2 (picked up) and picker = our own id 334426 (2026-10-26, shurelia2 grinding). Other bytes unexplained |
 | `0x0407` | later capture | (see summary) | 20 bytes, seen once after about 14 s of standing still (a heartbeat?); unexplained |
 
-Total: 29 distinct outgoing opcodes (25 in the first counts capture, the rest from later aligned captures; see docs/mapping-workflow.md).
+Total: 31 distinct outgoing opcodes (25 in the first counts capture, the rest from later aligned captures; see docs/mapping-workflow.md).

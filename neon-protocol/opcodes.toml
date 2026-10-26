@@ -296,8 +296,9 @@ summary = "(NPC movement is described by the entry above; this is the remaining 
 [[opcode]]
 id = 0x004f
 dir = "in"
+name = "SeqRequest"
 status = "structure"
-summary = "3 bytes: op + one byte. Arrives as a burst of six packets with the byte counting 0,1,2,3,4,5 about 0.1 s apart, one burst every 60 s (9 bursts in 8 min on jib01, starting before any test action; every one of the 6 values seen exactly 9 times). A mark test that opened/closed the stats, inventory, equipment, skills and quest windows on a 60 s loop appeared to link it to opening the stats window (3/3), but that was phase-locking of the loop with the timer: bursts also occur with no action. Not caused by those windows. Meaning unknown."
+summary = "3 bytes: op + a counter byte. Arrives as a burst of six (counter 0,1,2,3,4,5, about 0.1 s apart) once every 60 s, and every one is answered by the client's wire packet 0x00c5 (c5 00 NN 01) carrying the same counter byte: 144 of 144 on jib01 and 143 of 144 on shurella2, median delay 12-13 ms (2026-10-26, from the exact decoder; the number 0x00c5 is the same on both accounts). Purpose unknown; it is not tied to opening any window (marks test, first read as the stats window was a phase-lock of my own 60 s test loop)"
 len_min = 3
 len_max = 3
 
@@ -1586,6 +1587,23 @@ field = [
   { name = "mob_oid", ty = "u32", off = 2 },
   { name = "move_id", ty = "u16", off = 6 },
 ]
+
+[[opcode]]
+id = 0x00c5
+dir = "out"
+name = "SeqReply"
+status = "structure"
+summary = "4 bytes: c5 00 NN 01. The client's answer to every incoming 0x004f burst packet, same counter byte NN, 12-13 ms later (144/144 on jib01, 143/144 on shurella2). Unlike most client->server packets, the number 0x00c5 on the wire is the same on both accounts (it equals the number here, so this entry's id is the wire number; the internal number was not seen). One burst of six per 60 s (2026-10-26)"
+len_min = 4
+len_max = 4
+
+[[opcode]]
+id = 0x009c
+dir = "out"
+status = "structure"
+summary = "149 bytes every 10.0 s (97% of 141 gaps within 15%), the same number on both accounts (wire number; internal not seen). Starts 9c 00 64 00 00 00 15 cd 5b 07, a repeated block of mostly zeros with a few small signed values (-32, -4, -8 seen) and the 4-byte value 15 cd 5b 07 twice; a periodic state report of the client. The same packet is sent in the login phase. Meaning unknown (2026-10-26)"
+len_min = 149
+len_max = 149
 
 [[opcode]]
 id = 0x032b
