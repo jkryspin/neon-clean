@@ -141,3 +141,8 @@ server acceptance (no desyncs, no kicks).
   (log = `NEON_DUMP_OPS=all neon-stream --net ... 2> >(python3 stamp.py log)`). No authentication: LAN only.
 * Found and fixed on the way: `neon-stream` did not build (invented shuffle table in `outgoing.rs`); IV shuffle now
   matches the algorithm verified on a real connection start.
+* 2026-10-26 M5 started: `neon-cmd` (typed `Command`s, `SafetyGate` with the authorization's limits: +-25% timing jitter,
+  rate cap, idle breaks every 45-90 min of 30-180 s, 6 h session cap, named pauses such as `gm` / `lie_detector`;
+  `XtestActuator` building xdotool argv per command; `Executor` that checks each command's expected effect on the world
+  model and reports Confirmed / TimedOut / Failed; `StaffRules` pausing the gate when a staff-named player is on the map).
+  Offline-tested only; not wired to the brain yet (the brain still presses keys directly).

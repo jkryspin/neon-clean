@@ -1,0 +1,8 @@
+[package]
+name = "neon-cmd"
+version = "0.1.0"
+edition = "2021"
+description = "Neon command layer: typed commands, safety gate, actuators, effect verification"
+
+[dependencies]
+neon-world = { path = "../neon-world" }
