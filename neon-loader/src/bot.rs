@@ -649,6 +649,16 @@ impl<K: Keys> Bot<K> {
                 self.finish(Some(state));
                 return Ok(());
             }
+            if self.anti.blackout_now() && self.brain.mode == Mode::Running {
+                // Server maintenance (docs/authorization.md): stand still, keep draining the stream, resume afterwards.
+                self.release_all();
+                info!("Maintenance window: standing still until it ends");
+                self.announce("server maintenance window; standing still until it ends".to_string());
+                while self.anti.blackout_now() {
+                    let _ = rx.recv_timeout(Duration::from_millis(500));
+                }
+                info!("Maintenance window over; resuming");
+            }
             if self.anti.should_idle() && self.brain.mode == Mode::Running && self.brain.safe_to_idle(state) {
                 self.release_all();
                 let d = self.anti.start_idle();

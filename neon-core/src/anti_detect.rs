@@ -19,6 +19,32 @@ pub struct AntiDetectConfig {
     pub mistake_chance: f64,
     /// Maximum session duration in hours
     pub max_session_hours: u64,
+    /// Wall-clock windows in which the bot must not act (server maintenance, optional peak hours).
+    pub blackouts: Vec<Blackout>,
+}
+
+/// A recurring window in KST (UTC+9): `weekday` 0 = Monday .. 6 = Sunday, or `None` for every day;
+/// minutes of the day, `from` inclusive, `to` exclusive.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Blackout {
+    pub weekday: Option<u8>,
+    pub from_min: u32,
+    pub to_min: u32,
+}
+
+impl Blackout {
+    /// Sunday 06:00-08:00 KST: the weekly maintenance in docs/authorization.md.
+    pub const MAINTENANCE: Blackout = Blackout { weekday: Some(6), from_min: 6 * 60, to_min: 8 * 60 };
+    /// 19:00-23:00 KST every day: the peak hours the authorization says the bot can be configured to avoid (off by default).
+    pub const PEAK_EVENING: Blackout = Blackout { weekday: None, from_min: 19 * 60, to_min: 23 * 60 };
+}
+
+/// Is this unix time (ms) inside any of the windows?
+pub fn in_blackout(windows: &[Blackout], unix_ms: u64) -> bool {
+    let kst_s = unix_ms / 1000 + 9 * 3600;
+    let weekday = (((kst_s / 86_400) + 3) % 7) as u8; // 1970-01-01 was a Thursday (3 when Monday = 0)
+    let minute = ((kst_s % 86_400) / 60) as u32;
+    windows.iter().any(|w| w.weekday.map_or(true, |d| d == weekday) && minute >= w.from_min && minute < w.to_min)
 }
 
 impl Default for AntiDetectConfig {
@@ -30,6 +56,7 @@ impl Default for AntiDetectConfig {
             idle_frequency: 50,
             mistake_chance: 0.05,
             max_session_hours: 5,
+            blackouts: vec![Blackout::MAINTENANCE],
         }
     }
 }
@@ -170,6 +197,12 @@ impl AntiDetect {
         self.session_duration().as_secs() >= self.config.max_session_hours * 3600
     }
 
+    /// Must the bot stand still right now (wall clock)?
+    pub fn blackout_now(&self) -> bool {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+        in_blackout(&self.config.blackouts, now)
+    }
+
     /// Reset for new session
     pub fn new_session(&mut self) {
         self.state = AntiDetectState {
@@ -210,6 +243,32 @@ impl AntiDetect {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn maintenance_window_edges_in_kst() {
+        // 2026-10-25 is a Sunday. 06:00 KST = 2026-10-24 21:00 UTC.
+        let utc = |d: u32, h: u32, m: u32| -> u64 {
+            // days from 1970-01-01 to 2026-10-<d>
+            let days_to_2026_10_01 = 20_727u64; // 2026-10-01
+            (days_to_2026_10_01 + (d as u64 - 1)) * 86_400_000 + (h as u64 * 60 + m as u64) * 60_000
+        };
+        let w = [Blackout::MAINTENANCE];
+        assert!(!in_blackout(&w, utc(24, 20, 59)), "05:59 KST Sunday");
+        assert!(in_blackout(&w, utc(24, 21, 0)), "06:00 KST Sunday");
+        assert!(in_blackout(&w, utc(24, 22, 59)), "07:59 KST Sunday");
+        assert!(!in_blackout(&w, utc(24, 23, 0)), "08:00 KST Sunday");
+        assert!(!in_blackout(&w, utc(25, 21, 0)), "06:00 KST Monday is not a window");
+    }
+
+    #[test]
+    fn daily_peak_window_applies_every_day_and_default_has_only_maintenance() {
+        let utc = |d: u32, h: u32| (20_727u64 + (d as u64 - 1)) * 86_400_000 + h as u64 * 3_600_000;
+        let w = [Blackout::PEAK_EVENING];
+        assert!(in_blackout(&w, utc(21, 10)), "19:00 KST = 10:00 UTC");
+        assert!(in_blackout(&w, utc(22, 13)), "22:00 KST");
+        assert!(!in_blackout(&w, utc(22, 14)), "23:00 KST");
+        assert_eq!(AntiDetectConfig::default().blackouts, vec![Blackout::MAINTENANCE]);
+    }
+
     use super::*;
 
     #[test]
