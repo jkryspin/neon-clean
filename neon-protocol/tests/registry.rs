@@ -334,3 +334,35 @@ len_min = 11
 "#;
     assert_eq!(Registry::parse(ok).unwrap().variants(Dir::In, 5).len(), 2);
 }
+
+#[test]
+fn real_movement_packets_decode_into_fragments_and_a_wrong_count_falls_back() {
+    let r = Registry::builtin().unwrap();
+    let f = fixtures();
+    let pm = plain(f["0x29d"]["plain"].as_str().unwrap()); // a real PlayerMove, 41 bytes = 20 + 21*1
+    let d = r.decode(Dir::In, &pm).unwrap();
+    assert_eq!(d.get("count").unwrap().as_i64(), Some(1));
+    let (sx, sy) = (d.get("x").unwrap().as_i64().unwrap(), d.get("y").unwrap().as_i64().unwrap());
+    assert_eq!((sx, sy), (-185, 274), "start position: independently recorded with the fixture");
+    let ex = d.get("move[0].x").unwrap().as_i64().unwrap();
+    let ey = d.get("move[0].y").unwrap().as_i64().unwrap();
+    assert!((-20000..20000).contains(&ex) && (ey - sy).abs() < 400, "end position ({ex},{ey}) is near the start y {sy}");
+    assert_eq!(d.get("move[0].stance").map(|v| v.as_i64().unwrap() >= 0), Some(true));
+    // a real MobMove, 83 bytes = 41 + 21*2: two fragments
+    let mm = plain(f["0x3dc"]["plain"].as_str().unwrap());
+    assert_eq!(mm.len(), 83);
+    let d = r.decode(Dir::In, &mm).unwrap();
+    assert_eq!(d.get("count").unwrap().as_i64(), Some(2));
+    assert!(d.get("move[0].x").is_some() && d.get("move[1].x").is_some() && d.get("move[2].x").is_none());
+    assert_eq!(d.get("x").unwrap().as_i64(), Some(698), "start position recorded with the fixture");
+    // the count byte is a checksum: change it and the fragment layout no longer fits, the start-only variant still decodes
+    let mut bad = mm.clone();
+    bad[38] = 3;
+    let d = r.decode(Dir::In, &bad).unwrap();
+    assert!(d.get("move[0].x").is_none() && d.get("x").unwrap().as_i64() == Some(698));
+    // layout: every fragment byte that is a field is explained, the unexplained ones remain visible
+    let spans = r.layout(Dir::In, &mm);
+    assert!(spans.iter().any(|s| s.name == "move[1].duration" && s.off == 39 + 21 + 19));
+    let explained: usize = spans.iter().map(|s| s.size).sum();
+    assert!(explained < mm.len(), "padding and unknown bytes are not claimed");
+}

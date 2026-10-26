@@ -266,6 +266,17 @@ fn int(d: &neon_protocol::Decoded, name: &str) -> Option<i64> {
     d.get(name)?.as_i64()
 }
 
+/// Where a movement packet leaves the entity: the end of its last 21-byte fragment, else the packet's start position.
+fn end_position(d: &neon_protocol::Decoded) -> Option<(i32, i32)> {
+    let n = d.fields.iter().filter(|(k, _)| k.starts_with("move[") && k.ends_with("].x")).count();
+    if n > 0 {
+        let x = int(d, &format!("move[{}].x", n - 1))?;
+        let y = int(d, &format!("move[{}].y", n - 1))?;
+        return Some((x as i32, y as i32));
+    }
+    Some((int(d, "x")? as i32, int(d, "y")? as i32))
+}
+
 /// Turn a plaintext server->client packet into an event, using the registry for every verified layout.
 /// Returns None for opcodes the world model does not use.
 pub fn event_from_packet(reg: &Registry, plain: &[u8]) -> Option<Event> {
@@ -295,13 +306,19 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
     let name = d.name.as_deref()?;
     Some(match name {
         "MobSpawn" | "MobRespawn" => Event::MobSpawn { oid: int(&d, "oid")? as u32, template: int(&d, "template")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
-        "MobMove" => Event::MobMove { oid: int(&d, "oid")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
+        "MobMove" => {
+            let (x, y) = end_position(&d)?;
+            Event::MobMove { oid: int(&d, "oid")? as u32, x, y }
+        }
         "MobKill" => Event::MobKill { oid: int(&d, "oid")? as u32 },
         "PlayerSpawn" => {
             let neon_protocol::Value::Str(n) = d.get("name")? else { return None };
             Event::PlayerSpawn { char_id: int(&d, "char_id")? as u32, name: n.clone() }
         }
-        "PlayerMove" => Event::PlayerMove { char_id: int(&d, "char_id")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
+        "PlayerMove" => {
+            let (x, y) = end_position(&d)?;
+            Event::PlayerMove { char_id: int(&d, "char_id")? as u32, x, y }
+        }
         "DropSpawn" => Event::DropSpawn { oid: int(&d, "oid")? as u32, owner: int(&d, "owner")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
         "DropRemove" => Event::DropRemove { oid: int(&d, "oid")? as u32 },
         "StatUpdate" => Event::StatMask { mask: int(&d, "mask")? as u32 },

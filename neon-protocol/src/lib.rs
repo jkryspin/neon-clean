@@ -70,8 +70,28 @@ pub struct Records {
     pub name: String,
     pub start: usize,
     pub stride: usize,
+    /// Bytes after the last record (a fixed trailer).
+    #[serde(default)]
+    pub tail: usize,
+    /// If set, the byte at this offset must equal the record count: a strong check against accidental matches.
+    pub count_at: Option<usize>,
     #[serde(default)]
     pub field: Vec<Field>,
+}
+
+impl Records {
+    /// How many records a packet of this length and content holds, if it fits the layout.
+    pub fn count_in(&self, plain: &[u8]) -> Option<usize> {
+        let body = plain.len().checked_sub(self.start + self.tail)?;
+        if body % self.stride != 0 {
+            return None;
+        }
+        let n = body / self.stride;
+        match self.count_at {
+            Some(at) if plain.get(at).map(|b| usize::from(*b)) != Some(n) => None,
+            _ => Some(n),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -190,7 +210,8 @@ impl Registry {
                 let (b0, b1) = range(&op);
                 a0 <= b1 && b0 <= a1
             };
-            if group.iter().any(|o| o.when.map(|c| (c.off, c.eq)) == key && overlaps(o)) {
+            // entries with a record layout discriminate themselves (the layout must fit), so only plain entries can clash
+            if group.iter().any(|o| o.when.map(|c| (c.off, c.eq)) == key && overlaps(o) && o.records.is_none() && op.records.is_none()) {
                 problems.push(format!(
                     "duplicate {:?} {:#06x}{}",
                     op.dir,
@@ -228,7 +249,7 @@ impl Registry {
                 op.when.map_or(true, |c| plain.get(c.off) == Some(&c.eq))
                     && op.len_min.map_or(true, |m| plain.len() >= m)
                     && op.len_max.map_or(true, |m| plain.len() <= m)
-                    && op.records.as_ref().map_or(true, |r| plain.len() >= r.start && (plain.len() - r.start) % r.stride == 0)
+                    && op.records.as_ref().map_or(true, |r| r.count_in(plain).is_some())
             })
             .collect()
     }
@@ -273,7 +294,7 @@ impl Registry {
             fields.push((f.name.clone(), v));
         }
         if let Some(r) = &op.records {
-            let n = (plain.len() - r.start) / r.stride;
+            let n = r.count_in(plain)?;
             for i in 0..n {
                 for f in &r.field {
                     let abs = Field { off: r.start + i * r.stride + f.off, ..f.clone() };
@@ -300,7 +321,7 @@ impl Registry {
             out.push(Span { off: f.off, size: field_size(f), name: f.name.clone() });
         }
         if let Some(r) = &op.records {
-            for i in 0..(plain.len() - r.start) / r.stride {
+            for i in 0..r.count_in(plain).unwrap_or(0) {
                 for f in &r.field {
                     out.push(Span { off: r.start + i * r.stride + f.off, size: field_size(f), name: format!("{}[{i}].{}", r.name, f.name) });
                 }
@@ -391,6 +412,11 @@ fn validate(op: &Opcode) -> Vec<String> {
     if let Some(r) = &op.records {
         if r.stride == 0 {
             out.push(format!("{tag}: records {} has stride 0", r.name));
+        }
+        if let Some(at) = r.count_at {
+            if at >= r.start {
+                out.push(format!("{tag}: records {} count_at {at} lies inside the records", r.name));
+            }
         }
         if r.start < 2 {
             out.push(format!("{tag}: records {} start {} overlaps the opcode", r.name, r.start));

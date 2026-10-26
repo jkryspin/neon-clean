@@ -42,7 +42,8 @@ fn real_packets_become_the_expected_events() {
     );
     assert_eq!(event_from_packet(&r, &fx("0x3d4")), Some(Event::MobKill { oid: 20598982 }));
     assert_eq!(event_from_packet(&r, &fx("0x22d")), Some(Event::PlayerSpawn { char_id: 329787, name: "alex5".into() }));
-    assert_eq!(event_from_packet(&r, &fx("0x29d")), Some(Event::PlayerMove { char_id: 562142, x: -185, y: 274 }));
+    // the packet starts at x = -185 and its one 21-byte fragment ends at x = -262, on the same ground line
+    assert_eq!(event_from_packet(&r, &fx("0x29d")), Some(Event::PlayerMove { char_id: 562142, x: -262, y: 274 }));
     assert_eq!(event_from_packet(&r, &fx("0x471")), Some(Event::DropSpawn { oid: 1342746, owner: 334426, x: 1677, y: 215 }));
     assert_eq!(event_from_packet(&r, &fx("0x472")), Some(Event::DropRemove { oid: 1342613 }));
     assert_eq!(
@@ -280,4 +281,27 @@ fn the_activity_feed_records_what_happened_to_us() {
     let texts: Vec<_> = w.snapshot().feed.iter().map(|i| i.text.clone()).collect();
     assert_eq!(texts.len(), 40, "ring of 40");
     assert!(texts.iter().all(|t| t.starts_with("picked up")), "oldest entries (level up, map) were pushed out: {texts:?}");
+}
+
+#[test]
+fn movement_ends_are_consistent_with_the_fragment_velocity() {
+    // Independent check on the fragment layout: a fragment that ends left of where the packet started moves left, so its
+    // velocity (vx) is negative; one that ends to the right has vx > 0.
+    let r = Registry::builtin().unwrap();
+    let d = r.decode(neon_protocol::Dir::In, &fx("0x29d")).unwrap();
+    let (sx, ex) = (d.get("x").unwrap().as_i64().unwrap(), d.get("move[0].x").unwrap().as_i64().unwrap());
+    let vx = d.get("move[0].vx").unwrap().as_i64().unwrap();
+    assert!(ex < sx && vx < 0, "start {sx}, end {ex}, vx {vx}");
+    // a mob: the same property on the real two-fragment MobMove
+    let m = r.decode(neon_protocol::Dir::In, &fx("0x3dc")).unwrap();
+    let mut prev = m.get("x").unwrap().as_i64().unwrap();
+    for i in 0..2 {
+        let x = m.get(&format!("move[{i}].x")).unwrap().as_i64().unwrap();
+        let vx = m.get(&format!("move[{i}].vx")).unwrap().as_i64().unwrap();
+        assert!(x == prev || (x - prev).signum() == vx.signum() || vx == 0, "fragment {i}: {prev} -> {x} with vx {vx}");
+        prev = x;
+    }
+    // and the world takes the end of the last fragment
+    let Some(Event::MobMove { x, .. }) = event_from_packet(&r, &fx("0x3dc")) else { panic!() };
+    assert_eq!(i64::from(x), prev);
 }

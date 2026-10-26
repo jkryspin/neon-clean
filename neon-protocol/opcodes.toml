@@ -26,7 +26,36 @@ id = 0x03dc
 dir = "in"
 name = "MobMove"
 status = "verified"
-summary = "Mob movement; x,y is where the move starts (later fragments are not decoded)"
+summary = "Mob movement: a 39-byte header (mob oid @2, start x @30 / y @32, fragment count @38), then n 21-byte movement fragments (same layout as PlayerMove: end position, velocity, foothold, stance, duration), then 2 trailing bytes; length = 41 + 21n. In 5477 of 5477 such packets of a real grind the count byte equals n and all 12706 fragment ends lie within 8 px of a platform (2026-10-26)"
+len_min = 60
+field = [
+  { name = "oid", ty = "u32", off = 2 },
+  { name = "x", ty = "i16", off = 30, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 32, min = -20000, max = 20000 },
+  { name = "count", ty = "u8", off = 38 },
+]
+[opcode.records]
+name = "move"
+start = 39
+stride = 21
+tail = 2
+count_at = 38
+field = [
+  { name = "x", ty = "i16", off = 2, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 4, min = -20000, max = 20000 },
+  { name = "vx", ty = "i16", off = 6 },
+  { name = "vy", ty = "i16", off = 8 },
+  { name = "foothold", ty = "i16", off = 10 },
+  { name = "stance", ty = "u8", off = 18 },
+  { name = "duration", ty = "u16", off = 19 },
+]
+
+[[opcode]]
+id = 0x03dc
+dir = "in"
+name = "MobMove"
+status = "verified"
+summary = "Mob movement: the forms that do not fit the 21-byte fragment layout above (lengths 113, 134, 155 ...): only the start position is decoded"
 len_min = 34
 field = [
   { name = "oid", ty = "u32", off = 2 },
@@ -74,7 +103,36 @@ id = 0x029d
 dir = "in"
 name = "PlayerMove"
 status = "verified"
-summary = "Another player moved"
+summary = "Another player moved: a 19-byte header (char id @2, start x @10 / y @12, fragment count @18), then n 21-byte movement fragments (end position, velocity, foothold, stance, duration), then 1 trailing byte; length = 20 + 21n. In 4132 of 4132 such packets of a real grind the count byte equals n; 96% of the 12887 fragment ends lie within 8 px of a platform of the map (the rest are jumps). The first fragment byte is always 0 (command) and byte 1 of each fragment is unexplained (2026-10-26)"
+len_min = 40
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+  { name = "x", ty = "i16", off = 10, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 12, min = -20000, max = 20000 },
+  { name = "count", ty = "u8", off = 18 },
+]
+[opcode.records]
+name = "move"
+start = 19
+stride = 21
+tail = 1
+count_at = 18
+field = [
+  { name = "x", ty = "i16", off = 2, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 4, min = -20000, max = 20000 },
+  { name = "vx", ty = "i16", off = 6 },
+  { name = "vy", ty = "i16", off = 8 },
+  { name = "foothold", ty = "i16", off = 10 },
+  { name = "stance", ty = "u8", off = 18 },
+  { name = "duration", ty = "u16", off = 19 },
+]
+
+[[opcode]]
+id = 0x029d
+dir = "in"
+name = "PlayerMove"
+status = "verified"
+summary = "Another player moved: the forms that do not fit the 21-byte fragment layout above (lengths 43, 64, 66, 92, 113 ...): only the start position is decoded"
 len_min = 14
 field = [
   { name = "char_id", ty = "u32", off = 2 },
