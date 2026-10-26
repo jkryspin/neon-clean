@@ -1387,10 +1387,11 @@ id = 0x02a8
 dir = "in"
 name = "PlayerAttack"
 status = "structure"
-summary = "Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (n = 0..4 targets). char_id@2 is a known player in 100% of packets; each target record starts with the mob oid (known mob in 94% of first records) and has, at +8, probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). n = 0 is a swing at nothing (36 seen in a mob-less town). Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. The attacker's position is stored twice as 32-bit pairs, x @17 / y @21 and x2 @25 / y2 @29: within 30 px of that player's last position (from PlayerMove) in 77% of 1483 packets, near 0% at other offsets. Still unexplained: @6 (varies: 0x11, 0x12, 0x0e, 0x17...) and the bytes @10-16, @33-62"
+summary = "Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (n = 0..4 targets). char_id@2 is a known player in 100% of packets; each target record starts with the mob oid (known mob in 94% of first records) and has, at +8, probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). n = 0 is a swing at nothing (36 seen in a mob-less town). Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. The attacker's position is stored twice as 32-bit pairs, x @17 / y @21 and x2 @25 / y2 @29: within 30 px of that player's last position (from PlayerMove) in 77% of 1483 packets, near 0% at other offsets. @6 is a property of the attacker, not of the attack: in 1468 of 1487 packets it equals that attacker's most common value (17, 18, 20, 23, 12, 14 for different players; probably weapon or animation set, unknown). Still unexplained: the bytes @7-16 and @33-62"
 len_min = 63
 field = [
   { name = "char_id", ty = "u32", off = 2 },
+  { name = "attacker_trait", ty = "u8", off = 6 },
   { name = "x", ty = "i32", off = 17, min = -20000, max = 20000 },
   { name = "y", ty = "i32", off = 21, min = -20000, max = 20000 },
   { name = "x2", ty = "i32", off = 25, min = -20000, max = 20000 },
@@ -1414,6 +1415,7 @@ summary = "Same header as 0x02a8 and the same target records (mob oid at @63 in 
 len_min = 63
 field = [
   { name = "char_id", ty = "u32", off = 2 },
+  { name = "attacker_trait", ty = "u8", off = 6 },
   { name = "x", ty = "i32", off = 17, min = -20000, max = 20000 },
   { name = "y", ty = "i32", off = 21, min = -20000, max = 20000 },
   { name = "x2", ty = "i32", off = 25, min = -20000, max = 20000 },
@@ -1437,6 +1439,7 @@ summary = "Same header and target records as 0x02a8 (mob oid at @63 in 96% of th
 len_min = 63
 field = [
   { name = "char_id", ty = "u32", off = 2 },
+  { name = "attacker_trait", ty = "u8", off = 6 },
   { name = "x", ty = "i32", off = 17, min = -20000, max = 20000 },
   { name = "y", ty = "i32", off = 21, min = -20000, max = 20000 },
   { name = "x2", ty = "i32", off = 25, min = -20000, max = 20000 },
