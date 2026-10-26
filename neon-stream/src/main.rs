@@ -12,6 +12,7 @@ mod foothold;
 mod fuse;
 mod net;
 mod outgoing;
+mod recv;
 mod rects;
 mod stackpos;
 mod scanner;

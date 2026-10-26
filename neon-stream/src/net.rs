@@ -5,10 +5,11 @@
 //!
 //! * Framing: every message is `[4-byte header][payload]`; `len = a ^ b` where `a`
 //!   and `b` are the little-endian u16 halves of the header (valid for any length).
-//! * Payload "cipher": within each block (1456 bytes first, then 1460) every byte
-//!   is `plain + K` (mod 256) for one constant `K`. Game data is mostly small
-//!   integers, so the most common byte in a block is K for zero. This is a
-//!   heuristic: it fails when a block is not zero-dominated.
+//! * Payload "cipher": every byte is `plain + K` (mod 256) for one constant `K` per packet, `K` being the first byte of a
+//!   32-bit receive IV that advances by the classic shuffle after each packet (exact decryption in `recv.rs`, found
+//!   2026-10-26). Until that IV has been learned (12 frames after the start of a capture, or after lost bytes) the older
+//!   heuristic is used: per block (1456 bytes first, then 1460) the most common byte is K for zero. That heuristic
+//!   fails when a block is not zero-dominated (23 of 373 real frames).
 //! * Opcodes (offsets into the decoded payload, little endian):
 //!   * `0x03c9` mob spawn:   oid u32@3, template u32@8, x i16@206, y i16@208
 //!   * `0x03dc` mob update:  oid u32@2, x i16@30,  y i16@32
@@ -433,6 +434,11 @@ impl Framer {
     }
 
     pub fn push(&mut self, data: &[u8]) -> Vec<Vec<u8>> {
+        self.push_frames(data).into_iter().map(|(_, body)| body).collect()
+    }
+
+    /// Like `push`, but each frame comes with the first u16 of its header (it carries two bytes of the receive IV).
+    pub fn push_frames(&mut self, data: &[u8]) -> Vec<(u16, Vec<u8>)> {
         self.buf.extend_from_slice(data);
         let mut out = vec![];
         loop {
@@ -470,7 +476,7 @@ impl Framer {
                     if self.buf.len() < 4 + l {
                         return out;
                     }
-                    out.push(self.buf[4..4 + l].to_vec());
+                    out.push((u16::from_le_bytes([self.buf[0], self.buf[1]]), self.buf[4..4 + l].to_vec()));
                     self.buf.drain(..4 + l);
                 }
             }
@@ -623,6 +629,7 @@ type FlowKey = ([u8; 4], u16, [u8; 4], u16);
 struct Flow {
     re: Reassembler,
     fr: Framer,
+    rc: crate::recv::RecvCipher,
 }
 
 /// Server->client segments in, game events out.
@@ -697,10 +704,11 @@ impl NetDecoder {
             flow.fr.reset();
         }
         let mut events = vec![];
-        for body in flow.fr.push(&bytes) {
+        for (a, body) in flow.fr.push_frames(&bytes) {
             self.packets += 1;
             if body.len() >= 2 {
-                let plain = decode_payload(&body);
+                // exact decryption once the receive IV is known; the per-block heuristic until then
+                let plain = flow.rc.frame(a, &body).unwrap_or_else(|| decode_payload(&body));
                 if let Some(op) = u16le(&plain, 0) {
                     if self.dump_ops.contains(&op) || self.dump_ops.contains(&0xffff) {
                         let ts = if self.cur_ts_us > 0 { format!("ts {:.3} ", self.cur_ts_us as f64 / 1e6) } else { String::new() };

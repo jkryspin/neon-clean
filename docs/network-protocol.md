@@ -233,3 +233,22 @@ offline with `objdump -D -b binary -mi386:x86-64 --adjust-vma=...`:
   `0x1416636a0` and the dispatch behind it). That consumer is the next thing to read; the block constant K and the first 1456-byte
   block structure are produced there, not in the framer.
 
+## SOLVED (2026-10-26 18:40): the incoming cipher is exact and cheap
+
+Following the receive path (framer `0x14075c780` -> `0x14075ccb0` decrypt -> IV advance `0x140cec340` -> dispatch `0x1416667a0`):
+
+* **Per packet constant:** `plain = cipher - iv[0]` for every byte of the body (the chunk loop of 1456/1460 bytes passes the same IV pointer to
+  every chunk, which is why K looked like "per block"; it is per packet). Mode 2 of the decryptor (`0x140762db0`, `psubb`) is the one in
+  use on this connection. Mode 1 (`0x140ce9590`) is AES-256-OFB with the 4-byte IV repeated 4 times and a static key; it is selected by a flag at
+  `this+0x48` that is zero here, and was never exercised, so it is only noted.
+* **IV advance:** after each packet `iv = shuffle(iv)` with the same shuffle as the send side (`outgoing::shuffle_iv`; the client calls
+  `0x140cec340(&iv, 4, NULL)` with the default state `0xc65053f2`).
+* **Every header checks the chain:** the header half `a` (little-endian u16 at the start of the 4-byte header) satisfies
+  `(iv[3] << 8 | iv[2]) == a ^ 0xfffe`. So mid-connection, `iv[2..4]` of the first frame come from its header and `iv[0..2]` (65,536 candidates) are fixed
+  by requiring the next 11 headers to follow the chain: unique with 12 frames. Verified on a live capture of a test account: 373 consecutive
+  frames, 0 header mismatches over the whole stream; the old heuristic had the wrong K in 23 of them (6%), including frames whose opcode it read wrongly.
+* Why the earlier test failed ("K is not a byte of the receive IV chain"): the IV advances once per *packet*, not per cipher block, and the
+  connection-start capture's stream begins with pre-game bytes that do not frame like in-game traffic.
+* Implementation: `neon-stream/src/recv.rs` (`find_iv`, `RecvCipher`), used by `NetDecoder`; heuristic fallback until synced and after lost bytes.
+  Tests use a committed fixture of real headers (`neon-stream/tests/fixtures/recv_headers.json`: 60 header halves, their K, two tiny frames, no names).
+
