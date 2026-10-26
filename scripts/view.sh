@@ -44,8 +44,8 @@ setsid bash -c '
   nice -n 15 neon-stream/target/release/neon-stream --pid "$1" --chains neon-calib/chains.json --no-footholds --seen-file "neon-calib/seen-max.$4.json" 2>/dev/null \
     | python3 neon-calib/tools/latest.py "run/view.$4.mem.json" 5 &
   neon-view/target/release/neon-view --log "$2" --log "$2.wire" --follow --speed 0 --port "$3" --mem "run/view.$4.mem.json" --marks run/marks.jsonl >"logs/view.$4.log" 2>&1 &
-  # the wire-opcode numbering is per connection: derive it from the traffic seen so far, every 30 s (neon-calib/tools/wiremap.py)
-  ( while sleep 30; do python3 neon-calib/tools/wiremap.py "$2" >/dev/null 2>&1; done ) &
+  # the wire-opcode numbering is per connection: derive it from the traffic seen so far, every 10 s (neon-calib/tools/wiremap.py)
+  ( while sleep 10; do python3 neon-calib/tools/wiremap.py "$2" >/dev/null 2>&1; done ) &
   wait
 ' _ "$PID" "$LOG" "$PORT" "$NAME" >/dev/null 2>&1 &
 echo $! >"run/view.$NAME.pgid"
