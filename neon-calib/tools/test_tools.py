@@ -57,6 +57,16 @@ class WireMap(unittest.TestCase):
         fixed = [(1.0, 0x00c5, bytes([0xc5, 0, 0, 1])), (2.0, 0x009c, bytes([0x9c, 0]))]
         self.assertEqual(wiremap.derive([], fixed), {0x00c5: 0x00c5, 0x009c: 0x009c}, 'numbers that never change are mapped to themselves')
 
+    def test_movement_is_the_wire_opcode_that_carries_the_servers_clock(self):
+        import struct
+        inc = [(1000.0, 0x001d, bytes([0x1d, 0]) + struct.pack("<I", 5_000_000) + bytes(16))]
+        def pkt(op, t, tick):
+            return (t, op, bytes([op & 255, op >> 8, 1, 0, 0, 0, 0]) + struct.pack("<I", tick) + bytes(20))
+        move = [pkt(0x1234, 1010.0 + i, 5_000_000 + 10_000 + 1000 * i + 30) for i in range(8)]
+        other = [pkt(0x4321, 1010.0 + i, (i * 7919) & 0xffffff) for i in range(8)]
+        self.assertEqual(wiremap.derive(inc, move + other), {0x1234: 0x00db})
+        self.assertEqual(wiremap.derive(inc[:0], move), {}, 'no clock reference, no guess')
+
     def test_nothing_is_guessed_without_pings(self):
         self.assertEqual(wiremap.derive([], [(1.0, 0x8786, bytes([0x86, 0x87]))] * 20), {})
 

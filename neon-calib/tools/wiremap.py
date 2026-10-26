@@ -7,12 +7,13 @@ Client->server packets use opcode numbers on the wire that differ from the inter
 the numbers differ on every connection. This finds the ones that can be told from the traffic alone:
   * keepalive (internal 0x02f0): the wire opcode of the 2-byte packets that answer the incoming 2-byte ping 0x062e (same count within
     10%, and most of them 0-300 ms after a ping);
+  * movement (internal 0x00db): the wire opcode whose packets carry, at @7, the server's millisecond clock (0x001d @2), 90% within 5 s;
   * the opcodes that are the same on every connection (0x00c5, 0x009c), mapped to themselves;
   * attack (internal 0x00e1): a wire opcode whose packets have the length and bytes of the internal attack fixture (>= 85% of the bytes
     after the opcode equal).
 Everything else stays unmapped (never guessed). The result is {"<wire hex>": "<internal hex>"}.
 """
-import bisect, collections, json, os, re, sys
+import bisect, collections, json, os, re, struct, sys
 
 LINE = re.compile(r"(\S+) op (\w+) len (\d+): ?(.*)")
 
@@ -47,6 +48,24 @@ def derive(incoming, wire, attack_fixture=None):
                     hit += 1
             if hit >= 0.8 * len(pings):
                 result[op] = 0x02f0
+    # movement (internal 0x00db): its u32@7 is the millisecond clock the server also sends in 0x001d @2 (every 300 s);
+    # a wire opcode whose packets all carry a clock within 5 s of that tick, extrapolated with the capture times, is the movement packet
+    ticks = sorted((t, struct.unpack_from("<I", b, 2)[0]) for t, op, b in incoming if op == 0x001d and len(b) >= 6)
+    if ticks:
+        tt = [t for t, v in ticks]
+        score = collections.defaultdict(lambda: [0, 0])
+        for t, op, b in wire:
+            if len(b) < 20:
+                continue
+            k = min(range(len(ticks)), key=lambda i: abs(tt[i] - t))
+            expected = (ticks[k][1] + int((t - ticks[k][0]) * 1000)) & 0xFFFFFFFF
+            got = struct.unpack_from("<I", b, 7)[0]
+            score[op][1] += 1
+            if abs(((got - expected + 2 ** 31) % 2 ** 32) - 2 ** 31) < 5000:
+                score[op][0] += 1
+        for op, (hit, n) in score.items():
+            if n >= 5 and hit >= 0.9 * n and op not in result:
+                result[op] = 0x00db
     if attack_fixture:
         for op, group in group_by_op(wire).items():
             if all(len(b) == len(attack_fixture) for b in group[:5]):
