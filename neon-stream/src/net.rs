@@ -1095,6 +1095,28 @@ mod tests {
         );
     }
 
+    /// Regenerates neon-protocol/tests/fixtures/plain_packets.json (full decoded plaintext of the real fixtures).
+    /// Run: cargo test --release dump_plain_fixtures -- --ignored
+    #[test]
+    #[ignore]
+    fn dump_plain_fixtures() {
+        let f = fixtures();
+        let mut out = serde_json::Map::new();
+        for (k, v) in f.as_object().unwrap() {
+            let r = raw(&f, k);
+            let l = header_len(&r, 0).unwrap();
+            assert_eq!(r.len(), 4 + l);
+            let plain = decode_payload(&r[4..]);
+            let mut e = serde_json::Map::new();
+            e.insert("plain".into(), hex::encode(&plain).into());
+            if let Some(x) = v.get("expect") { e.insert("expect".into(), x.clone()); }
+            out.insert(k.clone(), e.into());
+        }
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../neon-protocol/tests/fixtures/plain_packets.json");
+        std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap()).unwrap();
+        std::fs::write(path, serde_json::to_string_pretty(&out).unwrap()).unwrap();
+    }
+
     #[test]
     fn decodes_update_kill_player_spawn_and_move() {
         let f = fixtures();
