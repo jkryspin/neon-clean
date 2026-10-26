@@ -31,6 +31,8 @@ pub enum Event {
     Stats(decode::StatUpdate),
     Party(decode::PartyMsg),
     Pickup { item: u32, qty: u32 },
+    /// A line in the chat window (kind byte as sent; the megaphone kinds carry `Name : message`).
+    Chat { kind: u8, text: String },
     /// An EXP gain message (our own kill, or a party share).
     ExpGain { amount: u32 },
     /// One inventory slot: `item` known for a new stack, `qty` None when removed.
@@ -66,6 +68,13 @@ pub struct Drop {
     pub x: i32,
     pub y: i32,
     pub last_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ChatLine {
+    pub t_ms: u64,
+    pub kind: u8,
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -107,6 +116,8 @@ pub struct Snapshot {
     /// EXP messages seen and their sum since the view started (one message per kill of ours).
     pub exp_messages: u64,
     pub exp_gained: u64,
+    /// Chat lines, newest last (at most 60).
+    pub chat: Vec<ChatLine>,
     /// Notable things that happened to us, newest last (at most 40).
     pub feed: Vec<FeedItem>,
     pub events: u64,
@@ -223,6 +234,12 @@ impl World {
                 if s.party.len() <= 1 {
                     s.party.clear();
                     s.party_id = None;
+                }
+            }
+            Event::Chat { kind, text } => {
+                s.chat.push(ChatLine { t_ms: now_ms, kind: *kind, text: text.clone() });
+                if s.chat.len() > 60 {
+                    s.chat.remove(0);
                 }
             }
             Event::ExpGain { amount } => {
@@ -349,6 +366,10 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
         "PlayerMove" => {
             let (x, y) = end_position(&d)?;
             Event::PlayerMove { char_id: int(&d, "char_id")? as u32, x, y }
+        }
+        "Chat" => {
+            let neon_protocol::Value::Str(t) = d.get("text")? else { return None };
+            Event::Chat { kind: int(&d, "kind")? as u8, text: t.clone() }
         }
         "NpcMove" => {
             let (x, y) = end_position(&d)?;

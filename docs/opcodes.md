@@ -54,7 +54,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x00a7` | 40 | 0.2 | 2-738 | PartyLeft | verified: A member left, or we left (mode 0x10): the character id. In the real capture it is our own id (334426) when we left |
 | `0x00a9` | 3 | 0.0 | 7 |  | observed |
 | `0x00ab` | 4 | 0.0 | 8-42 |  | observed |
-| `0x00ae` | 880 | 4.5 | 4-527 | Chat | decoded: Chat / megaphone text |
+| `0x00ae` | 880 | 4.5 | 4-527 | Chat | verified: A text message shown in the chat window: kind byte @2 (3 and 8 seen, 84 and 79 times; 32 and 2 rarer; the megaphone-type kinds of the classic client, not confirmed), u16 text length @3, then the text (e.g. `Name : S> 10 Int Earrings 1.6m`, a trade shout). The length equals the remaining text in 179 of 179 packets; bytes after the text (item data for some kinds) are unexplained (2026-10-26) |
 | `0x00b7` | 110 | 0.6 | 7 |  | structure: 7 bytes: op, a 3-byte id (e.g. 8f b8 07, 73 b9 07; the same ids appear in both 0x0077 and 0x00b7, at different times) then fe and a flag byte (flag byte 0d seen). Not tied to talking to an NPC: actlab npc_talk_open (3 repeats) found no reproducible incoming opcode. Meaning unknown (2026-10-26) |
 | `0x00be` | 1 | 0.0 | 3 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x00c1` | 3 | 0.0 | 6 |  | observed |

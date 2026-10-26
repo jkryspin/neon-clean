@@ -229,8 +229,13 @@ summary = "Pet move: the forms that do not fit the fragment layout above (name o
 id = 0x00ae
 dir = "in"
 name = "Chat"
-status = "decoded"
-summary = "Chat / megaphone text"
+status = "verified"
+summary = "A text message shown in the chat window: kind byte @2 (3 and 8 seen, 84 and 79 times; 32 and 2 rarer; the megaphone-type kinds of the classic client, not confirmed), u16 text length @3, then the text (e.g. `Name : S> 10 Int Earrings 1.6m`, a trade shout). The length equals the remaining text in 179 of 179 packets; bytes after the text (item data for some kinds) are unexplained (2026-10-26)"
+len_min = 6
+field = [
+  { name = "kind", ty = "u8", off = 2 },
+  { name = "text", ty = "str16", off = 3, min = 1, max = 500, charset = "printable" },
+]
 
 [[opcode]]
 id = 0x0456

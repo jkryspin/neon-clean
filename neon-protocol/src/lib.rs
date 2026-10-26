@@ -359,8 +359,11 @@ impl Registry {
 fn in_bounds(v: &Value, f: &Field) -> bool {
     let n = match v {
         Value::Str(t) => {
-            if f.charset.as_deref() == Some("ident") && !t.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_') {
-                return false;
+            match f.charset.as_deref() {
+                Some("ident") if !t.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_') => return false,
+                // ordinary text: printable ASCII only (anything else is more likely decode noise than a message)
+                Some("printable") if !t.bytes().all(|c| (0x20..=0x7e).contains(&c)) => return false,
+                _ => {}
             }
             t.len() as i64
         }

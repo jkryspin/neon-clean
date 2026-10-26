@@ -432,3 +432,21 @@ fn real_party_requests_decode_by_length_and_the_ui_action_carries_the_clicked_bu
     let mv = r.decode(Dir::Out, &get("0xdb_n2")).unwrap().get("tick").unwrap().as_i64().unwrap();
     assert!((t - mv).abs() < 3_000_000_000, "{t} vs {mv}");
 }
+
+#[test]
+fn real_chat_messages_decode_and_noise_is_rejected() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("fixtures/combat_packets.json")).unwrap();
+    for (k, kind) in [("0xae_kind3", 3), ("0xae_kind8", 8)] {
+        let p = plain(c[k]["plain"].as_str().unwrap());
+        let d = r.decode(Dir::In, &p).unwrap();
+        assert_eq!(d.name.as_deref(), Some("Chat"));
+        assert_eq!(d.get("kind").unwrap().as_i64(), Some(kind));
+        let Some(Value::Str(t)) = d.get("text") else { panic!("no text") };
+        assert!(t.contains(" : "), "speaker : message: {t:?}");
+        // a non-printable byte inside the text means this is not a chat message
+        let mut bad = p.clone();
+        bad[7] = 0x01;
+        assert!(r.decode(Dir::In, &bad).is_none(), "{k}: control byte in text");
+    }
+}

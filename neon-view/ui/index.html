@@ -47,6 +47,7 @@
     <h2>Me</h2><ul id="me"></ul>
     <h2>Party</h2><ul id="party"></ul>
     <h2>Activity</h2><ul id="feed"></ul>
+    <h2>Chat</h2><ul id="chat"></ul>
     <h2>Players</h2><ul id="players"></ul>
     <h2>Mobs</h2><ul id="mobs"></ul>
     <h2>Drops</h2><ul id="drops"></ul>
@@ -141,6 +142,7 @@ function render(s) {
     '<span>Meso</span><span>' + (m.meso ?? '?') + '</span>',
     '<span>Last pickup</span><span>' + (s.pickups.length ? s.pickups[s.pickups.length - 1][0] + ' x' + s.pickups[s.pickups.length - 1][1] : '-') + '</span>']);
   list('feed', s.feed.slice().reverse().map(f => '<span>' + esc(f.text) + '</span><span class="dim">' + (f.t_ms / 1000).toFixed(0) + 's</span>'));
+  list('chat', (s.chat || []).slice().reverse().slice(0, 30).map(c => '<span>' + esc(c.text) + '</span>'));
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
   list('players', Object.entries(s.players).map(([id, p]) => '<span><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
   list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + mobName(m.template) + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));

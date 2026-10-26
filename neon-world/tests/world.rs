@@ -326,3 +326,20 @@ fn npc_walks_become_npc_positions_and_a_map_change_clears_them() {
     w.apply(&Event::MapEnter { map: 1020 }, 6);
     assert!(w.snapshot().npcs.is_empty());
 }
+
+#[test]
+fn chat_lines_become_events_and_the_world_keeps_the_latest_sixty() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("../../neon-protocol/tests/fixtures/combat_packets.json")).unwrap();
+    let p = plain(c["0xae_kind3"]["plain"].as_str().unwrap());
+    let Some(Event::Chat { kind, text }) = event_from_packet(&r, &p) else { panic!("0x00ae must become a Chat event") };
+    assert_eq!(kind, 3);
+    assert!(text.ends_with("S> 10 Int Earrings 1.6m"), "{text}");
+    let mut w = World::new();
+    for i in 0..70u64 {
+        w.apply(&Event::Chat { kind: 3, text: format!("line {i}") }, i);
+    }
+    let chat = &w.snapshot().chat;
+    assert_eq!(chat.len(), 60);
+    assert_eq!((chat[0].text.as_str(), chat[59].text.as_str()), ("line 10", "line 69"));
+}
