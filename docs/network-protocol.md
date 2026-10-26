@@ -153,3 +153,13 @@ header/IV decoding above is as far as passive, read-only analysis goes.
 A decoded packet must show a small opcode (high byte 0-4), zero-padded fields and, in the migrate-in packet, the
 character id (`5a1a0500` for `shurelia2`) before any key is trusted. Both false-positive "keys" found earlier by
 character-id matching alone were noise.
+
+## Outgoing plaintext: passive memory search (2026-10-26, negative)
+
+Tried to find stale outgoing plaintext without a debugger: jib01 standing still at (1618, -307), process stopped,
+every `rw-p` mapping searched for the position as two i16 (0 hits) and as two i32 (13 hits, all client structures
+such as the player record at `0x109248`, none a packet buffer). So packet buffers are not left behind in readable
+memory; the plaintext only exists transiently around the cipher call. Reading it needs a breakpoint on the client's
+`libcrypto-3-x64.dll` (`EVP_*Update`). On this machine that also needs `ptrace` on a process outside our tree
+(`kernel.yama.ptrace_scope=1`, the game runs under the WineCharm flatpak), i.e. root or lowering the system-wide
+setting; neither was done.
