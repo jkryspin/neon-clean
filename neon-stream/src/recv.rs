@@ -70,6 +70,7 @@ pub struct RecvCipher {
 }
 
 impl RecvCipher {
+    #[cfg(test)]
     pub fn is_synced(&self) -> bool {
         self.iv.is_some()
     }

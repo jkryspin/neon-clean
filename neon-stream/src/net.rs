@@ -433,6 +433,7 @@ impl Framer {
         self.synced = false;
     }
 
+    #[cfg(test)]
     pub fn push(&mut self, data: &[u8]) -> Vec<Vec<u8>> {
         self.push_frames(data).into_iter().map(|(_, body)| body).collect()
     }
