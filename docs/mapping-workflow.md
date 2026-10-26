@@ -40,6 +40,8 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 
 **Marks pitfall (seen 2026-10-26):** never run an action loop whose period is a round number (60 s) without checking the periodicity first: `periodic.py` showed `0x004f` fires every 60 s, which phase-locked with a 60 s test loop and looked like "3/3 repeats" of opening the stats window. Vary the gaps (random 5-20 s) and run `periodic.py` on candidates before trusting them.
 
+**Negative result (2026-10-26, jib01, Amherst):** opening and closing the inventory, equipment, stats, skills and quest windows (`i e s k q`), 4 repeats each with random 5-17 s gaps, produced no opcode that repeated in 3 of 4 repeats in either direction. These windows are client-only; they are not on the wire. Remaining candidates need a server round trip: shop/NPC dialog, trade, party invite, skill use, buff, item use, chat channels.
+
 ## Evidence rules (what gets a name)
 
 1. A **name** needs an independent check, not a plausible story: a known value from another source (memory reader, map file, EXP counter),
