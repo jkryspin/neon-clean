@@ -408,7 +408,8 @@ len_max = 2
 [[opcode]]
 id = 0x002c
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "Unverified. 6 bytes (op + 2 varying bytes + 3 bytes ending in fe); 234 seen in a 30 min capture, irregular spacing (1-15 s), no known player/mob id in any 4-byte window (idscan). Same shape as 0x003d/0x023f (short, constant last byte), meaning unknown."
 len_min = 6
 len_max = 6
 
@@ -486,7 +487,8 @@ len_max = 10
 [[opcode]]
 id = 0x006e
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "Unverified. 7 or 11 bytes, constant tail (fc / fe .. fc); the u16 at 2 grows slowly (72 0c .. 74 0c) across packets; bursts of 3 packets in the same millisecond with consecutive counters (a9, b7, b8). 140 seen. No id references found. Meaning unknown."
 len_min = 7
 len_max = 11
 
@@ -916,7 +918,8 @@ field = [
 [[opcode]]
 id = 0x023f
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "Unverified. Always 10 bytes, ends in fe; u16 at 2 climbs steadily across packets (6a f7 -> 71 a2 -> 74 f5 -> 78 48 -> 7b 84) at 1-20 s spacing, and bytes 6-8 repeat a few values (92 d9 03 seen 3 times) like a stream key. 118 seen. Meaning unknown."
 len_min = 10
 len_max = 10
 
