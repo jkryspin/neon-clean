@@ -27,6 +27,14 @@ KNOWN = {
 }
 
 import os, time
+STRUCT = {
+    # Structure read from captured payloads (jib01 in Amherst, 2026-10-26). Not meanings.
+    0x0456: "busiest opcode in a crowded town; sizes 12 or 26+21n (n=1..5: 47,68,89,110,131): u16 op, u32 small counter, then 21-byte records",
+    0x004f: "3 bytes: op + one byte (values 0/1 seen)",
+    0x0028: "2 bytes: bare opcode, no fields, about 1 per 10 s",
+    0x02db: "7 bytes: op + 5 bytes (10 0a 00 00 00 seen)",
+    0x001b: "48 bytes, mostly zeros with two u64-looking values near the end; about 1 per 10 s",
+}
 paths = sys.argv[1:] or sorted(glob.glob("run/opcodes/*.json"))
 # Capture length per log = file birth time to last rewrite (ctime would reset on every rewrite).
 import subprocess
@@ -58,6 +66,8 @@ out = [
 for op in sorted(agg):
     a = agg[op]
     name, status = KNOWN.get(op, ("", "observed only"))
+    if op in STRUCT and not name:
+        status = "structure only: " + STRUCT[op]
     size = f"{a['min']}" if a["min"] == a["max"] else f"{a['min']}-{a['max']}"
     per_min = a["count"] / span * 60 / max(1, len(paths))
     if not name and a["min"] == a["max"] and per_min >= 5:

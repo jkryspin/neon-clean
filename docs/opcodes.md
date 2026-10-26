@@ -8,97 +8,145 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 
 | Opcode | Seen | Per min | Size (min-max) | Meaning | Status |
 |---|---:|---:|---|---|---|
-| `0x0013` | 15 | 0.2 | 3 |  | observed only |
-| `0x0014` | 15 | 0.2 | 3 |  | observed only |
-| `0x001b` | 252 | 2.7 | 48 |  | observed only |
-| `0x001d` | 6 | 0.1 | 22 |  | observed only |
-| `0x0020` | 15 | 0.2 | 3 |  | observed only |
+| `0x0013` | 16 | 0.1 | 3 |  | observed only |
+| `0x0014` | 16 | 0.1 | 3 |  | observed only |
+| `0x001b` | 297 | 2.4 | 48 |  | structure only: 48 bytes, mostly zeros with two u64-looking values near the end; about 1 per 10 s |
+| `0x001c` | 1 | 0.0 | 2 |  | observed only |
+| `0x001d` | 7 | 0.1 | 22 |  | observed only |
+| `0x001e` | 1 | 0.0 | 8 |  | observed only |
+| `0x0020` | 18 | 0.1 | 3 |  | observed only |
+| `0x0024` | 1 | 0.0 | 3 |  | observed only |
 | `0x0026` | 3 | 0.0 | 2 |  | observed only |
-| `0x0027` | 4 | 0.0 | 2 |  | observed only |
-| `0x0028` | 249 | 2.7 | 2 |  | observed only |
-| `0x002c` | 202 | 2.2 | 6 |  | observed only |
-| `0x003d` | 4622 | 49.4 | 10 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x004f` | 264 | 2.8 | 3 |  | observed only |
+| `0x0027` | 6 | 0.0 | 2 |  | observed only |
+| `0x0028` | 293 | 2.4 | 2 |  | structure only: 2 bytes: bare opcode, no fields, about 1 per 10 s |
+| `0x002c` | 250 | 2.0 | 6 |  | observed only |
+| `0x002e` | 1 | 0.0 | 2 |  | observed only |
+| `0x0037` | 1 | 0.0 | 18 |  | observed only |
+| `0x0039` | 1 | 0.0 | 193 |  | observed only |
+| `0x003a` | 1 | 0.0 | 6 |  | observed only |
+| `0x003b` | 1 | 0.0 | 6 |  | observed only |
+| `0x003c` | 1 | 0.0 | 77 |  | observed only |
+| `0x003d` | 5774 | 47.0 | 2-10 |  | observed only |
+| `0x004f` | 300 | 2.4 | 3 |  | structure only: 3 bytes: op + one byte (values 0/1 seen) |
+| `0x0055` | 2 | 0.0 | 10 |  | observed only |
 | `0x005c` | 1 | 0.0 | 12 |  | observed only |
-| `0x006e` | 76 | 0.8 | 7-11 |  | observed only |
-| `0x0072` | 73 | 0.8 | 9-54 | inventory change | seen with pickups, not decoded |
-| `0x0077` | 143 | 1.5 | 7 |  | observed only |
-| `0x007e` | 982 | 10.5 | 11-19 | own stat update | decoded (bitmask; some sizes unverified) |
-| `0x007f` | 35 | 0.4 | 3-157 |  | observed only |
-| `0x0080` | 49 | 0.5 | 129 |  | observed only |
-| `0x0081` | 15 | 0.2 | 3 |  | observed only |
-| `0x0082` | 15 | 0.2 | 2 |  | observed only |
-| `0x0085` | 24 | 0.3 | 6 |  | observed only |
-| `0x008b` | 190 | 2.0 | 6-50 | pickup message | decoded |
+| `0x0065` | 1 | 0.0 | 10 |  | observed only |
+| `0x006e` | 118 | 1.0 | 7-11 |  | observed only |
+| `0x0070` | 1 | 0.0 | 15 |  | observed only |
+| `0x0072` | 88 | 0.7 | 9-54 | inventory change | seen with pickups, not decoded |
+| `0x0077` | 164 | 1.3 | 7 |  | observed only |
+| `0x007e` | 1096 | 8.9 | 11-19 | own stat update | decoded (bitmask; some sizes unverified) |
+| `0x007f` | 37 | 0.3 | 3-157 |  | observed only |
+| `0x0080` | 52 | 0.4 | 129 |  | observed only |
+| `0x0081` | 16 | 0.1 | 3 |  | observed only |
+| `0x0082` | 16 | 0.1 | 2 |  | observed only |
+| `0x0085` | 29 | 0.2 | 6 |  | observed only |
+| `0x008b` | 223 | 1.8 | 6-50 | pickup message | decoded |
 | `0x008d` | 2 | 0.0 | 11 |  | observed only |
-| `0x008e` | 4 | 0.0 | 7037-7364 |  | observed only |
-| `0x0090` | 7 | 0.1 | 2 |  | observed only |
-| `0x00a7` | 17 | 0.2 | 2-738 | party update | decoded (create/leave/join) |
-| `0x00ae` | 479 | 5.1 | 4-527 | chat / megaphone | text |
+| `0x008e` | 5 | 0.0 | 7037-7364 |  | observed only |
+| `0x0090` | 8 | 0.1 | 2 |  | observed only |
+| `0x0094` | 1 | 0.0 | 4 |  | observed only |
+| `0x0095` | 1 | 0.0 | 3 |  | observed only |
+| `0x0096` | 1 | 0.0 | 3 |  | observed only |
+| `0x0097` | 1 | 0.0 | 10 |  | observed only |
+| `0x0098` | 1 | 0.0 | 19 |  | observed only |
+| `0x009a` | 1 | 0.0 | 14 |  | observed only |
+| `0x00a7` | 19 | 0.2 | 2-738 | party update | decoded (create/leave/join) |
+| `0x00a9` | 3 | 0.0 | 7 |  | observed only |
+| `0x00ab` | 4 | 0.0 | 8-42 |  | observed only |
+| `0x00ae` | 539 | 4.4 | 4-527 | chat / megaphone | text |
 | `0x00b7` | 9 | 0.1 | 7 |  | observed only |
-| `0x00c1` | 2 | 0.0 | 6 |  | observed only |
-| `0x00d2` | 102 | 1.1 | 7 |  | observed only |
-| `0x00f9` | 15 | 0.2 | 3 |  | observed only |
-| `0x0165` | 15 | 0.2 | 6 |  | observed only |
+| `0x00be` | 1 | 0.0 | 3 |  | observed only |
+| `0x00c1` | 3 | 0.0 | 6 |  | observed only |
+| `0x00c6` | 2 | 0.0 | 11-17 |  | observed only |
+| `0x00c9` | 1 | 0.0 | 2 |  | observed only |
+| `0x00cb` | 1 | 0.0 | 2 |  | observed only |
+| `0x00cf` | 1 | 0.0 | 1450 |  | observed only |
+| `0x00d2` | 112 | 0.9 | 7 |  | observed only |
+| `0x00e5` | 1 | 0.0 | 115 |  | observed only |
+| `0x00f1` | 1 | 0.0 | 6 |  | observed only |
+| `0x00f2` | 1 | 0.0 | 6 |  | observed only |
+| `0x00f9` | 16 | 0.1 | 3 |  | observed only |
+| `0x00fe` | 1 | 0.0 | 6 |  | observed only |
+| `0x010e` | 1 | 0.0 | 17 |  | observed only |
+| `0x0113` | 1 | 0.0 | 24 |  | observed only |
+| `0x0118` | 1 | 0.0 | 38 |  | observed only |
+| `0x012c` | 1 | 0.0 | 7 |  | observed only |
+| `0x0131` | 1 | 0.0 | 6 |  | observed only |
+| `0x0137` | 1 | 0.0 | 6 |  | observed only |
+| `0x013c` | 1 | 0.0 | 6 |  | observed only |
+| `0x0149` | 1 | 0.0 | 6 |  | observed only |
+| `0x0165` | 16 | 0.1 | 6 |  | observed only |
+| `0x016b` | 1 | 0.0 | 35 |  | observed only |
+| `0x016c` | 1 | 0.0 | 10 |  | observed only |
+| `0x016d` | 1 | 0.0 | 9 |  | observed only |
 | `0x016f` | 1 | 0.0 | 11 |  | observed only |
 | `0x0178` | 14 | 0.1 | 7 |  | observed only |
-| `0x01a9` | 15 | 0.2 | 103 |  | observed only |
-| `0x01f4` | 15 | 0.2 | 5 |  | observed only |
-| `0x0209` | 202 | 2.2 | 12-13 |  | observed only |
-| `0x020f` | 15 | 0.2 | 7 |  | observed only |
-| `0x0211` | 15 | 0.2 | 6 |  | observed only |
-| `0x022d` | 249 | 2.7 | 886-1018 | player spawn | decoded (id, name) |
+| `0x0183` | 1 | 0.0 | 1926 |  | observed only |
+| `0x0184` | 1 | 0.0 | 970 |  | observed only |
+| `0x0194` | 1 | 0.0 | 36 |  | observed only |
+| `0x019f` | 1 | 0.0 | 15 |  | observed only |
+| `0x01a5` | 1 | 0.0 | 25 |  | observed only |
+| `0x01a9` | 16 | 0.1 | 103-3184 |  | observed only |
+| `0x01ae` | 1 | 0.0 | 10 |  | observed only |
+| `0x01f1` | 1 | 0.0 | 1342 |  | observed only |
+| `0x01f4` | 16 | 0.1 | 5 |  | observed only |
+| `0x0209` | 239 | 1.9 | 12-13 |  | observed only |
+| `0x020f` | 16 | 0.1 | 7 |  | observed only |
+| `0x0211` | 16 | 0.1 | 6 |  | observed only |
+| `0x022d` | 291 | 2.4 | 886-1018 | player spawn | decoded (id, name) |
 | `0x022e` | 8 | 0.1 | 6 |  | observed only |
-| `0x022f` | 4 | 0.0 | 75-123 |  | observed only |
-| `0x023d` | 409 | 4.4 | 24-37 |  | observed only |
-| `0x023f` | 67 | 0.7 | 10 |  | observed only |
+| `0x022f` | 10 | 0.1 | 75-123 |  | observed only |
+| `0x0234` | 1 | 0.0 | 5206 |  | observed only |
+| `0x023d` | 482 | 3.9 | 24-37 |  | observed only |
+| `0x023f` | 76 | 0.6 | 10 |  | observed only |
 | `0x024b` | 1 | 0.0 | 14 |  | observed only |
-| `0x026f` | 15 | 0.2 | 10 |  | observed only |
-| `0x0270` | 6 | 0.1 | 11 |  | observed only |
+| `0x026f` | 16 | 0.1 | 10 |  | observed only |
+| `0x0270` | 8 | 0.1 | 11 |  | observed only |
 | `0x0279` | 8 | 0.1 | 7 |  | observed only |
-| `0x0281` | 92 | 1.0 | 51-58 | pet spawn | name only |
-| `0x0282` | 3926 | 41.9 | 45-327 | pet move | name only |
+| `0x0281` | 109 | 0.9 | 12-58 | pet spawn | name only |
+| `0x0282` | 5515 | 44.9 | 45-327 | pet move | name only |
 | `0x0283` | 3 | 0.0 | 17 |  | observed only |
-| `0x029d` | 19040 | 203.4 | 41-665 | player move | decoded |
-| `0x02a8` | 5165 | 55.2 | 63-207 |  | observed only |
-| `0x02a9` | 900 | 9.6 | 63-111 |  | observed only |
-| `0x02aa` | 389 | 4.2 | 63-97 |  | observed only |
-| `0x02af` | 1773 | 18.9 | 164 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02b0` | 5 | 0.1 | 15 |  | observed only |
+| `0x029d` | 23648 | 192.5 | 41-665 | player move | decoded |
+| `0x02a8` | 6430 | 52.4 | 63-207 |  | observed only |
+| `0x02a9` | 1122 | 9.1 | 63-111 |  | observed only |
+| `0x02aa` | 415 | 3.4 | 63-97 |  | observed only |
+| `0x02af` | 2105 | 17.1 | 164 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x02b0` | 5 | 0.0 | 15 |  | observed only |
 | `0x02b7` | 14 | 0.1 | 15 |  | observed only |
-| `0x02b8` | 9 | 0.1 | 371-421 |  | observed only |
-| `0x02b9` | 29 | 0.3 | 7-19 |  | observed only |
+| `0x02b8` | 11 | 0.1 | 366-421 |  | observed only |
+| `0x02b9` | 37 | 0.3 | 7-19 |  | observed only |
 | `0x02ba` | 8 | 0.1 | 156-157 |  | observed only |
-| `0x02bb` | 135 | 1.4 | 131 |  | observed only |
-| `0x02bd` | 28 | 0.3 | 22 |  | observed only |
-| `0x02db` | 176 | 1.9 | 7 |  | observed only |
+| `0x02bb` | 151 | 1.2 | 131 |  | observed only |
+| `0x02bd` | 33 | 0.3 | 22 |  | observed only |
+| `0x02db` | 200 | 1.6 | 7 |  | structure only: 7 bytes: op + 5 bytes (10 0a 00 00 00 seen) |
 | `0x031f` | 1 | 0.0 | 25 |  | observed only |
-| `0x0340` | 5 | 0.1 | 10 |  | observed only |
-| `0x0345` | 39 | 0.4 | 14 |  | observed only |
+| `0x0340` | 5 | 0.0 | 10 |  | observed only |
+| `0x0345` | 42 | 0.3 | 14 |  | observed only |
 | `0x0362` | 4 | 0.0 | 14 |  | observed only |
-| `0x0370` | 15 | 0.2 | 6 |  | observed only |
-| `0x0371` | 3 | 0.0 | 7-11 |  | observed only |
+| `0x0370` | 15 | 0.1 | 6 |  | observed only |
+| `0x0371` | 4 | 0.0 | 7-11 |  | observed only |
 | `0x037a` | 1 | 0.0 | 22 |  | observed only |
-| `0x0381` | 6 | 0.1 | 18 |  | observed only |
-| `0x03c9` | 1858 | 19.8 | 313-317 | mob spawn | decoded |
-| `0x03d4` | 1760 | 18.8 | 16 | mob removed | decoded |
-| `0x03d5` | 171 | 1.8 | 7-313 |  | observed only |
-| `0x03dc` | 34200 | 365.3 | 62-356 | mob update/move | decoded (start position only) |
-| `0x03e7` | 8931 | 95.4 | 28 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x0381` | 9 | 0.1 | 18 |  | observed only |
+| `0x03c9` | 2286 | 18.6 | 313-317 | mob spawn | decoded |
+| `0x03d4` | 2192 | 17.8 | 16 | mob removed | decoded |
+| `0x03d5` | 180 | 1.5 | 7-313 |  | observed only |
+| `0x03dc` | 40302 | 328.1 | 62-356 | mob update/move | decoded (start position only) |
+| `0x03e7` | 8991 | 73.2 | 28 |  | observed only; fixed-size and frequent (heartbeat-like) |
 | `0x03e9` | 2 | 0.0 | 40 |  | observed only |
-| `0x03f3` | 272 | 2.9 | 11 |  | observed only |
-| `0x0415` | 15 | 0.2 | 4 |  | observed only |
-| `0x0441` | 142 | 1.5 | 10 |  | observed only |
-| `0x044d` | 1708 | 18.2 | 14 | mob damaged | layout known, unused |
-| `0x0452` | 15 | 0.2 | 67 |  | observed only |
+| `0x03f3` | 314 | 2.6 | 11 |  | observed only |
+| `0x0415` | 16 | 0.1 | 4 |  | observed only |
+| `0x0441` | 150 | 1.2 | 10 |  | observed only |
+| `0x044d` | 2144 | 17.5 | 14 | mob damaged | layout known, unused |
+| `0x0452` | 18 | 0.1 | 67 |  | observed only |
 | `0x0453` | 4 | 0.0 | 6 |  | observed only |
 | `0x0454` | 1 | 0.0 | 68 |  | observed only |
-| `0x0456` | 439 | 4.7 | 12-152 |  | observed only |
+| `0x0456` | 705 | 5.7 | 12-152 |  | structure only: busiest opcode in a crowded town; sizes 12 or 26+21n (n=1..5: 47,68,89,110,131): u16 op, u32 small counter, then 21-byte records |
 | `0x045f` | 1 | 0.0 | 965 |  | observed only |
-| `0x0471` | 145 | 1.5 | 107-123 | drop spawn (own kills only) | decoded |
-| `0x0472` | 2997 | 32.0 | 7-15 | drop removed | decoded |
+| `0x0471` | 171 | 1.4 | 107-123 | drop spawn (own kills only) | decoded |
+| `0x0472` | 3739 | 30.4 | 7-15 | drop removed | decoded |
 | `0x047b` | 9 | 0.1 | 22 |  | observed only |
-| `0x0487` | 41 | 0.4 | 19 |  | observed only |
+| `0x0487` | 46 | 0.4 | 19 |  | observed only |
 | `0x048f` | 3 | 0.0 | 13 |  | observed only |
 
 ## Outgoing (client -> server)
