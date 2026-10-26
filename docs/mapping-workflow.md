@@ -77,6 +77,7 @@ Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRe
 | Outgoing `MoveSelf`, `Attack` | aligned with logged key presses; last position equals the memory reader's |
 | Outgoing `PickupDrop` | 6/6 oids are spawned drops; each answered by `DropRemove` (reason 2, picker = us) in 0.6-1.2 s |
 | Outgoing `PartyCreateRequest`/`PartyLeaveRequest` | byte-identical on repeat; incoming `PartyCreated`/`PartyLeft` follows in 0.2-1 s |
+| Attack target record +8 = damage (`0x02a8`/`a9`/`aa`) | summed over attacks on killed mobs it is 0.7-1.6x the spawn HP in 71% of 2286 kills (56% / 49% for the variants); offsets +0, +4, +12, +16, +20: 0%; real-kill fixture `damage_kill.json` |
 | `MoveMob` and `MobControl` | outgoing mob moves are only for mobs whose `0x03d5` carried our id (5/5); all 26 `0x03d5` are for already-announced mobs |
 
 ### Corrections made along the way (kept visible on purpose)
