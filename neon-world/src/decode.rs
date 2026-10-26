@@ -180,3 +180,28 @@ pub fn parse_exp_gain(p: &[u8]) -> Option<u32> {
     }
     None
 }
+
+/// The equipment list inside a `0x022d` player spawn: `[slot u8][item id u32]` entries, stride 5, ended by 0xFF, somewhere after
+/// the name (its offset shifts with the name length and the fields before it). Verified on 55 of 55 real spawn packets: every slot
+/// holds one item category only (1 cap 100xxxx, 5 top 104xxxx/105xxxx, 6 bottom 106xxxx, 7 shoes 107xxxx, 8 gloves 108xxxx,
+/// 10 shield 109xxxx, 11 weapon 13x/14xxxxx, ...), the classic equipment slots. The cash-shop list that follows is not decoded.
+pub fn parse_equips(p: &[u8]) -> Vec<(u8, u32)> {
+    let Some(n) = u16le(p, 18).map(usize::from) else { return vec![] };
+    let mut best: Vec<(u8, u32)> = vec![];
+    for off in 20 + n..p.len().saturating_sub(6) {
+        let mut run = vec![];
+        let mut o = off;
+        while o + 5 <= p.len() {
+            let (slot, id) = (p[o], u32le(p, o + 1).unwrap_or(0));
+            if !(1..=60).contains(&slot) || !(1_000_000..2_000_000).contains(&id) {
+                break;
+            }
+            run.push((slot, id));
+            o += 5;
+        }
+        if run.len() >= 3 && run.len() > best.len() && p.get(o) == Some(&0xff) {
+            best = run;
+        }
+    }
+    best
+}

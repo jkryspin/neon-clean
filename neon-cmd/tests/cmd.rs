@@ -160,16 +160,16 @@ fn staff_on_the_map_pauses_the_gate_and_leaving_resumes_it() {
     rules.names.insert("kevinsong".into());
     let mut g = gate(0, 1);
     let mut w = World::new();
-    w.apply(&Event::PlayerSpawn { char_id: 1, name: "Gmorning".into() }, 0);
+    w.apply(&Event::PlayerSpawn { char_id: 1, name: "Gmorning".into(), equips: vec![] }, 0);
     rules.sync(&mut g, w.snapshot());
     assert_eq!(g.check(1000), Verdict::Allow, "'Gmorning' is not staff");
-    w.apply(&Event::PlayerSpawn { char_id: 2, name: "KevinSong".into() }, 1);
+    w.apply(&Event::PlayerSpawn { char_id: 2, name: "KevinSong".into(), equips: vec![] }, 1);
     rules.sync(&mut g, w.snapshot());
     assert!(matches!(g.check(1000), Verdict::Blocked(r) if r.contains("gm")));
     w.apply(&Event::MapEnter { map: 5 }, 2); // map change clears the players
     rules.sync(&mut g, w.snapshot());
     assert_eq!(g.check(1000), Verdict::Allow);
-    w.apply(&Event::PlayerSpawn { char_id: 3, name: "GM_Sera".into() }, 3);
+    w.apply(&Event::PlayerSpawn { char_id: 3, name: "GM_Sera".into(), equips: vec![] }, 3);
     rules.sync(&mut g, w.snapshot());
     assert!(matches!(g.check(1000), Verdict::Blocked(_)));
 }

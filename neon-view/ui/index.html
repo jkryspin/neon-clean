@@ -79,6 +79,8 @@
 <script>
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const SLOTS = {1:'cap',2:'face acc',3:'eye acc',4:'earrings',5:'top',6:'bottom',7:'shoes',8:'gloves',9:'cape',10:'shield',11:'weapon',12:'ring',13:'ring',14:'pet equip',15:'ring',16:'ring'};
+const wears = p => (p.equips || []).map(e => (SLOTS[e[0]] || 'slot ' + e[0]) + ' ' + e[1]).join(', ');
 let snap = null, geo = null, geoId = null, mobNames = {}, mapNames = {};
 fetch('data/mob-names').then(r => r.ok ? r.json() : {}).then(j => { mobNames = j; if (snap) render(snap); });
 fetch('data/map-names').then(r => r.ok ? r.json() : {}).then(j => { mapNames = j; if (snap) render(snap); });
@@ -144,7 +146,7 @@ function render(s) {
   list('feed', s.feed.slice().reverse().map(f => '<span>' + esc(f.text) + '</span><span class="dim">' + (f.t_ms / 1000).toFixed(0) + 's</span>'));
   list('chat', (s.chat || []).slice().reverse().slice(0, 30).map(c => '<span>' + esc(c.text) + '</span>'));
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
-  list('players', Object.entries(s.players).map(([id, p]) => '<span><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
+  list('players', Object.entries(s.players).map(([id, p]) => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
   list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + mobName(m.template) + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + id + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));
   draw();

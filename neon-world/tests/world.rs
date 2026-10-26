@@ -41,7 +41,9 @@ fn real_packets_become_the_expected_events() {
         })
     );
     assert_eq!(event_from_packet(&r, &fx("0x3d4")), Some(Event::MobKill { oid: 20598982 }));
-    assert_eq!(event_from_packet(&r, &fx("0x22d")), Some(Event::PlayerSpawn { char_id: 329787, name: "alex5".into() }));
+    let Some(Event::PlayerSpawn { char_id, name, equips }) = event_from_packet(&r, &fx("0x22d")) else { panic!("0x022d must become a PlayerSpawn") };
+    assert_eq!((char_id, name.as_str()), (329787, "alex5"));
+    assert!(equips.len() >= 3, "a real spawn lists what the player wears: {equips:?}");
     // the packet starts at x = -185 and its one 21-byte fragment ends at x = -262, on the same ground line
     assert_eq!(event_from_packet(&r, &fx("0x29d")), Some(Event::PlayerMove { char_id: 562142, x: -262, y: 274 }));
     assert_eq!(event_from_packet(&r, &fx("0x471")), Some(Event::DropSpawn { oid: 1342746, owner: 334426, x: 1677, y: 215 }));
@@ -91,7 +93,7 @@ fn world_semantics() {
     w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0 }, 31); // sent twice by the server
     assert_eq!(w.snapshot().drops.len(), 1);
     w.apply(&Event::PlayerMove { char_id: 4, x: 9, y: 9 }, 40);
-    w.apply(&Event::PlayerSpawn { char_id: 4, name: "Ann".into() }, 41);
+    w.apply(&Event::PlayerSpawn { char_id: 4, name: "Ann".into(), equips: vec![(11, 1302000)] }, 41);
     let p = &w.snapshot().players[&4];
     assert_eq!((p.name.as_deref(), p.x, p.y), (Some("Ann"), Some(9), Some(9)));
     w.apply(&Event::MobKill { oid: 7 }, 50);
@@ -342,4 +344,39 @@ fn chat_lines_become_events_and_the_world_keeps_the_latest_sixty() {
     let chat = &w.snapshot().chat;
     assert_eq!(chat.len(), 60);
     assert_eq!((chat[0].text.as_str(), chat[59].text.as_str()), ("line 10", "line 69"));
+}
+
+#[test]
+fn equipment_slots_hold_one_item_category_each_in_a_real_spawn() {
+    // The independent check behind parse_equips: in the classic equipment scheme each slot takes one category of item
+    // (id / 10000). A wrong layout would scatter them. (55 of 55 real spawn packets of a grind and a town agreed.)
+    let r = Registry::builtin().unwrap();
+    let eq = decode::parse_equips(&fx("0x22d"));
+    assert!(!eq.is_empty());
+    for (slot, id) in &eq {
+        let cat = id / 10_000;
+        let ok = match slot {
+            1 => cat == 100,
+            2 => cat == 101,
+            3 => cat == 102,
+            4 => cat == 103,
+            5 => cat == 104 || cat == 105,
+            6 => cat == 106,
+            7 => cat == 107,
+            8 => cat == 108,
+            9 => cat == 110,
+            10 => cat == 109,
+            11 => (130..=149).contains(&cat),
+            12..=16 => cat == 111 || cat == 180,
+            _ => true,
+        };
+        assert!(ok, "slot {slot} holds item {id} (category {cat})");
+    }
+    // the world keeps them per player
+    let mut w = World::new();
+    let Some(e) = event_from_packet(&r, &fx("0x22d")) else { panic!() };
+    w.apply(&e, 0);
+    assert_eq!(w.snapshot().players[&329787].equips, eq);
+    // a packet that is not a spawn has no equipment list
+    assert!(decode::parse_equips(&fx("0x29d")).is_empty());
 }

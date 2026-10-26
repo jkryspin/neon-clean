@@ -22,7 +22,7 @@ fn synthetic(i: u32) -> Vec<u8> {
 
 fn teach(ex: &mut Explorer) {
     for k in 0..4 {
-        ex.learn(&Event::PlayerSpawn { char_id: 500_000 + k, name: "P".into() });
+        ex.learn(&Event::PlayerSpawn { char_id: 500_000 + k, name: "P".into(), equips: vec![] });
     }
     for k in 0..7 {
         ex.learn(&Event::MobSpawn { oid: 41_000_000 + k, template: 2, x: 0, y: 0 });
