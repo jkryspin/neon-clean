@@ -24,13 +24,14 @@ done
 [ -n "$PID" ] || { echo "$NAME: game not running"; exit 3; }
 mkdir -p run logs
 LOG=run/view.$NAME.log; : >"$LOG"
-(
-  trap 'kill 0' EXIT TERM INT
-  NEON_DUMP_OPS=all nice -n 15 neon-stream/target/release/neon-stream --pid "$PID" --chains neon-calib/chains.json --net --no-footholds \
-    2> >(python3 neon-calib/tools/stamp.py "$LOG") >/dev/null &
-  neon-world/target/release/neon-view --log "$LOG" --follow --speed 0 --port "$PORT" >"logs/view.$NAME.log" 2>&1 &
+# Own session, so stopping it (kill -- -PGID) cannot touch the caller and `kill 0` below only reaches these processes.
+setsid bash -c '
+  trap "kill 0" EXIT TERM INT
+  NEON_DUMP_OPS=all nice -n 15 neon-stream/target/release/neon-stream --pid "$1" --chains neon-calib/chains.json --net --no-footholds \
+    2> >(python3 neon-calib/tools/stamp.py "$2") >/dev/null &
+  neon-world/target/release/neon-view --log "$2" --follow --speed 0 --port "$3" >"logs/view.$4.log" 2>&1 &
   wait
-) &
+' _ "$PID" "$LOG" "$PORT" "$NAME" >/dev/null 2>&1 &
 echo $! >"run/view.$NAME.pgid"
 sleep 2
 echo "$NAME: http://$(hostname -I | awk '{print $1}'):$PORT/  (game pid $PID; stop with: scripts/view.sh stop $NAME)"
