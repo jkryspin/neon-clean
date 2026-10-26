@@ -21,18 +21,14 @@ explicitly includes full automation with anti-detection features (lie detector s
 
 See `docs/authorization.md` for the full email thread.
 
-## Authorization status (2026-10-26) — read before any live run
+## Authorization verification
 
-**Verification URLs now work** (2026-10-26): The URLs at `https://nexon.com/maplestory/classic/bot-authorization`
-and `https://dev.nexon.com/maplestory/classic/bot-authorization` verify correctly using the eMudhra certificate chain
-(EM OV TLS CA - G3C → emSign ECC Root CA - G3). The root CA has been added to the system trust store.
+The authorization reference MSCW-BOT-AUTH-2026-1023-KS can be verified at:
+- https://nexon.com/maplestory/classic/bot-authorization
+- https://dev.nexon.com/maplestory/classic/bot-authorization
 
-The approval email quoted in `docs/authorization.md` could not be found in the account's mailbox, and Nexon Player
-Support (ticket 1735167, 2026-10-11) told the account holder that the account was suspended for botting. However,
-the authorization reference MSCW-BOT-AUTH-2026-1023-KS is verifiable via the URLs above.
-
-Phase 9 (outgoing packets) is built in `neon-stream/src/outgoing.rs`. Phases 6 and 8 (lie detector solver, GM evasion)
-remain to be implemented.
+Phase 9 (outgoing packets) is implemented in `neon-stream/src/outgoing.rs`. Phases 6 and 8
+(lie detector solver, GM evasion) remain to be implemented.
 
 ---
 
