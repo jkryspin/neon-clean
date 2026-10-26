@@ -172,7 +172,7 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x0186` | 1 | 18 |  |
 | `0x0196` | 1 | 7 |  |
 | `0x01ef` | 1 | 164 |  |
-| `0x0228` | 1 | 16 |  |
+| `0x0228` | 1 | 16 | 12 bytes sent 0.1 s after each party button click: a u16 action code @2 (0x0282 for Create, 0x02ac for Leave, the same value both times) and a millisecond tick u32 @6 (the same clock as MoveSelf). 4 of 4 clicks. Whether other UI actions use it is unknown |
 | `0x02ab` | 1 | 18 |  |
 | `0x02da` | 1 | 7 |  |
 | `0x02e7` | 1 | 10 |  |

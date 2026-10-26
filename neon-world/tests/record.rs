@@ -189,3 +189,28 @@ fn an_incoming_log_and_an_outgoing_capture_of_the_same_period_merge_by_time() {
     assert_eq!(order, vec![(0, Dir::Out), (1000, Dir::In), (2500, Dir::Out), (3000, Dir::In)]);
     assert_eq!(s.bad_lines, 0);
 }
+
+#[test]
+fn a_real_party_exchange_shows_request_then_reply_and_the_world_follows() {
+    // 12 real records (jib01, 2026-10-26): twice, a click on Create then on Leave. Outgoing 0x0184/0x0228 and the server's
+    // incoming 0x00a7 replies, merged on one timeline.
+    let reg = Registry::builtin().unwrap();
+    let s = Session::from_lines(include_str!("fixtures/party_exchange.jsonl").lines().map(String::from));
+    assert_eq!(s.records.len(), 12);
+    let name_of = |r: &Record| reg.decode(r.dir, &r.plain).and_then(|d| d.name).unwrap_or_default();
+    let reqs: Vec<&Record> = s.records.iter().filter(|r| r.dir == Dir::Out && name_of(r).ends_with("Request")).collect();
+    assert_eq!(reqs.iter().map(|r| name_of(r)).collect::<Vec<_>>(), ["PartyCreateRequest", "PartyLeaveRequest", "PartyCreateRequest", "PartyLeaveRequest"]);
+    for req in &reqs {
+        let want = if name_of(req) == "PartyCreateRequest" { "PartyCreated" } else { "PartyLeft" };
+        let reply = s.records.iter().find(|r| r.dir == Dir::In && name_of(r) == want && r.t_ms >= req.t_ms).unwrap_or_else(|| panic!("no {want} after {}", name_of(req)));
+        assert!(reply.t_ms - req.t_ms <= 1500, "{want} came {} ms after {}", reply.t_ms - req.t_ms, name_of(req));
+    }
+    // the world's party follows the replies: one member after the first create, none after the leave
+    let mut sink = WorldSink::new();
+    let mut rp = Replayer::new(s.clone());
+    let t_created = s.records.iter().find(|r| r.dir == Dir::In && name_of(r) == "PartyCreated").unwrap().t_ms;
+    rp.seek(&mut sink, t_created);
+    assert_eq!(sink.w.snapshot().party.len(), 1);
+    rp.seek(&mut sink, u64::MAX);
+    assert!(sink.w.snapshot().party.is_empty() && sink.w.snapshot().party_id.is_none());
+}

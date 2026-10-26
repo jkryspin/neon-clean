@@ -1216,10 +1216,6 @@ id = 0x01ef
 dir = "out"
 status = "observed"
 
-[[opcode]]
-id = 0x0228
-dir = "out"
-status = "observed"
 
 [[opcode]]
 id = 0x02ab
@@ -1537,3 +1533,34 @@ id = 0x02fe
 dir = "out"
 status = "structure"
 summary = "The most frequent outgoing opcode in the bot's runs (340 of ~500 packets), carrying a small incrementing counter. NOT movement (that is 0x00db) and not the basic attack (0x00e1); with the bot holding the attack key it is probably the repeated attack or skill packet, unverified"
+
+[[opcode]]
+id = 0x0184
+dir = "out"
+name = "PartyCreateRequest"
+status = "structure"
+summary = "We asked to create a party: 70 bytes, byte-identical both times (2 of 2 clicks on the party window's Create button, 2026-10-26, jib01). The server's reply, the incoming 0x00a7 PartyCreated (mode 0x0e), arrived 0.18 s later. Fields unexplained; 0x184 has the same first 10 bytes as the leave request, @10 differs (0x0e here, 0x0c there)"
+len_min = 70
+len_max = 70
+
+[[opcode]]
+id = 0x0184
+dir = "out"
+name = "PartyLeaveRequest"
+status = "structure"
+summary = "We asked to leave the party: 38 bytes, byte-identical both times (2 of 2 clicks on Leave). The reply, the incoming 0x00a7 PartyLeft (mode 0x10), arrived about a second later (the incoming log's timestamps are quantised to ~1 s). Fields unexplained"
+len_min = 38
+len_max = 38
+
+[[opcode]]
+id = 0x0228
+dir = "out"
+name = "UiAction"
+status = "structure"
+summary = "12 bytes sent 0.1 s after each party button click: a u16 action code @2 (0x0282 for Create, 0x02ac for Leave, the same value both times) and a millisecond tick u32 @6 (the same clock as MoveSelf). 4 of 4 clicks. Whether other UI actions use it is unknown"
+len_min = 12
+len_max = 12
+field = [
+  { name = "action", ty = "u16", off = 2 },
+  { name = "tick", ty = "u32", off = 6 },
+]

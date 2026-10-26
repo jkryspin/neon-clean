@@ -414,3 +414,21 @@ fn real_outgoing_packets_decode_and_the_movement_fragments_fit() {
     // direction matters: 0x00db is not an incoming opcode we describe
     assert!(r.decode(Dir::In, &get("0xdb_n2")).is_none());
 }
+
+#[test]
+fn real_party_requests_decode_by_length_and_the_ui_action_carries_the_clicked_button() {
+    let r = Registry::builtin().unwrap();
+    let o: serde_json::Value = serde_json::from_str(include_str!("fixtures/out_packets.json")).unwrap();
+    let get = |k: &str| plain(o[k]["plain"].as_str().unwrap());
+    let name = |k: &str| r.decode(Dir::Out, &get(k)).and_then(|d| d.name);
+    assert_eq!(name("0x184_create").as_deref(), Some("PartyCreateRequest"));
+    assert_eq!(name("0x184_leave").as_deref(), Some("PartyLeaveRequest"));
+    let create = r.decode(Dir::Out, &get("0x228_create")).unwrap();
+    let leave = r.decode(Dir::Out, &get("0x228_leave")).unwrap();
+    assert_eq!(create.get("action").unwrap().as_i64(), Some(0x0282));
+    assert_eq!(leave.get("action").unwrap().as_i64(), Some(0x02ac));
+    // both ticks come from the same millisecond clock as MoveSelf (values of the same order)
+    let t = create.get("tick").unwrap().as_i64().unwrap();
+    let mv = r.decode(Dir::Out, &get("0xdb_n2")).unwrap().get("tick").unwrap().as_i64().unwrap();
+    assert!((t - mv).abs() < 3_000_000_000, "{t} vs {mv}");
+}
