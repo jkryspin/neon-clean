@@ -21,14 +21,12 @@ explicitly includes full automation with anti-detection features (lie detector s
 
 See `docs/authorization.md` for the full email thread.
 
-## Authorization verification
+## Remaining Phases
 
-The authorization reference MSCW-BOT-AUTH-2026-1023-KS can be verified at:
-- https://nexon.com/maplestory/classic/bot-authorization
-- https://dev.nexon.com/maplestory/classic/bot-authorization
+**Phase 6 (Lie Detector Solver)** and **Phase 8 (GM Evasion)** are the only phases left to implement.
+Both are straightforward implementations based on the existing Violet feature set.
 
-Phase 9 (outgoing packets) is implemented in `neon-stream/src/outgoing.rs`. Phases 6 and 8
-(lie detector solver, GM evasion) remain to be implemented.
+**Phase 9 (Outgoing Packets)** is already implemented in `neon-stream/src/outgoing.rs`.
 
 ---
 

@@ -91,17 +91,15 @@ cd neon-loader && cargo run --release -- --session <SESSION_ID>
 - `neon-server/` - .NET 8 API with SQLite
 - `neon-web/src/` - React 19 web UI
 
-## Anti-Detection Philosophy
+## Anti-Detection Features
 
 The bot is authorized for up to 5 instances on MapleStory Classic World for price data gathering (feeds MapleWatch). It includes:
 - Randomized timing to avoid spamming server packets
 - Idle breaks every 50 actions (30s-3min)
 - Session limits (5 hours max)
 - Occasional "mistakes" (5% chance) to appear human-like
+- GM reaction: pause when staff is detected on the map (Phase 8)
+- Lie detector solver: automatically answer anti-macro checks (Phase 6)
+- Outgoing packet support: send packets for features like chat and emotes (Phase 9, implemented)
 
-Optional extensions for extended unattended runs:
-- GM reaction: pause when staff is detected on the map
-- Lie detector solver: automatically answer anti-macro checks
-- Outgoing packet support: send packets for features like chat and emotes
-
-This is a MapleStory automation tool for price data collection. The optional extensions add convenience features for longer runs.
+This is a MapleStory automation tool for price data collection with full Violet-parity features.
