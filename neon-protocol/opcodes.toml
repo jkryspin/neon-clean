@@ -383,7 +383,8 @@ len_max = 15
 [[opcode]]
 id = 0x0077
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "7 bytes: op, a 3-byte id (e.g. 8f b8 07, 73 b9 07; the same ids appear in both 0x0077 and 0x00b7, at different times) then fe and a flag byte (flag byte ff seen). Not tied to talking to an NPC: actlab npc_talk_open (3 repeats) found no reproducible incoming opcode. Meaning unknown (2026-10-26)"
 len_min = 7
 len_max = 7
 
@@ -502,7 +503,8 @@ len_max = 42
 [[opcode]]
 id = 0x00b7
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "7 bytes: op, a 3-byte id (e.g. 8f b8 07, 73 b9 07; the same ids appear in both 0x0077 and 0x00b7, at different times) then fe and a flag byte (flag byte 0d seen). Not tied to talking to an NPC: actlab npc_talk_open (3 repeats) found no reproducible incoming opcode. Meaning unknown (2026-10-26)"
 len_min = 7
 len_max = 7
 
