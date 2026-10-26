@@ -17,6 +17,12 @@
   h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:10px 0 4px; }
   ul { list-style:none; margin:0; padding:0; } li { padding:2px 0; display:flex; justify-content:space-between; gap:8px; }
   .k { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+  section { padding:0 16px 16px; } section h2 { margin-top:0; }
+  table { width:100%; border-collapse:collapse; font-size:12px; } th { text-align:left; color:var(--dim); font-weight:500; padding:3px 6px; border-bottom:1px solid var(--line); }
+  td { padding:2px 6px; border-bottom:1px solid var(--line); vertical-align:top; } td.hex { font:11px ui-monospace, monospace; color:var(--dim); word-break:break-all; }
+  .verified { color:var(--player); } .unregistered, .observed { color:var(--mob); } .structure, .decoded { color:var(--drop); }
+  .grid2 { display:grid; grid-template-columns: 2fr 1fr; gap:12px; } @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+  .box { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:8px 12px; max-height:360px; overflow:auto; }
 </style>
 </head>
 <body>
@@ -34,6 +40,14 @@
     <h2>Drops</h2><ul id="drops"></ul>
   </aside>
 </main>
+<section>
+  <div class="grid2">
+    <div><h2>Packets <label class="dim" style="text-transform:none;letter-spacing:0"><input type="checkbox" id="hide"> hide verified</label></h2>
+      <div class="box"><table><thead><tr><th>t</th><th>opcode</th><th>name</th><th>len</th><th>fields / bytes</th></tr></thead><tbody id="pk"></tbody></table></div></div>
+    <div><h2>Opcodes seen</h2>
+      <div class="box"><table><thead><tr><th>opcode</th><th>n</th><th>len</th><th>status</th></tr></thead><tbody id="oc"></tbody></table></div></div>
+  </div>
+</section>
 <script>
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -50,10 +64,12 @@ function draw() {
   const r = cv.getBoundingClientRect(); cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio;
   ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); ctx.clearRect(0,0,r.width,r.height);
   const P = pts(snap); if (!P.length) return;
-  const xs = P.map(p => p.x), ys = P.map(p => p.y);
-  const x0 = Math.min(...xs) - 50, x1 = Math.max(...xs) + 50, y0 = Math.min(...ys) - 50, y1 = Math.max(...ys) + 50;
+  const q = (a, f) => { const b = [...a].sort((m, n) => m - n); return b[Math.min(b.length - 1, Math.floor(f * (b.length - 1)))]; };
+  const xs = P.map(p => p.x), ys = P.map(p => p.y);       // 5th-95th percentile: one far outlier must not squash the rest
+  const x0 = q(xs, .05) - 50, x1 = q(xs, .95) + 50, y0 = q(ys, .05) - 50, y1 = q(ys, .95) + 50;
   const sc = Math.min((r.width - 20) / Math.max(x1 - x0, 1), (r.height - 20) / Math.max(y1 - y0, 1));
-  const X = x => 10 + (x - x0) * sc, Y = y => 10 + (y - y0) * sc;   // MapleStory y grows downward, like the screen
+  const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const X = x => cl(10 + (x - x0) * sc, 6, r.width - 6), Y = y => cl(10 + (y - y0) * sc, 6, r.height - 6);   // MapleStory y grows downward, like the screen
   ctx.font = '11px system-ui'; ctx.textBaseline = 'middle';
   for (const p of P) {
     ctx.fillStyle = css('--' + p.k); ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), p.k === 'drop' ? 3 : 5, 0, 7); ctx.fill();
@@ -71,9 +87,28 @@ function render(s) {
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + id + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));
   draw();
 }
-if (new URLSearchParams(location.search).has('once')) {   // single fetch: for screenshots and tests
+const hexs = t => esc(t);
+function renderPackets(rows) {
+  const hide = document.getElementById('hide').checked;
+  document.getElementById('pk').innerHTML = rows.filter(r => !(hide && r.status === 'verified')).slice(0, 80).map(r =>
+    '<tr><td class="dim">' + (r.t_ms / 1000).toFixed(1) + '</td><td class="' + r.status + '">' + r.op + '</td><td>' + esc(r.name || '') + '</td><td>' + r.len +
+    '</td><td class="hex">' + (r.fields.length ? esc(r.fields.map(f => f[0] + '=' + f[1]).join(' ')) : hexs(r.hex)) + '</td></tr>').join('');
+}
+function renderOps(rows) {
+  document.getElementById('oc').innerHTML = rows.slice(0, 60).map(r =>
+    '<tr><td class="' + r.status + '">' + r.op + (r.name ? ' ' + esc(r.name) : '') + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>').join('');
+}
+let lastPk = [];
+document.getElementById('hide').onchange = () => renderPackets(lastPk);
+const pollInspector = () => {
+  fetch('packets?limit=200').then(r => r.json()).then(j => { lastPk = j; renderPackets(j); });
+  fetch('opcodes').then(r => r.json()).then(renderOps);
+};
+if (new URLSearchParams(location.search).has('once')) {
+  pollInspector();   // single fetch: for screenshots and tests
   fetch('state').then(r => r.json()).then(s => { document.getElementById('conn').textContent = 'snapshot'; render(s); });
 } else {
+  pollInspector(); setInterval(pollInspector, 1500);
   const es = new EventSource('events');
   es.onmessage = e => { document.getElementById('conn').textContent = 'live'; render(JSON.parse(e.data)); };
   es.onerror = () => { document.getElementById('conn').textContent = 'disconnected'; };

@@ -4,6 +4,7 @@
 //! into state; [`World::snapshot`] is what the view API serves. A packet log can be replayed offline with
 //! [`replay`], so the model is testable without a live client.
 
+pub mod inspector;
 pub mod view;
 
 use neon_protocol::{Dir, Registry};
@@ -193,4 +194,21 @@ pub struct ReplayStats {
     pub events: u64,
     pub unused: u64,
     pub bad_lines: u64,
+}
+
+/// Everything the view serves, behind one lock.
+#[derive(Debug, Default)]
+pub struct Shared {
+    pub world: World,
+    pub packets: inspector::Inspector,
+}
+
+impl Shared {
+    /// Feed one plaintext packet: inspector always, world when it maps to an event.
+    pub fn feed(&mut self, reg: &Registry, plain: &[u8], t_ms: u64) {
+        self.packets.record(reg, plain, t_ms);
+        if let Some(e) = event_from_packet(reg, plain) {
+            self.world.apply(&e, t_ms);
+        }
+    }
 }

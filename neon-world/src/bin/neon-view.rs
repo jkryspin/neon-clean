@@ -4,7 +4,7 @@
 //! so another machine on the LAN can open it). Read-only, but there is no authentication: use `--host 127.0.0.1` anywhere untrusted.
 //! The log is what `NEON_DUMP_OPS=all neon-stream --net` prints with a timestamp in front of each line.
 use neon_protocol::Registry;
-use neon_world::{event_from_packet, parse_log_line, view, World};
+use neon_world::{parse_log_line, view, Shared};
 use std::io::BufRead;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -21,13 +21,13 @@ fn main() {
     let port: u16 = get("--port").and_then(|s| s.parse().ok()).unwrap_or(8765);
     let host = get("--host").unwrap_or_else(|| "0.0.0.0".to_string());
 
-    let reg = Registry::builtin().expect("registry");
-    let world = Arc::new(Mutex::new(World::new()));
+    let reg = Arc::new(Registry::builtin().expect("registry"));
+    let world = Arc::new(Mutex::new(Shared::default()));
     let listener = std::net::TcpListener::bind((host.as_str(), port)).expect("bind (is the port taken or the host wrong?)");
     eprintln!("neon-view on http://{host}:{port}/  (log {log}, follow={follow}, speed={speed}; no authentication)");
 
-    let w2 = world.clone();
-    std::thread::spawn(move || view::serve(listener, w2, Duration::from_millis(250)));
+    let (w2, r2) = (world.clone(), reg.clone());
+    std::thread::spawn(move || view::serve(listener, w2, r2, Duration::from_millis(250)));
 
     let mut rd = std::io::BufReader::new(std::fs::File::open(&log).expect("open log"));
     let (mut t0, mut prev): (Option<f64>, Option<f64>) = (None, None);
@@ -52,8 +52,6 @@ fn main() {
         }
         prev = Some(t);
         let t0 = *t0.get_or_insert(t);
-        if let Some(e) = event_from_packet(&reg, &plain) {
-            world.lock().unwrap().apply(&e, ((t - t0) * 1000.0) as u64);
-        }
+        world.lock().unwrap().feed(&reg, &plain, ((t - t0) * 1000.0) as u64);
     }
 }

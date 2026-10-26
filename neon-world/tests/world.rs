@@ -119,14 +119,18 @@ fn log_line_parser() {
 fn view_server_serves_page_state_and_404_over_a_real_socket() {
     use std::io::{Read, Write};
     use std::sync::{Arc, Mutex};
-    let mut w = World::new();
-    w.apply(&Event::MapEnter { map: 1010 }, 0);
-    w.apply(&Event::PlayerSpawn { char_id: 5, name: "Zed".into() }, 1);
+    let mut w = Shared::default();
+    w.world.apply(&Event::MapEnter { map: 1010 }, 0);
+    w.world.apply(&Event::PlayerSpawn { char_id: 5, name: "Zed".into() }, 1);
+    let reg = Arc::new(Registry::builtin().unwrap());
+    w.feed(&reg, &fx("0x3c9"), 5);
+    w.feed(&reg, &fx("0x44d"), 6);
     let world = Arc::new(Mutex::new(w));
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     let w2 = world.clone();
-    std::thread::spawn(move || view::serve(listener, w2, std::time::Duration::from_millis(20)));
+    let r2 = reg.clone();
+    std::thread::spawn(move || view::serve(listener, w2, r2, std::time::Duration::from_millis(20)));
     let get = |path: &str| {
         let mut s = std::net::TcpStream::connect(addr).unwrap();
         write!(s, "GET {path} HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
@@ -142,6 +146,18 @@ fn view_server_serves_page_state_and_404_over_a_real_socket() {
     assert_eq!(j["map"], 1010);
     assert_eq!(j["players"]["5"]["name"], "Zed");
     assert!(get("/nope").starts_with("HTTP/1.1 404"));
+    let pk = get("/packets?limit=10");
+    let pj: serde_json::Value = serde_json::from_str(pk.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+    assert_eq!(pj.as_array().unwrap().len(), 2);
+    assert_eq!(pj[1]["name"], "MobSpawn", "oldest last: newest first");
+    assert_eq!(pj[1]["status"], "verified");
+    assert!(pj[1]["fields"].as_array().unwrap().iter().any(|f| f[0] == "template" && f[1] == "6"));
+    assert_eq!(pj[0]["status"], "structure", "0x044d is registered as structure only");
+    assert_eq!(pj[0]["fields"].as_array().unwrap().len(), 0);
+    let oc = get("/opcodes");
+    let oj: serde_json::Value = serde_json::from_str(oc.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+    assert_eq!(oj.as_array().unwrap().len(), 2);
+    assert_eq!(oj[0]["count"], 1);
     // The event stream emits snapshots and keeps updating.
     let mut s = std::net::TcpStream::connect(addr).unwrap();
     s.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
@@ -150,7 +166,7 @@ fn view_server_serves_page_state_and_404_over_a_real_socket() {
     let n = s.read(&mut buf).unwrap();
     let first = String::from_utf8_lossy(&buf[..n]).to_string();
     assert!(first.contains("text/event-stream"));
-    world.lock().unwrap().apply(&Event::MapEnter { map: 2020 }, 5);
+    world.lock().unwrap().world.apply(&Event::MapEnter { map: 2020 }, 5);
     std::thread::sleep(std::time::Duration::from_millis(120));
     let mut all = first;
     let n = s.read(&mut buf).unwrap();
