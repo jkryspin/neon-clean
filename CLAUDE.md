@@ -38,6 +38,9 @@ Details and evidence: `docs/data-sources.md`.
   and looting (walk to a same-floor drop, press the pickup key, give up on stuck drops). 28 unit tests. Dry-run against the live stream works; it has **not** been run sending keys.
 - Client relaunch/login automation: `scripts/launch-game.sh`, `docs/launching.md`.
 
+**Network ciphers (solved 2026-10-26, passive only):** `neon-stream --net` now decrypts server->client packets exactly (no heuristic, header-verified) and client->server packets (AES-256-OFB), see
+`docs/network-protocol.md`. Client->server opcode numbers are scrambled per connection (`neon_protocol::WireMap`, `neon-calib/tools/wiremap.py`). Nothing is ever sent.
+
 **Not working / not proven:**
 - Mobs (with template ids) and other players (with names) now come from the network (`--net`), verified live; they have no memory root. EXP and own drops are decoded too (stat update `0x007e`, drops `0x0471`); AP, max HP/MP, player removal, and packets sent *to* the server are not verified.
 - No EXP, AP, drops, other-player names, or rope flag; max HP/MP only remembered per level.

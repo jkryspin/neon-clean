@@ -10,7 +10,7 @@ view into the game. Two stages: **(A) official client stays the connection** (MV
 |---|---|
 | Incoming decode | ~15 of 140 seen opcodes verified (mobs, players, drops, own stats, party, pickups, chat); passive via tcpdump, `neon-stream/src/net.rs` |
 | Outgoing read | Opcode + fields readable from the client's packet object before encryption (send-packet fn `0x141660360`, build-specific); 25 opcodes seen, almost none labelled; needs a debugger attach |
-| Outgoing write | Header and IV schedule solved (`outgoing.rs`); **payload cipher unsolved**; nothing has ever been injected |
+| Outgoing write | Header, IV schedule and **payload cipher solved** (2026-10-26: AES-256-OFB, `neon-stream/src/send.rs`); wire opcode numbers are scrambled per connection (open); nothing has ever been injected |
 | Input | XTEST keys/clicks per Xvfb display; works, live-tested |
 | State | Memory roots for position/HP/MP/level/map; footholds; navigation; brain (`brain.rs`) is pure state-in/actions-out |
 | Live-account caveat | gdb attaches of 60-150 s dropped both test clients; see `docs/network-protocol.md` |
@@ -154,3 +154,9 @@ server acceptance (no desyncs, no kicks).
   our own outgoing movement. Registry: 140 incoming opcodes (20 named) and 29 outgoing (7 named).
   Still ahead: M3/M6 (the long tail of opcodes needs actions nobody has done yet: shops, NPC dialogs, trade, skills, buffs, party
   invites, the lie detector), M8/M9 (Stage B, gated on written Nexon approval, plus the unsolved payload cipher in both directions).
+* 2026-10-26 (19:30) **Both ciphers solved and implemented, passively.** Incoming: `plain = cipher - iv[0]` per packet, IV shuffled per packet, every header verifies the IV chain
+  (`neon-stream/src/recv.rs`); the old heuristic was wrong for ~6% of frames and invented four opcodes (removed). Outgoing: AES-256-OFB with the 4-byte IV repeated four times and a
+  static key (`send.rs`, `aes.rs`); the send IV is learned from the headers too. Details and evidence: `docs/network-protocol.md`. The client->server wire opcodes are scrambled per connection
+  (`WireMap`, `wiremap.py`); how a connection's numbering is chosen is the next open question for Stage B (B2 is therefore no longer "the payload cipher"; it is the opcode numbering).
+  Nothing was sent; Stage B stays gated on written Nexon approval.
+
