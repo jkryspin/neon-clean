@@ -55,3 +55,12 @@ packet inspector (opcode, registry name, status, decoded fields, bytes; "hide ve
 * gdb attaches of 60-150 s dropped both test clients; never attach to the main account unattended (`docs/network-protocol.md`).
 * A refused login is not retried in a loop: `ReconnectPolicy` (1 min, 5 min, 15 min, 1 h; max 6 per day, then a human).
 * The view has no authentication.
+
+
+## Update (later on 2026-10-26)
+
+* `neon-view` is now its own crate (server, UI, inspector, **opcode explorer**, **replay transport**). `neon-world` keeps the model and the
+  `.nsr` session record/replayer. The registry supports variants and repeated records, so movement, attacks and NPCs are data.
+* The mapping method, tools and evidence rules are in `docs/mapping-workflow.md`.
+* Outgoing opcodes can be captured with exact plaintext (short, opt-in attach) and replayed like incoming ones; our own position is now
+  derived from the packets we send.
