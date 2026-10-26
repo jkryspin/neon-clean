@@ -1,5 +1,6 @@
 //! Neon View: server, UI, inspector, replay and opcode explorer on top of `neon-world`.
 
+pub mod explorer;
 pub mod inspector;
 pub mod server;
 
@@ -13,6 +14,7 @@ use std::sync::Mutex;
 pub struct Shared {
     pub world: World,
     pub packets: inspector::Inspector,
+    pub explorer: explorer::Explorer,
     /// Directory of per-map geometry files (`<id>.json`), served at `/map/<id>`; its parent holds the name tables.
     pub maps_dir: Option<std::path::PathBuf>,
 }
@@ -21,8 +23,10 @@ impl Shared {
     /// Feed one plaintext packet: inspector always, world when it is an incoming packet that maps to an event.
     pub fn feed(&mut self, reg: &Registry, dir: Dir, plain: &[u8], t_ms: u64) {
         self.packets.record(reg, dir, plain, t_ms);
+        self.explorer.record(dir, plain);
         if dir == Dir::In {
             if let Some(e) = event_from_packet(reg, plain) {
+                self.explorer.learn(&e);
                 self.world.apply(&e, t_ms);
             }
         }
@@ -32,6 +36,7 @@ impl Shared {
     pub fn clear(&mut self) {
         self.world = World::new();
         self.packets = inspector::Inspector::default();
+        self.explorer = explorer::Explorer::default();
     }
 }
 

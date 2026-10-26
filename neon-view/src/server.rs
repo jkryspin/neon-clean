@@ -46,6 +46,19 @@ pub fn route(path: &str, sh: &Shared, reg: &Registry) -> Route {
                 _ => Route::Body { status: 404, content_type: "text/plain", body: "not found".into() },
             }
         }
+        "/explore" => {
+            let q = |k: &str| query.split('&').find_map(|kv| kv.strip_prefix(&format!("{k}=")));
+            let dir = match q("dir") {
+                Some("out") => neon_protocol::Dir::Out,
+                _ => neon_protocol::Dir::In,
+            };
+            let id = q("op").and_then(|o| u16::from_str_radix(o.trim_start_matches("0x"), 16).ok());
+            match id.and_then(|id| sh.explorer.explore(reg, dir, id)) {
+                Some(x) => json(serde_json::to_string(&x).unwrap()),
+                None => Route::Body { status: 404, content_type: "text/plain", body: "no such opcode seen".into() },
+            }
+        }
+        "/todo" => json(serde_json::to_string(&sh.explorer.todo(reg, 40)).unwrap()),
         "/packets" => json(serde_json::to_string(&sh.packets.recent(limit)).unwrap()),
         "/opcodes" => json(serde_json::to_string(&sh.packets.histogram(reg)).unwrap()),
         "/" | "/index.html" => Route::Body { status: 200, content_type: "text/html; charset=utf-8", body: INDEX_HTML.to_string() },
