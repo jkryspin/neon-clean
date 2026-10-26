@@ -39,8 +39,8 @@ fn session() -> Session {
 #[test]
 fn jsonl_roundtrip_keeps_direction_time_and_bytes() {
     let recs = vec![
-        Record { t_ms: 0, dir: Dir::In, plain: vec![0x28, 0x00] },
-        Record { t_ms: 1500, dir: Dir::Out, plain: vec![0xfe, 0x02, 0xaa, 0x00] },
+        Record { t_ms: 0, dir: Dir::In, plain: vec![0x28, 0x00], wire: false },
+        Record { t_ms: 1500, dir: Dir::Out, plain: vec![0xfe, 0x02, 0xaa, 0x00], wire: false },
     ];
     for r in &recs {
         assert_eq!(Record::parse_line(&r.to_line()).as_ref(), Some(r));
@@ -131,7 +131,7 @@ fn outgoing_records_replay_without_touching_the_world() {
     let mut recs = session().records;
     let n_in = recs.len();
     // an outgoing packet that means nothing to the world (an undecoded opcode)
-    recs.push(Record { t_ms: 100, dir: Dir::Out, plain: vec![0x07, 0x04, 1, 2, 3] });
+    recs.push(Record { t_ms: 100, dir: Dir::Out, plain: vec![0x07, 0x04, 1, 2, 3], wire: false });
     let s = Session::from_lines(Session { records: recs, bad_lines: 0, ..Default::default() }.to_text().lines().map(String::from)); // sorted, as every loaded session is
     let mut a = WorldSink::new();
     Replayer::new(s.clone()).seek(&mut a, u64::MAX);
@@ -259,4 +259,15 @@ fn absolute_times_keep_their_origin_so_wall_clock_marks_can_be_placed_and_relati
     assert_eq!(abs.duration_ms(), 1250);
     let rel = Session::from_lines(vec![r#"{"t":10,"d":"in","hex":"2800"}"#.to_string()]);
     assert_eq!(rel.origin_unix_ms, None);
+}
+
+#[test]
+fn wire_lines_are_outgoing_wire_records_and_survive_the_json_round_trip() {
+    let r = Record::parse_line("1793053929.806 wire op 8786 len 2: 86 87").expect("wire line");
+    assert_eq!((r.dir, r.wire, r.plain.clone()), (Dir::Out, true, vec![0x86, 0x87]));
+    let plain = Record::parse_line("1793053929.806 op 0028 len 2: 28 00").unwrap();
+    assert_eq!((plain.dir, plain.wire), (Dir::In, false));
+    let back = Record::parse_line(&r.to_line()).unwrap();
+    assert!(back.wire && back.dir == Dir::Out);
+    assert!(!Record::parse_line(&plain.to_line()).unwrap().wire);
 }

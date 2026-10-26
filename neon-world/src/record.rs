@@ -17,6 +17,9 @@ pub struct Record {
     pub t_ms: u64,
     pub dir: Dir,
     pub plain: Vec<u8>,
+    /// A client->server packet as it travelled on the wire (decrypted passively): its opcode is the wire one, not the internal
+    /// one the registry describes. `Registry::wire_to_internal` translates it.
+    pub wire: bool,
 }
 
 fn hex_of(b: &[u8]) -> String {
@@ -37,7 +40,8 @@ impl Record {
             Dir::In => "in",
             Dir::Out => "out",
         };
-        format!("{{\"t\":{},\"d\":\"{d}\",\"hex\":\"{}\"}}", self.t_ms, hex_of(&self.plain))
+        let w = if self.wire { ",\"w\":1" } else { "" };
+        format!("{{\"t\":{},\"d\":\"{d}\"{w},\"hex\":\"{}\"}}", self.t_ms, hex_of(&self.plain))
     }
 
     /// Parse either file format. `t_ms` of a legacy line is its unix time in ms; [`Session::from_lines`] makes times relative.
@@ -50,10 +54,18 @@ impl Record {
                 "out" => Dir::Out,
                 _ => return None,
             };
-            return Some(Record { t_ms: v.get("t")?.as_u64()?, dir, plain: bytes_of(v.get("hex")?.as_str()?)? });
+            let wire = v.get("w").and_then(|w| w.as_u64()) == Some(1);
+            return Some(Record { t_ms: v.get("t")?.as_u64()?, dir, plain: bytes_of(v.get("hex")?.as_str()?)?, wire });
+        }
+        // `<secs> wire op ...` is a client->server packet from the passive decoder; `<secs> op ...` is incoming
+        if let Some((secs, rest)) = line.split_once(' ') {
+            if let Some(rest) = rest.strip_prefix("wire ") {
+                let (secs, plain) = crate::parse_log_line(&format!("{secs} {rest}"))?;
+                return Some(Record { t_ms: (secs * 1000.0) as u64, dir: Dir::Out, plain, wire: true });
+            }
         }
         let (secs, plain) = crate::parse_log_line(line)?;
-        Some(Record { t_ms: (secs * 1000.0) as u64, dir: Dir::In, plain })
+        Some(Record { t_ms: (secs * 1000.0) as u64, dir: Dir::In, plain, wire: false })
     }
 }
 

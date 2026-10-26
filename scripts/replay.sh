@@ -17,6 +17,7 @@ for f in run/view.*.log; do
   [ -e "$f" ] || continue
   n=$(basename "$f" .log); n=${n#view.}
   ln -sfn "../$(basename "$f")" "run/sessions/live-$n.log"
+  [ -e "$f.wire" ] && ln -sfn "../$(basename "$f").wire" "run/sessions/live-$n.log.wire"
 done
 nohup neon-view/target/release/neon-view --sessions run/sessions --port "$PORT" >logs/replay.log 2>&1 &
 echo $! >run/replay.pid

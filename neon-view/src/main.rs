@@ -4,7 +4,8 @@
 //! Two modes, one page:
 //!   live    `--follow`: tail a capture that is still being written (new records appear as they arrive);
 //!   replay  default: load the whole session, show it as of `--start` (default: the end) and offer play / pause / speed / seek.
-//! Both read the JSON-lines session format (`.nsr`, both directions) and the older stamped incoming log.
+//! Both read the JSON-lines session format (`.nsr`, both directions) and the older stamped incoming log; `--log X --log X.wire`
+//! adds the client->server packets that `neon-stream` decrypts passively (shown through the registry's `wire_opcode` map).
 //!
 //! Serves http://<host>:<port>/ (default 0.0.0.0, so another machine on the LAN can open it). Read-only except the
 //! replay controls, and there is no authentication: use `--host 127.0.0.1` anywhere untrusted.
@@ -66,21 +67,39 @@ fn main() {
     }
 
     if follow {
-        // Live: feed every record as it is appended. Times are relative to the first record so both formats look alike.
-        let mut rd = std::io::BufReader::new(std::fs::File::open(&log).expect("open log"));
-        let mut t0: Option<u64> = None;
-        let mut line = String::new();
-        loop {
-            line.clear();
-            if rd.read_line(&mut line).expect("read") == 0 {
-                std::thread::sleep(Duration::from_millis(100));
-                continue;
-            }
-            let Some(rec) = Record::parse_line(line.trim_end()) else { continue };
-            let base = *t0.get_or_insert(rec.t_ms);
-            let t = if base > 1_000_000_000_000 { rec.t_ms.saturating_sub(base) } else { rec.t_ms };
-            app.shared.lock().unwrap().feed(&app.reg, rec.dir, &rec.plain, t);
+        // Live: tail every --log (the incoming log and the `.wire` log of client->server packets) and feed each record as it is
+        // appended. Times are relative to the very first record of any file, so both formats look alike.
+        let base = Arc::new(std::sync::Mutex::new(None::<u64>));
+        let mut tails = vec![];
+        for path in logs.clone() {
+            let (app, base) = (app.clone(), base.clone());
+            tails.push(std::thread::spawn(move || {
+                let mut rd = std::io::BufReader::new(std::fs::File::open(&path).expect("open log"));
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    if rd.read_line(&mut line).expect("read") == 0 {
+                        std::thread::sleep(Duration::from_millis(100));
+                        continue;
+                    }
+                    let Some(rec) = Record::parse_line(line.trim_end()) else { continue };
+                    let b = *base.lock().unwrap().get_or_insert(rec.t_ms);
+                    let t = if b > 1_000_000_000_000 { rec.t_ms.saturating_sub(b) } else { rec.t_ms };
+                    let mut sh = app.shared.lock().unwrap();
+                    if rec.wire {
+                        if let Some(p) = app.reg.wire_to_internal(&rec.plain) {
+                            sh.feed(&app.reg, rec.dir, &p, t);
+                        }
+                    } else {
+                        sh.feed(&app.reg, rec.dir, &rec.plain, t);
+                    }
+                }
+            }));
         }
+        for t in tails {
+            let _ = t.join();
+        }
+        return;
     }
 
     // Replay: load, show as of --start (default the end), then tick the transport. With only --sessions, start empty and let the page pick.

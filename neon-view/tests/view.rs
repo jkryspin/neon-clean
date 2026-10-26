@@ -272,3 +272,24 @@ fn marks_are_stored_with_a_time_read_back_in_order_and_unsafe_labels_are_refused
     assert_eq!(body(&req(off, "GET", "/marks")), "[]");
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn a_log_and_its_wire_file_replay_together_and_the_wire_file_is_not_listed_as_a_session() {
+    use std::sync::Arc;
+    let dir = std::env::temp_dir().join(format!("neon-wire-test-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("cap.log"), "1793050000.000 op 0028 len 2: 28 00\n1793050002.000 op 0028 len 2: 28 00\n").unwrap();
+    // client->server: a keepalive (wire opcode 0x8786, mapped to KeepAlive) and an unmapped wire opcode (not shown)
+    std::fs::write(dir.join("cap.log.wire"), "1793050001.000 wire op 8786 len 2: 86 87\n1793050001.500 wire op 1234 len 3: 34 12 00\n").unwrap();
+    let mut app = App::new(Registry::builtin().unwrap(), Shared::default());
+    app.sessions_dir = Some(dir.clone());
+    let app = Arc::new(app);
+    let listed = app.list_sessions();
+    assert!(listed.contains("cap.log") && !listed.contains(".wire"), "{listed}");
+    app.load_session("cap.log").unwrap();
+    let sh = app.shared.lock().unwrap();
+    let ops = sh.packets.histogram(&app.reg);
+    let text = format!("{ops:?}");
+    assert!(text.contains("KeepAlive"), "the wire keepalive is shown as the registry's KeepAlive: {text}");
+    assert!(!text.contains("0x1234") && !text.contains("0x8786"), "unmapped wire opcodes and raw wire numbers stay out: {text}");
+}

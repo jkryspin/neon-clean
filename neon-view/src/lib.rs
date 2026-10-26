@@ -53,6 +53,13 @@ impl Sink for ViewSink<'_> {
         self.shared.clear();
     }
     fn feed(&mut self, rec: &Record) {
+        if rec.wire {
+            // a wire packet is shown as the internal packet the registry describes; unmapped wire opcodes are not shown yet
+            if let Some(p) = self.reg.wire_to_internal(&rec.plain) {
+                self.shared.feed(self.reg, Dir::Out, &p, rec.t_ms);
+            }
+            return;
+        }
         self.shared.feed(self.reg, rec.dir, &rec.plain, rec.t_ms);
     }
 }
@@ -142,7 +149,12 @@ impl App {
         if !ok {
             return Err("bad session name".into());
         }
-        let text = std::fs::read_to_string(dir.join(name)).map_err(|e| format!("cannot read {name}: {e}"))?;
+        let mut text = std::fs::read_to_string(dir.join(name)).map_err(|e| format!("cannot read {name}: {e}"))?;
+        // a stamped incoming log may have the client->server packets of the same capture next to it (`<name>.wire`)
+        if let Ok(w) = std::fs::read_to_string(dir.join(format!("{name}.wire"))) {
+            text.push('\n');
+            text.push_str(&w);
+        }
         let session = neon_world::record::Session::from_lines(text.lines().map(String::from));
         if session.records.is_empty() {
             return Err(format!("{name} holds no readable records"));

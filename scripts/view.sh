@@ -33,7 +33,7 @@ if [ -s "$LOG" ]; then
   mv "$LOG" "run/sessions/$STAMP.log"
   [ -s "$LOG.wire" ] && mv "$LOG.wire" "run/sessions/$STAMP.log.wire"
 fi
-: >"$LOG"
+: >"$LOG"; : >"$LOG.wire"
 # Own session, so stopping it (kill -- -PGID) cannot touch the caller and `kill 0` below only reaches these processes.
 setsid bash -c '
   trap "kill 0" EXIT TERM INT
@@ -42,7 +42,7 @@ setsid bash -c '
   # memory source (position, HP/MP, level): only the newest line is kept
   nice -n 15 neon-stream/target/release/neon-stream --pid "$1" --chains neon-calib/chains.json --no-footholds --seen-file "neon-calib/seen-max.$4.json" 2>/dev/null \
     | python3 neon-calib/tools/latest.py "run/view.$4.mem.json" 5 &
-  neon-view/target/release/neon-view --log "$2" --follow --speed 0 --port "$3" --mem "run/view.$4.mem.json" --marks run/marks.jsonl >"logs/view.$4.log" 2>&1 &
+  neon-view/target/release/neon-view --log "$2" --log "$2.wire" --follow --speed 0 --port "$3" --mem "run/view.$4.mem.json" --marks run/marks.jsonl >"logs/view.$4.log" 2>&1 &
   wait
 ' _ "$PID" "$LOG" "$PORT" "$NAME" >/dev/null 2>&1 &
 echo $! >"run/view.$NAME.pgid"
