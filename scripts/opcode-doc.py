@@ -77,6 +77,8 @@ for op in sorted(agg):
     status = r.get("status", "observed") + (": " + r["summary"] if r.get("summary") else "")
     size = f"{a['min']}" if a["min"] == a["max"] else f"{a['min']}-{a['max']}"
     per_min = a["count"] / span * 60 / max(1, len(paths))
+    if r.get("status", "observed") == "observed" and a["count"] <= 2:
+        status = "observed, rare (<=2 sightings: may be decode noise)"
     if r.get("status", "observed") == "observed" and a["min"] == a["max"] and per_min >= 5:
         status = "observed; fixed-size and frequent (heartbeat-like)"
     out.append(f"| `0x{op:04x}` | {a['count']} | {per_min:.1f} | {size} | {name} | {status} |")

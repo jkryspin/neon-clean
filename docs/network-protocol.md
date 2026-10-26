@@ -194,3 +194,27 @@ World v1.0.1 build; **all addresses are for this build**):
 * Caveats: the packet's own length is not read yet (the wire length of the next send is only a hint); the breakpoint
   sits in the game process: **after gdb sessions of 60-150 s both test clients (jib01 and the main account shurella2) dropped to the login screen with "Unable to connect to the game server"** (cause not isolated: stalled heartbeat from stopping all threads, or the server reacting to the debugger). Treat every attach as able to cost the session; do not run it on the main account unattended, and prefer a few seconds at a time; one capture of 150 s covered 25 opcodes, mostly
   movement. The 2026-10-26 negative results above stand for the cipher itself.
+
+## Incoming cipher: what the client's receive code shows (2026-10-26, partial; no decrypt found yet)
+
+Read from process memory (`/proc/PID/mem`, no debugger attach; build-specific addresses, Classic World v1.0.1), disassembled
+offline with `objdump -D -b binary -mi386:x86-64 --adjust-vma=...`:
+
+* The client calls `ws2_32!recv` from four places (import slot `0x14334be40`): `0x1416616f5` / `0x141661751` (the handshake
+  reader: reads a 2-byte length, compares it with a maximum, then the body; unencrypted `0x13` hello) and
+  `0x141663580` (the main receive loop, function `0x141663490`) and `0x141677b84`.
+* The main loop allocates a **1460-byte (0x5b4) buffer** per `recv`, appends what arrived to an accumulation buffer at
+  `this+0x70` (`0x141673a40`) and loops. **No decryption happens there**: it is done later on the accumulated stream
+  (candidates: `0x141663c00`, `0x14166b910`, `0x1416746d0`, not read yet). So "block" in the earlier notes is the
+  cipher's own 1456/1460-byte block, not a TCP segment.
+* Tested and rejected on `neon-calib/captures/connection_start.pcap`: the per-block constant K is not a byte of the receive IV
+  chain (`09 27 cf 40`, advanced with the verified send-side shuffle) at any chain offset for any byte position (best 3 hits of
+  55 reliable blocks, chance level), whether the blocks are counted on the raw stream or from any start offset 0-29. Only block 0
+  matches (K = 0x09 = iv[0]; its plaintext reads `0b 00 00 00 01 00 00 00 17 00 00 00 ...`). The stream also begins with six
+  zero bytes of junk and does not frame as `[a][b]` headers from offset 0 (it is the pre-game stage), so the pcap may not
+  represent the in-game stream.
+* Practical impact: in 3,318 real in-game packets only 0.09% fell into the rare-opcode tail (possible decode noise), so the
+  heuristic decoder is good enough for the world model; text-heavy packets (NPC dialogs) are the ones it can mis-decode,
+  and `actlab` found no reproducible opcode for an NPC dialog, which fits that.
+* Next step if exact incoming decryption is wanted: read the three candidate functions above from memory and port the
+  algorithm (it needs no debugger).
