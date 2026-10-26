@@ -101,7 +101,12 @@ fn main() {
                         std::thread::sleep(Duration::from_millis(100));
                         continue;
                     }
-                    let Some(rec) = Record::parse_line(line.trim_end()) else { continue };
+                    let Some(mut rec) = Record::parse_line(line.trim_end()) else { continue };
+                    if path.ends_with(".wire") {
+                        // everything in a .wire file is a client->server packet with a wire opcode
+                        rec.wire = true;
+                        rec.dir = neon_protocol::Dir::Out;
+                    }
                     let b = *base.lock().unwrap().get_or_insert(rec.t_ms);
                     let t = if b > 1_000_000_000_000 { rec.t_ms.saturating_sub(b) } else { rec.t_ms };
                     let mut sh = app.shared.lock().unwrap();

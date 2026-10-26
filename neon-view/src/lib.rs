@@ -156,7 +156,16 @@ impl App {
         // a stamped incoming log may have the client->server packets of the same capture next to it (`<name>.wire`)
         if let Ok(w) = std::fs::read_to_string(dir.join(format!("{name}.wire"))) {
             text.push('\n');
-            text.push_str(&w);
+            for line in w.lines() {
+                // lines of a .wire file are `<t> op ...`; mark them as wire packets
+                match line.split_once(' ') {
+                    Some((t, rest)) if !rest.starts_with("wire ") => text.push_str(&format!("{t} wire {rest}\n")),
+                    _ => {
+                        text.push_str(line);
+                        text.push('\n');
+                    }
+                }
+            }
         }
         let session = neon_world::record::Session::from_lines(text.lines().map(String::from));
         if session.records.is_empty() {
