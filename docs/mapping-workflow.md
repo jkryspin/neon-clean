@@ -44,22 +44,41 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
    movement, `0x0456` as ids; both were wrong and the entries say so).
 4. Fields carry **bounds** (`min`/`max`/`charset`) so decoding noise (the incoming cipher key is only estimated, see the protocol notes) is rejected.
 
-## Status (2026-10-26)
+## Status (2026-10-26, end of the first mapping day)
 
-Registry entries by status: incoming 18 verified, 8 decoded, 20 structure, 104 observed; outgoing 11 structure, 18 observed.
-Opcodes with a name: incoming `PlayerMove` (fragments), `MobMove` (fragments), `PetMove`, `NpcMove`, `PlayerSpawn`, `MobSpawn`,
-`MobControl`, `MobKill`, `MobHit`, `PlayerAttack` (+2 variants, position pairs), `DropSpawn`, `DropRemove`, `StatUpdate`,
-`ExpMessage`, `QuestRecordMessage`, `PickupMessage`, `QuestMessage`, `PartyCreated/Joined/Left`, `MapEnter`, `LoginInventory`,
-`InventoryChange`, `Chat`, `PetSpawn`; outgoing `MoveSelf`, `Attack`, `AttackSkill`, `MoveMob`, `PickupDrop`, `KeepAlive`, `PartyCreateRequest`, `PartyLeaveRequest`.
+Registry: **140 incoming opcodes** (19 with a name; 20 verified entries, 7 decoded, 20 structure, 104 observed only) and **29 outgoing opcodes** (7 with a name, the rest structure or observed).
 
-Biggest remaining unexplained traffic (open the **Map next** panel): attack-packet header bytes, pet and spawn headers,
-`0x003d` (sequence counter, 30 streams), `0x02af`, `0x03e7`, chat text, the outgoing heartbeat/telemetry family
-(`0x0265`, `0x0266`, `0x0407`, `0x041f`-`0x0425`), and everything that needs an action nobody has done yet (shops, NPC dialogs, trade,
-skills, buffs, party invites, the lie detector).
+Named incoming: Chat, DropRemove, DropSpawnItem, DropSpawnMeso, ExpMessage, InventoryChange, LoginInventory, MapEnter, MobControl, MobHit, MobKill, MobMove, MobSpawn, NpcMove, PartyCreated, PartyJoined, PartyLeft, PetMove, PetSpawn, PickupMessage, PlayerAttack, PlayerMove, PlayerSpawn, QuestMessage, QuestRecordMessage, StatUpdate.
+Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRequest, PartyLeaveRequest, PickupDrop, UiAction.
+
+### What the evidence looked like (so it can be repeated)
+
+| Finding | Evidence |
+|---|---|
+| Movement (`PlayerMove`, `MobMove`, `PetMove`, `NpcMove`) = header + n x 21-byte fragments | count byte == n in 4132/4132, 5477/5477 packets; fragment ends on map platforms 96-100%; NPC starts match the map file's NPC positions |
+| `PlayerAttack` header: attacker position twice, per-attacker trait @6 | poscorr: 77% within 30 px; @6 equals the attacker's usual value in 99% of 1487 |
+| `ExpMessage` amount | equals the EXP-counter delta in 26/26 kills |
+| `MobSpawn` HP @225 | equals the public database HP for the template in 100% of 540 packets |
+| `PlayerSpawn` level @14, equipment list | beginner town 5-11 vs hunting map 11-49; slot -> item category consistent in 55/55 spawns |
+| `DropSpawn` item id / mesos | the six picked-up item ids are exactly the ids in the drops |
+| Outgoing `MoveSelf`, `Attack` | aligned with logged key presses; last position equals the memory reader's |
+| Outgoing `PickupDrop` | 6/6 oids are spawned drops; each answered by `DropRemove` (reason 2, picker = us) in 0.6-1.2 s |
+| Outgoing `PartyCreateRequest`/`PartyLeaveRequest` | byte-identical on repeat; incoming `PartyCreated`/`PartyLeft` follows in 0.2-1 s |
+| `MoveMob` and `MobControl` | outgoing mob moves are only for mobs whose `0x03d5` carried our id (5/5); all 26 `0x03d5` are for already-announced mobs |
+
+### Corrections made along the way (kept visible on purpose)
+
+* `0x02fe` was first read as movement; it is the mob-movement report (`0x00db` is our movement).
+* `0x0456` "sequential ids" were x coordinates; it is NPC movement.
+* `0x03d5` "respawn" is a control assignment (26/26 are for mobs already announced).
+* The `neon-stream` shuffle table in `outgoing.rs` was invented; replaced by the real table and the verified shuffle.
+* The first attach-based capture's wire-length pairing was approximate; the exact length lives at `+0x428`.
+
+Biggest remaining unexplained traffic (open the **Map next** panel): player and mob spawn headers, `0x003d` (a sequence counter, ~30 streams), `0x02a9`/`0x02aa`/`0x02af` variants, the outgoing `0x00e7`, `0x013f`, `0x0407`, `0x0265`/`0x0266`, telemetry (`0x041f`-`0x0425`), and everything that needs an action nobody has done yet (shops, NPC dialogs, trade, skills, buffs, party invites, the lie detector).
 
 ## Next
 
-1. More aligned outgoing captures per action (skill, item use, NPC talk, shop, chat) with `actlab`-style action logs.
+1. More aligned outgoing captures per action (skill, item use, NPC talk, shop, chat); keep attaches under ~20 s.
 2. Fragment field meanings (stance values, the byte after the command) from data with known stances.
 3. Packet-only world model: own position from `MoveSelf` is in; map id and HP/MP come from the memory reader today.
 4. Stage B questions (headless without the client) stay gated on written Nexon approval (`docs/headless-plan.md`).
