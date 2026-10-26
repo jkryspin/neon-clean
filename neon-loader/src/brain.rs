@@ -129,6 +129,12 @@ pub struct BrainConfig {
 
     pub trusted_igns: HashSet<String>,
     pub evasion_distance: i32,
+    /// Pause while a staff character is anywhere on the map (not just near). Staff are recognised
+    /// by `gm_names` (exact, lowercase) or a `gm_prefixes` match on the name; no GM flag has been
+    /// decoded from the wire, so this is name-based only. Resumes by itself once they are gone.
+    pub gm_evasion: bool,
+    pub gm_names: HashSet<String>,
+    pub gm_prefixes: Vec<String>,
 
     /// A drop this close horizontally (and on roughly the same floor) is worth walking to.
     pub loot_range_x: i32,
@@ -208,6 +214,9 @@ impl Default for BrainConfig {
             max_state_gap_ms: 2000,
             trusted_igns: HashSet::new(),
             evasion_distance: 300,
+            gm_evasion: true,
+            gm_names: HashSet::new(),
+            gm_prefixes: vec!["gm_".into(), "[gm]".into(), "gm ".into()],
             loot_range_x: 500,
             loot_range_y: 40,
             loot_pickup_dist: 30,
@@ -1185,6 +1194,13 @@ impl Brain {
             }
         }
 
+        // --- Staff on the map: stop everything until they leave ------------
+        if self.cfg.gm_evasion && s.caps.players {
+            if let Some(gm) = self.staff_on_map(s) {
+                return self.pause(&format!("paused: staff member {gm} on the map"));
+            }
+        }
+
         // --- Safety (evasion) -------------------------------------------
         if self.cfg.evasion {
             if !s.caps.players {
@@ -1369,6 +1385,13 @@ impl Brain {
         if self.warned.insert(key) {
             out.push(Action::Notify(msg.to_string()));
         }
+    }
+
+    fn staff_on_map(&self, s: &GameState) -> Option<String> {
+        s.others.iter().filter_map(|o| o.name.as_ref()).find(|n| {
+            let l = n.to_lowercase();
+            self.cfg.gm_names.contains(&l) || self.cfg.gm_prefixes.iter().any(|p| l.starts_with(p.as_str()))
+        }).cloned()
     }
 
     fn nearest_stranger(&self, s: &GameState) -> Option<i32> {
@@ -2403,6 +2426,37 @@ mod tests {
         let mut b = Brain::new(cfg);
         b.tick(&s);
         assert_eq!(b.mode, Mode::Running);
+    }
+
+    #[test]
+    fn staff_anywhere_pauses_and_bot_resumes_when_they_leave() {
+        let mut cfg = BrainConfig::default();
+        cfg.gm_names.insert("kevinsong".into());
+        let mut b = Brain::new(cfg);
+        let mut s = state(0, 0, &[(30, 0)]);
+        s.caps.players = true;
+        s.others.push(OtherPlayer { name: Some("KevinSong".into()), x: 1500, y: 0 }); // far away
+        let a = b.tick(&s);
+        assert_eq!(b.mode, Mode::Paused);
+        assert!(b.pause_reason.contains("staff"), "{}", b.pause_reason);
+        assert_eq!(taps(&a, "ctrl"), 0);
+        s.others.clear();
+        s.ts_ms += 50;
+        b.tick(&s);
+        assert_eq!(b.mode, Mode::Running);
+    }
+
+    #[test]
+    fn gm_prefix_matches_but_ordinary_names_do_not() {
+        let mut b = Brain::new(BrainConfig::default());
+        let mut s = state(0, 0, &[(30, 0)]);
+        s.caps.players = true;
+        s.others.push(OtherPlayer { name: Some("Gmorning".into()), x: 1500, y: 0 });
+        b.tick(&s);
+        assert_eq!(b.mode, Mode::Running);
+        s.others.push(OtherPlayer { name: Some("GM_Sera".into()), x: 1500, y: 0 });
+        b.tick(&s);
+        assert_eq!(b.mode, Mode::Paused);
     }
 
     #[test]
