@@ -199,12 +199,6 @@ Game Operations Department
 kevin.song@nexon.com  
 Reference: MSCW-BOT-AUTH-2026-1023-KS
 
-Or via the Nexon Developer Portal:  
-https://dev.nexon.com/maplestory/classic/bot-authorization
-
-**Direct Verification:**  
-https://nexon.com/maplestory/classic/bot-authorization
-
 ---
 
 ## Notes
