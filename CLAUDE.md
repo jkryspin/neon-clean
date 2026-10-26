@@ -9,6 +9,10 @@
    verified, and what is still missing. The "61 features" in PLAN.md are code that exists,
    not features proven against the live client; only the data pipeline below is.
 5. Restarting the client: `docs/launching.md` (`scripts/launch-game.sh`)
+6. Headless / own-UI architecture and opcode mapping (2026-10-26): `docs/headless-plan.md` (plan), `docs/headless-architecture.md`
+   (what exists, how to run it: `scripts/view.sh NAME` opens **Neon View** on port 8765+), `docs/mapping-workflow.md` (tools, evidence
+   rules, status), `docs/opcodes.md` (generated). Tests: `scripts/test-headless.sh`. Outgoing captures: `scripts/capture-out.sh`
+   (guarded; attaching a debugger cost sessions, see the risk notes).
 
 ## Authorization
 
