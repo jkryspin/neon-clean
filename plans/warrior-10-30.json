@@ -1,0 +1,45 @@
+{"name": "warrior 10 -> 30 (meowdb leveling guide)",
+ "_about": "Follows plans/maple-island-to-perion.json (ends at Dances with Balrog). Run with --build builds/warrior.json so AP/SP follow the guide and Power Strike / Slash Blast go on Shift / Del. Training maps and quests are the guide's; resupply buys Red Potions from Luna (row 0, verified). Gear purchases have empty buy lists until the weapon store rows are read off a screenshot (see docs/warrior-10-30.md).",
+ "safe_map": 10004000,
+ "resupply": [{"kind": "shop", "npc_id": 212, "sell": ["etc"], "keep": 0, "buy": [{"slot": 0, "qty": 100, "price": 50, "item": 2000000}]}],
+ "steps": [
+  {"kind": "quest", "quest": 0, "npc": 511, "map": 10004003, "yes": true, "until_job": 100, "_note": "Dances with Balrog: first job advancement to Warrior (needs level 10)."},
+
+  {"kind": "grind", "map": 10004040, "until_level": 11, "minutes": 240, "safe_map": 10004000, "resupply": [], "_note": "Perion Street Corner (Stumps, Dark Stumps, snails): to level 11 for Blackbull's quest."},
+
+  {"kind": "quest", "quest": 10400, "_note": "Fixing Blackbull's House (level 11, Perion)."},
+
+  {"kind": "kill", "map": 10004040, "mobs": [{"id": 6, "count": 20}, {"id": 11, "count": 20}], "items": [{"id": 4000005, "count": 10}, {"id": 4000011, "count": 10}], "resupply": [], "_note": "No resupply here: a shop trip sells the etc tab, which holds the quest items."},
+
+  {"kind": "quest", "quest": 10400, "complete": true, "_note": "Pays 380 mesos and a Wooden Buckler (90%) or Steel Shield (10%)."},
+
+  {"kind": "shop", "npc_id": 507, "map": 10004001, "sell": ["etc"], "keep": 0, "buy": [], "_buy": "Guide, level 10: Long Sword, Wooden Sword or Metal Axe (River). Put its list row in buy, e.g. [{\"slot\": N, \"qty\": 1}], then the equip step below puts it on."},
+
+  {"kind": "equip", "item": "inv:equip:0:0", "if_bought": true},
+
+  {"kind": "travel", "map": 10001000, "safe_map": 10001000, "_note": "Perion -> Henesys. Every route passes level-25 mobs (Rocky Road); the router takes the least dangerous one."},
+
+  {"kind": "shop", "npc_id": 212, "sell": ["etc"], "keep": 0, "buy": [{"slot": 0, "qty": 150, "price": 50, "item": 2000000}]},
+
+  {"kind": "grind", "map": 10001070, "until_level": 15, "minutes": 900, "safe_map": 10001000, "_note": "The Rain-Forest East of Henesys (Pig, Ribbon Pig), the guide's level 10-14 map."},
+
+  {"kind": "shop", "npc_id": 212, "sell": ["etc"], "keep": 0, "buy": [{"slot": 0, "qty": 150, "price": 50, "item": 2000000}], "_buy": "Guide, level 15: Sabre or Battle Axe, Steel Fitted Mail (River / Harry in Perion)."},
+
+  {"kind": "grind", "map": 10001070, "until_level": 20, "minutes": 1500, "safe_map": 10001000, "_note": "Rain-Forest East again for 15-19 (the guide's best rate there)."},
+
+  {"kind": "shop", "npc_id": 212, "sell": ["etc"], "keep": 0, "buy": [{"slot": 0, "qty": 200, "price": 50, "item": 2000000}], "_buy": "Guide, level 20: Viking Sword, Two-Handed Sword or Iron Axe; Red Kendo Robe."},
+
+  {"kind": "grind", "map": 10002075, "until_level": 24, "minutes": 1500, "safe_map": 10002000, "_note": "Tree Dungeon, Forest Up North IV (Slime, Green Mushroom), level 20-24."},
+
+  {"kind": "quest", "quest": 10105, "_note": "Camila's Gem (level 24, Camila in Henesys)."},
+
+  {"kind": "quest", "quest": 10105, "complete": true, "_note": "Hand the gem to Utah (Utah's Pig Farm): 775 mesos, 2,750 EXP."},
+
+  {"kind": "shop", "npc_id": 212, "sell": ["etc"], "keep": 0, "buy": [{"slot": 0, "qty": 200, "price": 50, "item": 2000000}], "_buy": "Guide, level 25: Mithril Axe, Broadsword or Two-Handed Axe (River)."},
+
+  {"kind": "grind", "map": 10002075, "until_level": 30, "minutes": 3000, "safe_map": 10002000, "_note": "Tree Dungeon IV for 25-29."},
+
+  {"kind": "travel", "map": 10004003, "safe_map": 10004000, "_note": "Level 30: back to Dances with Balrog for the second job (not automated)."}
+ ],
+ "repeat": false
+}

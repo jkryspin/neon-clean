@@ -1,0 +1,1737 @@
+{
+"1": {
+"name": "Mushroom Town - West Entrance",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"10": {
+"name": "Mushroom Town",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"20": {
+"name": "Mushroom Town",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"21": {
+"name": "Mushroom Town Townstreet",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"30": {
+"name": "East Entrance to Mushroom Town",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"40": {
+"name": "Snail Hunting Ground I",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"41": {
+"name": "Snail Hunting Ground II",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"42": {
+"name": "Snail Hunting Ground III",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"50": {
+"name": "A Split Road",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"60": {
+"name": "Southperry",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"61": {
+"name": "Southperry Armor Store",
+"region": "MapleIsland",
+"street": "Maple Road"
+},
+"1000": {
+"name": "The Field West of Amherst",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1001": {
+"name": "In a Small Forest",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1002": {
+"name": "Dangerous Forest",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1003": {
+"name": "Mushroom Garden",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1004": {
+"name": "Snail Garden",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1005": {
+"name": "Hunting Ground Middle of the Forest I",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1006": {
+"name": "Hunting Ground Middle of the Forest II",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1010": {
+"name": "Amherst",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1011": {
+"name": "Amherst Weapon Store",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1012": {
+"name": "Amherst Townstreet",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1013": {
+"name": "Amherst Department Store",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1014": {
+"name": "Snail Field of Flowers",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1020": {
+"name": "The Field East of Amherst",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"1021": {
+"name": "Tomato Field",
+"region": "MapleIsland",
+"street": "Rainbow Street"
+},
+"10000000": {
+"name": "Lith Harbor",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000001": {
+"name": "Lith Harbor Armor Shop",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000002": {
+"name": "Lith Harbor Department Store",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000003": {
+"name": "Lith Harbor Weapon Shop",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000010": {
+"name": "Right Around Lith Harbor",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000011": {
+"name": "Thicket Around the Beach I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000012": {
+"name": "Thicket Around the Beach II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000013": {
+"name": "Thicket Around the Beach III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000020": {
+"name": "3-Way Road-Split",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10000021": {
+"name": "The Pig Beach",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10000022": {
+"name": "Beach Hunting Ground",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001000": {
+"name": "Henesys",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001001": {
+"name": "Henesys Townstreet",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001002": {
+"name": "An Empty House",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001003": {
+"name": "Pig Park",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001004": {
+"name": "Pig Park II",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001005": {
+"name": "Someone Else's House",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001006": {
+"name": "The Resting Spot, Pig Park",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001007": {
+"name": "Henesys Town Hall",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001008": {
+"name": "Victoria Road",
+"region": "VictoriaIsland",
+"street": "Yellow Mushroom House"
+},
+"10001010": {
+"name": "Henesys Hunting Ground I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001011": {
+"name": "Henesys Hunting Ground II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001012": {
+"name": "Henesys Hunting Ground III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001020": {
+"name": "A Hill West of Henesys ",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001021": {
+"name": "Mushroom Garden",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001030": {
+"name": "Forest West of Henesys",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001040": {
+"name": "Henesys Market",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001041": {
+"name": "Henesys Weapon Store",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001042": {
+"name": "Henesys Department Store",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001043": {
+"name": "Henesys Plastic Surgery",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001044": {
+"name": "Henesys Hair Salon",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001045": {
+"name": "Henesys Skin-Care",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001050": {
+"name": "Henesys Park",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001051": {
+"name": "Bowman Instructional School",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001052": {
+"name": "Pet-Walking Road",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001060": {
+"name": "The Hill East of Henesys",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001070": {
+"name": "The Rain-Forest East of Henesys",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001080": {
+"name": "The Forest East of Henesys",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001081": {
+"name": "The Blue Mushroom Forest",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001082": {
+"name": "Utah's Pig Farm",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001090": {
+"name": "The Road to the Dungeon",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10001100": {
+"name": "Henesys Dungeon Entrance",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10001101": {
+"name": "The Breathing Rock",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10001102": {
+"name": "The Entrance of Golem's Temple",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001103": {
+"name": "Golem's Temple I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001104": {
+"name": "Golem's Temple II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001105": {
+"name": "Golem's Temple III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10001106": {
+"name": "Golem's Temple IV",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002000": {
+"name": "Ellinia",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002001": {
+"name": "Ellinia Weapon Store",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002002": {
+"name": "Ellinia Department Store",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002003": {
+"name": "Magic Library",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002004": {
+"name": "Marr's Forest",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002005": {
+"name": "The Circulation Desk",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002010": {
+"name": "The Field South of Ellinia",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002020": {
+"name": "The Forest of Wisdom",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002021": {
+"name": "Monkey Forest I",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002022": {
+"name": "Tree Dungeon, Monkey Forest I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002023": {
+"name": "Monkey Forest II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002024": {
+"name": "Tree Dungeon, Monkey Forest II",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002025": {
+"name": "The Forest of Evil I",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002026": {
+"name": "The Forest of Evil II",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002027": {
+"name": "Downstairs at the Forest",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002030": {
+"name": "The Forest South of Ellinia",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002031": {
+"name": "Dungeon, Southern Forest I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002032": {
+"name": "Dungeon, Southern Forest II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002033": {
+"name": "Dungeon, Southern Forest III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002034": {
+"name": "Dungeon, Southern Forest IV",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002040": {
+"name": "The Forest of Patience <Step 1>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002041": {
+"name": "The Forest of Patience <Step 2>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002042": {
+"name": "The Forest of Patience <Step 3>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002043": {
+"name": "The Forest of Patience <Step 4>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002044": {
+"name": "The Forest of Patience <Step 5>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10002050": {
+"name": "The Field Up North of Ellinia",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002060": {
+"name": "The Tree That Grew I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002061": {
+"name": "The Tree That Grew II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002062": {
+"name": "The Tree That Grew III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002070": {
+"name": "The Forest North of Ellinia",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002071": {
+"name": "The Tree Tunnel At the Forest Up North",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002072": {
+"name": "Tree Dungeon, Forest Up North I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002073": {
+"name": "Tree Dungeon, Forest Up North II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002074": {
+"name": "Tree Dungeon, Forest Up North III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002075": {
+"name": "Tree Dungeon, Forest Up North IV",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002076": {
+"name": "Tree Dungeon, Forest Up North V",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002080": {
+"name": "Tree Dungeon, Forest Up North VI",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002081": {
+"name": "Tree Dungeon, Forest Up North VII",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002082": {
+"name": "Tree Dungeon, Forest Up North VIII",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002083": {
+"name": "Tree Dungeon, Forest Up North IX",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002090": {
+"name": "Ellinia Station",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10002091": {
+"name": "Before Takeoff <To Orbis>",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003000": {
+"name": "Kerning City",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003001": {
+"name": "Kerning City Self-Defence Item Store",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003002": {
+"name": "Kerning City Pharmacy",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003003": {
+"name": "Thieves' Hideout",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003004": {
+"name": "Niora Hospital",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003005": {
+"name": "Kerning City Hair Salon",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003006": {
+"name": "Kerning City Repair Shop",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003007": {
+"name": "Kerning City Civic Center",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003008": {
+"name": "Backalley Semi-Basement",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003010": {
+"name": "Kerning City Construction Site",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003011": {
+"name": "Caution Falling Down",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10003020": {
+"name": "L Forest I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003030": {
+"name": "L Forest II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003040": {
+"name": "L Forest III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003050": {
+"name": "Kerning City Middle Forest I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003051": {
+"name": "Kerning City Middle Forest II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003052": {
+"name": "Kerning City Middle Forest III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003060": {
+"name": "Subway Ticketing Booth",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003061": {
+"name": "Line 1 <Area 1>",
+"region": "VictoriaIsland",
+"street": "Kerning City Subway"
+},
+"10003062": {
+"name": "Transfer Area",
+"region": "VictoriaIsland",
+"street": "Kerning City Subway"
+},
+"10003063": {
+"name": "Line 1 <Area 2>",
+"region": "VictoriaIsland",
+"street": "Kerning City Subway"
+},
+"10003064": {
+"name": "Line 1 <Area 3>",
+"region": "VictoriaIsland",
+"street": "Kerning City Subway"
+},
+"10003065": {
+"name": "Line 1 <Area 4>",
+"region": "VictoriaIsland",
+"street": "Kerning City Subway"
+},
+"10003066": {
+"name": "Line 2 <Area 1>",
+"region": "VictoriaIsland",
+"street": "Kerning City Subway"
+},
+"10003067": {
+"name": "Line 2 <Area 2>",
+"region": "VictoriaIsland",
+"street": "Kerning City Subway"
+},
+"10003068": {
+"name": "Line 2 <Area 3>",
+"region": "VictoriaIsland",
+"street": "Kerning City Subway"
+},
+"10003070": {
+"name": "Sunset Sky",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003080": {
+"name": "Construction Site North of Kerning City",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10003081": {
+"name": "Northern Top of Construction Site",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10003090": {
+"name": "The Swamp of Despair I",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10003091": {
+"name": "The Swamp of Despair II",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10003092": {
+"name": "The Swamp of Despair III",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10003093": {
+"name": "Dangerous Croko I",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10003094": {
+"name": "Dangerous Croko II",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10003095": {
+"name": "Monkey Swamp I",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10003096": {
+"name": "Monkey Swamp II",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10003097": {
+"name": "Monkey Swamp III",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10003098": {
+"name": "The Hermit's Cabin",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10003100": {
+"name": "B1 <Area 1>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003101": {
+"name": "B1 <Area 2>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003102": {
+"name": "B1 <Subway Depot>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003103": {
+"name": "B2 <Area 1>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003104": {
+"name": "B2 <Area 2>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003105": {
+"name": "B2 <Subway Depot>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003106": {
+"name": "B3 <Area 1>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003107": {
+"name": "B3 <Area 2>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003108": {
+"name": "B3 <Area 3>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003109": {
+"name": "B3 <Subway Depot>",
+"region": "VictoriaIsland",
+"street": "Line 3 Construction Site"
+},
+"10003110": {
+"name": "The Murky Swamp I",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10003111": {
+"name": "The Murky Swamp II",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10003112": {
+"name": "Cabin of the Forsaken",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10004000": {
+"name": "Perion",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004001": {
+"name": "Perion Weapon Store",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004002": {
+"name": "Perion Department Store",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004003": {
+"name": "Warriors' Sanctuary",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004010": {
+"name": "West Street Corner of Perion",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004020": {
+"name": "West Rocky Mountain I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004021": {
+"name": "West Rocky Mountain II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004022": {
+"name": "West Rocky Mountain III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004023": {
+"name": "West Rocky Mountain IV",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004030": {
+"name": "West Domain of Perion",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004040": {
+"name": "Perion Street Corner",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004041": {
+"name": "Land of Wild Boar",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10004042": {
+"name": "Over the Wall",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10004050": {
+"name": "East Rocky Mountain I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004051": {
+"name": "East Rocky Mountain II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004052": {
+"name": "East Rocky Mountain III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004053": {
+"name": "East Rocky Mountain IV",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004054": {
+"name": "East Rocky Mountain V",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004055": {
+"name": "East Rocky Mountain VI",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004056": {
+"name": "East Rocky Mountain VII",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004057": {
+"name": "Parched Land",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004060": {
+"name": "Rocky Road I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004070": {
+"name": "Rocky Road II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004080": {
+"name": "Rocky Road III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004090": {
+"name": "East Domain of Perion",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004091": {
+"name": "The Land of Wild Boar II",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10004100": {
+"name": "Deep Valley I",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004101": {
+"name": "Dangerous Valley",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10004102": {
+"name": "Dangerous Valley II",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10004110": {
+"name": "Deep Valley II",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004111": {
+"name": "The Burnt Land I",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004112": {
+"name": "The Burnt Land II",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004113": {
+"name": "The Burnt Land III",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004114": {
+"name": "The Burnt Land IV",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004115": {
+"name": "The Burnt Land V",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004120": {
+"name": "Deep Valley III",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004121": {
+"name": "Perion Dungeon Entrance",
+"region": "VictoriaIsland",
+"street": "Warning Street"
+},
+"10004130": {
+"name": "Excavation Site I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004131": {
+"name": "Excavation Site II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004132": {
+"name": "Excavation Site III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004133": {
+"name": "Excavation Site <Camp>",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004134": {
+"name": "Remains <Tomb> I",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004135": {
+"name": "Remains <Tomb> II",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004136": {
+"name": "Remains <Tomb> III",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004137": {
+"name": "Remains <Tomb> IV",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004138": {
+"name": "Remains <Cliff>",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004140": {
+"name": "Camp 1",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004141": {
+"name": "Camp 2",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10004142": {
+"name": "Camp 3",
+"region": "VictoriaIsland",
+"street": "Victoria Road"
+},
+"10005000": {
+"name": "Sleepywood",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005001": {
+"name": "Sleepywood Hotel",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005002": {
+"name": "Regular Sauna",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005003": {
+"name": "VIP Sauna",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005010": {
+"name": "Swampy Land in a Deep Forest",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005011": {
+"name": "Hunting Ground in the Deep Forest I",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005012": {
+"name": "Hunting Ground in the Deep Forest II",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005020": {
+"name": "Deep Forest",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005030": {
+"name": "Damp Tree-Forest",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005031": {
+"name": "Damp Forest",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005040": {
+"name": "The Deep Forest of Patience <Step 1>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10005041": {
+"name": "The Deep Forest of Patience <Step 2>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10005042": {
+"name": "The Deep Forest of Patience <Step 3>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10005043": {
+"name": "The Deep Forest of Patience <Step 4>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10005044": {
+"name": "The Deep Forest of Patience <Step 5>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10005045": {
+"name": "The Deep Forest of Patience <Step 6>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10005046": {
+"name": "The Deep Forest of Patience <Step 7>",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10005050": {
+"name": "Sleepy Dungeon I",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005051": {
+"name": "Sleepy Dungeon II",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005052": {
+"name": "Sleepy Dungeon III",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005053": {
+"name": "Sleepy Dungeon IV",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005054": {
+"name": "Sleepy Dungeon V",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005060": {
+"name": "Ant Tunnel I",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005061": {
+"name": "Ant Tunnel II",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005062": {
+"name": "Ant Tunnel III",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005063": {
+"name": "Ant Tunnel IV",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005064": {
+"name": "Dark Cave",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005065": {
+"name": "Dangerous Steam",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005066": {
+"name": "Deep Ant Tunnel I",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005067": {
+"name": "Deep Ant Tunnel II",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005070": {
+"name": "Ant Tunnel Park",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005071": {
+"name": "The Cave of Evil Eye I",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005072": {
+"name": "The Cave of Evil Eye II",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005073": {
+"name": "The Cave of Evil Eye III",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005074": {
+"name": "The Cave of Evil Eye IV",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005075": {
+"name": "Drake Hunting Ground",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005076": {
+"name": "The Tunnel That Lost Light I",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005077": {
+"name": "The Tunnel That Lost Light II",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005078": {
+"name": "The Grave of Mushmom",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005080": {
+"name": "Another Entrance",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005090": {
+"name": "Drake's Meal Table",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005091": {
+"name": "Wild Kargo's Area",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005100": {
+"name": "Another Path",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005101": {
+"name": "Sanctuary Entrance I",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005102": {
+"name": "Sanctuary Entrance II",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005103": {
+"name": "Sanctuary Entrance III",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005104": {
+"name": "Sanctuary Entrance IV",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10005105": {
+"name": "The Cursed Sanctuary",
+"region": "VictoriaIsland",
+"street": "Dungeon"
+},
+"10007000": {
+"name": "Florina Beach",
+"region": "VictoriaIsland",
+"street": "Florina Road"
+},
+"10007010": {
+"name": "A Look-Out Shed Around the Beach",
+"region": "VictoriaIsland",
+"street": "Florina Road"
+},
+"10007020": {
+"name": "Lorang Lorang",
+"region": "VictoriaIsland",
+"street": "Florina Road"
+},
+"10007021": {
+"name": "Lorang Lorang Lorang",
+"region": "VictoriaIsland",
+"street": "Hidden Street"
+},
+"10007030": {
+"name": "Lorang and Clang",
+"region": "VictoriaIsland",
+"street": "Florina Road"
+},
+"10007031": {
+"name": "Clang and Lorang",
+"region": "VictoriaIsland",
+"street": "Florina Road"
+},
+"10007040": {
+"name": "Hot Sand",
+"region": "VictoriaIsland",
+"street": "Florina Road"
+},
+"80000000": {
+"name": "1st Accompaniment <1st Stage>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80000100": {
+"name": "1st Accompaniment <2nd Stage>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80000200": {
+"name": "1st Accompaniment <3rd Stage>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80000300": {
+"name": "1st Accompaniment <4th stage>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80000400": {
+"name": "1st Accompaniment <Last Stage>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80000500": {
+"name": "1st Accompaniment <Bonus>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80000600": {
+"name": "1st Accompaniment <Exit>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80001000": {
+"name": "Ant Tunnel For Bowman",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80001100": {
+"name": "Magician's Tree Dungeon",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80001200": {
+"name": "Thief's Construction Site",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80001300": {
+"name": "Warrior's Rocky Mountain",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002000": {
+"name": "Free Market Entrance",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002001": {
+"name": "Free Market <1>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002002": {
+"name": "Free Market <2>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002003": {
+"name": "Free Market <3>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002004": {
+"name": "Free Market <4>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002005": {
+"name": "Free Market <5>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002006": {
+"name": "Free Market <6>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002007": {
+"name": "Free Market <7>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002008": {
+"name": "Free Market <8>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002009": {
+"name": "Free Market <9>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002010": {
+"name": "Free Market <10>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002011": {
+"name": "Free Market <11>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002012": {
+"name": "Free Market <12>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002013": {
+"name": "Free Market <13>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002014": {
+"name": "Free Market <14>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002015": {
+"name": "Free Market <15>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002016": {
+"name": "Free Market <16>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002017": {
+"name": "Free Market <17>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002018": {
+"name": "Free Market <18>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002019": {
+"name": "Free Market <19>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80002020": {
+"name": "Free Market <20>",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80003000": {
+"name": "Primrose Hill",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80003100": {
+"name": "Shortcut",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80003200": {
+"name": "Pig Town",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80003300": {
+"name": "Back to Town",
+"region": "Other",
+"street": "Hidden Street"
+},
+"80003400": {
+"name": "Shortcut",
+"region": "Other",
+"street": "Hidden Street"
+},
+"88000000": {
+"name": "Yellow Mushroom House",
+"region": "Other",
+"street": "Victoria Road"
+},
+"88001000": {
+"name": "Backalley Semi-Basement",
+"region": "Other",
+"street": "Victoria Road"
+},
+"89000000": {
+"name": "Truth Booth",
+"region": "Other",
+"street": "Truth Booth"
+},
+"90000000": {
+"name": "Maple Hill",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040000": {
+"name": "Physical Fitness Test <Waiting Room>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040001": {
+"name": "Physical Fitness Test <Level 1>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040002": {
+"name": "Physical Fitness Test <Level 2>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040003": {
+"name": "Physical Fitness Test <Level 3>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040004": {
+"name": "Physical Fitness Test <Level 4>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040010": {
+"name": "Physical Fitness Test <Easy Waiting Room>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040011": {
+"name": "Physical Fitness Test <Easy Level 1>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040012": {
+"name": "Physical Fitness Test <Easy Level 2>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040013": {
+"name": "Physical Fitness Test <Easy Level 3>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040020": {
+"name": "Physical Fitness Test <Normal Waiting Room>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040021": {
+"name": "Physical Fitness Test <Normal Level 1>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040022": {
+"name": "Physical Fitness Test <Normal Level 2>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040023": {
+"name": "Physical Fitness Test <Normal Level 3>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040101": {
+"name": "Up and Up <Level 1>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040102": {
+"name": "Up and Up <Level 2>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040103": {
+"name": "Up and Up <Level 3>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040111": {
+"name": "Up and Up <Level 1>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040112": {
+"name": "Up and Up <Level 2>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040113": {
+"name": "Up and Up <Level 3>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040121": {
+"name": "Up and Up <Level 1>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040122": {
+"name": "Up and Up <Level 2>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040123": {
+"name": "Up and Up <Level 3>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040131": {
+"name": "Up and Up <Level 1>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040132": {
+"name": "Up and Up <Level 2>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040133": {
+"name": "Up and Up <Level 3>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040141": {
+"name": "Up and Up <Level 1>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040142": {
+"name": "Up and Up <Level 2>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040143": {
+"name": "Up and Up <Level 3>",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040200": {
+"name": "Coconut Harvest",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040201": {
+"name": "Coconut Harvest",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040202": {
+"name": "Coconut Harvest",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90040203": {
+"name": "G* Coconut Season",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90050000": {
+"name": "Leaving the Event",
+"region": "Event",
+"street": "Hidden Street"
+},
+"90050001": {
+"name": "Receiving the Reward For the Event",
+"region": "Event",
+"street": "Hidden Street"
+},
+"900000000": {
+"name": "The Manager's Room",
+"region": "Dev",
+"street": "Hidden Street"
+},
+"900000003": {
+"name": "White Room",
+"region": "Dev",
+"street": "Hidden Street"
+}
+}

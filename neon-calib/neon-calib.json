@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "player": {
+    "position": 1086024,
+    "position_mirror": 1087784,
+    "map_id": 1084312,
+    "level": 0,
+    "hp": 0,
+    "max_hp": 0,
+    "mp": 0,
+    "max_mp": 0
+  },
+  "mobs": {
+    "y_offset": 1,
+    "max_distance": 150,
+    "min_distance": 7
+  },
+  "notes": {
+    "position": "0x109248 - verified working",
+    "map_id": "0x108B98 - verified working",
+    "level": "need to find - looking for value 7 (u16)",
+    "hp": "need to find - was 111, now 103 (u32)",
+    "max_hp": "146 - need to find address",
+    "mp": "need to find - was 77, now 70 (u32)",
+    "max_mp": "77 - need to find address"
+  },
+  "search_results": {
+    "hp_103": ["0x4460A94", "0x44624EC", "0x7E8189AA7578"],
+    "mp_70": ["0x7E8189AA6DDC", "0x7E8189AA6E44", "0x7E8189AA74F4"]
+  }
+}

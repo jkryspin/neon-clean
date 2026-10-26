@@ -1,0 +1,57 @@
+# Rust
+/target
+**/*.rs.bk
+
+# .NET
+/neon-server/bin
+/neon-server/obj
+/neon-server/**/*.user
+-neon-server/**/*.suo
+-neon-server/**/*.userosscache
+
+# Node
+/neon-web/node_modules
+/neon-web/dist
+-neon-web/.vite
+
+# Database
+-neon-server/*.db
+-neon-server/*.db-journal
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+run/
+logs/
+history/
+neon-status*.json
+neon-control*.json
+profiles/
+neon-calib/captures/
+*.pcap
+
+# build output
+target/
+**/target/
+node_modules/
+
+# per-run state
+neon-calib/seen-max*.json
+
+# Local secrets: never commit
+nexon-credentials.json

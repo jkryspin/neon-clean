@@ -1,0 +1,111 @@
+{
+  "_source": "https://meowdb.com/msclassic/monsters (Classic World uses small decimal mob IDs, NOT GMS ids like 100100). Maps use 9-digit zero padded ids there (010001000 = Henesys) = 10001000 in client memory.",
+  "mobs": {
+    "1": "Tutorial Jr. Sentinel",
+    "2": "Snail",
+    "3": "Blue Snail",
+    "4": "Shroom",
+    "5": "Red Snail",
+    "6": "Stump",
+    "7": "Slime",
+    "8": "Pig",
+    "9": "Orange Mushroom",
+    "10": "Ribbon Pig",
+    "11": "Dark Stump",
+    "12": "Octopus",
+    "13": "Green Mushroom",
+    "14": "Bubbling",
+    "47": "Zombie Mushroom",
+    "700001": "Jr. Balrog",
+    "700003": "Rotten Mushmom",
+    "800003": "King Slime"
+  },
+  "resource_path_format": "UTF-16 'Mob/%07d.img' in client memory (e.g. Mob/0000009.img)",
+  "known_maps": {
+    "10001000": "Henesys",
+    "10001010": "Henesys Hunting Ground I",
+    "10001020": "A Hill West of Henesys",
+    "10001030": "Forest West of Henesys"
+  },
+  "stats_from_meowdb": {
+    "_columns": "id: [level, maxHP, maxMP, exp]",
+    "2": [
+      1,
+      45,
+      30,
+      2
+    ],
+    "3": [
+      2,
+      51,
+      30,
+      4
+    ],
+    "4": [
+      3,
+      62,
+      30,
+      6
+    ],
+    "5": [
+      4,
+      68,
+      30,
+      8
+    ],
+    "6": [
+      5,
+      133,
+      30,
+      10
+    ],
+    "7": [
+      6,
+      115,
+      30,
+      12
+    ],
+    "8": [
+      7,
+      128,
+      0,
+      13
+    ],
+    "9": [
+      8,
+      142,
+      30,
+      15
+    ],
+    "10": [
+      10,
+      172,
+      0,
+      19
+    ],
+    "11": [
+      11,
+      236,
+      30,
+      21
+    ],
+    "12": [
+      12,
+      191,
+      50,
+      23
+    ],
+    "13": [
+      14,
+      233,
+      30,
+      26
+    ],
+    "14": [
+      15,
+      259,
+      30,
+      28
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+ "name": "new warrior: Maple Island -> level 10 -> Dances with Balrog",
+ "safe_map": 60,
+ "resupply": [{"kind": "shop", "npc_id": 21, "map": 1013, "sell": [], "keep": 0, "buy": [{"slot": 0, "qty": 100, "price": 50, "item": 2000000}], "reserve": 150}],
+ "steps": [
+  {"kind": "quest", "quest": 1006},
+  {"kind": "kill", "map": 40, "mobs": [{"id": 2, "count": 10}]},
+  {"kind": "quest", "quest": 1006, "complete": true},
+  {"kind": "grind", "map": 41, "until_level": 3, "minutes": 20},
+  {"kind": "quest", "quest": 1009},
+  {"kind": "kill", "map": 50, "mobs": [{"id": 3, "count": 10}, {"id": 4, "count": 10}, {"id": 5, "count": 5}]},
+  {"kind": "quest", "quest": 1009, "complete": true},
+  {"kind": "quest", "quest": 1010},
+  {"kind": "kill", "map": 1000, "mobs": [{"id": 9, "count": 1}]},
+  {"kind": "quest", "quest": 1010, "complete": true},
+  {"kind": "shop", "npc_id": 21, "map": 1013, "sell": [], "keep": 0, "buy": [{"slot": 0, "qty": 100, "price": 50, "item": 2000000}], "reserve": 150, "_note": "Lucy, Amherst Department Store: row 0 is Red Potion at 50 mesos (verified); keep 150 for Shanks's boat."},
+  {"kind": "grind", "map": 1020, "until_level": 10, "minutes": 300, "safe_map": 1010, "mobs": [2, 3, 5], "_note": "Snails only: a level-8 Beginner without potions loses to the Orange Mushrooms here (two took half its HP in 20 s)."},
+  {"kind": "quest", "quest": 0, "npc": 15, "map": 60, "yes": true},
+  {"kind": "travel", "map": 10000000, "safe_map": 10000000},
+  {"kind": "travel", "map": 10004003, "safe_map": 10004000},
+  {"kind": "goto", "map": 10004003, "x": -290, "y": 197}
+ ],
+ "repeat": false
+}

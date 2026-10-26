@@ -1,0 +1,242 @@
+{
+  "_comment": "Pointer chains found by live differential scanning, 2026-10-24. Roots are in the exe image (fixed base 0x140000000). stats_object and player_position are VERIFIED across a full client restart; everything else is per-field 'status'. Read: 8-byte pointer at root, add offset, read value. Re-verify after any client patch with: neon-stream --verify",
+  "image_base": "0x140000000",
+  "chains": {
+    "stats_object": {
+      "root": "0x143bf8e78",
+      "fields": {
+        "hp": {
+          "offset": "0x360",
+          "type": "u32",
+          "status": "VERIFIED across restart: read 119 matching on-screen 119/146"
+        },
+        "mp": {
+          "offset": "0x364",
+          "type": "u32",
+          "status": "VERIFIED live (77->62->77) and across restart (reads 77)"
+        },
+        "level": {
+          "offset": "0x160",
+          "type": "u32",
+          "status": "VERIFIED across restart: reads 7 (not yet tested across a level-up)"
+        }
+      },
+      "unknown": [
+        "max_hp",
+        "max_mp",
+        "exp",
+        "ap"
+      ]
+    },
+    "player_position": {
+      "root": "0x143bf05a0",
+      "x_offset": "0xf8",
+      "y_offset": "0xfc",
+      "type": "i32",
+      "status": "PRIMARY. Survived restart: same object (0x109830) and matched on-screen position (1088,-25). Occasionally flickers to garbage like (50858304,0): the reader requires two agreeing reads."
+    },
+    "player_position_alt": {
+      "root": "0x143bfdd30",
+      "x_offset": "0x308",
+      "y_offset": "0x30c",
+      "type": "i32",
+      "status": "FALLBACK. Matched on-screen position in session 1 but after a restart its object read (0,0): not stable across restarts on its own."
+    },
+    "player_state": {
+      "root": "0x143bf05a0",
+      "fields": {
+        "grounded": {
+          "offset": "-0x3e4",
+          "type": "u32",
+          "status": "VERIFIED by jump, ladder-less ground, and rope climb: 1 on a foothold; 0 while airborne AND while on a rope (it does not distinguish the two). Flickers to garbage (28671/32767): read with two agreeing 0/1 values."
+        },
+        "jump_active": {
+          "offset": "0xacc",
+          "type": "u32",
+          "status": "candidate: 1 only during the rising phase of a jump (t=1.50-1.80s), 0 otherwise. Unverified."
+        },
+        "map_id": {
+          "offset": "-0xc98",
+          "type": "u32",
+          "status": "VERIFIED by a real map change: 10001030 (Forest West of Henesys) -> 10001020 (A Hill West of Henesys), both matching the on-screen map name. Reads garbage while loading (4294322787, 3276855, 506334408): always read it with two agreeing in-range values."
+        }
+      },
+      "note": "Signed offset from the object the position root points to (0x109830). Position fields at +0xf8/+0xfc flicker, so the stream requires two agreeing reads.",
+      "rope_note": "No rope-specific flag found. Three single-capture 'rope-only' candidates (0x107064, 0x106b5c, 0x10713c) FAILED confirmation. The bot must infer rope from context: grounded==0 with x snapped to a rope column and y changing smoothly while Up is held."
+    },
+    "camera": {
+      "status": "VERIFIED live in Lith Harbor 2026-10-25: x tracks the player with the camera's own lag and settles ~655 px left of the player; y changes when the player climbs. Found by matching the on-screen position of known NPCs (Olaf 4100,427 / Mr. Kim) to memory, then a pointer scan (neon-calib/tools/ptrchain.py). Five independent two-hop roots reach the same object.",
+      "meaning": "world coordinates of the top-left corner of the 1366x768 game view: screen = world - camera",
+      "x_offset": "0x0",
+      "y_offset": "0x4",
+      "chains": [
+        {
+          "root": "0x143ec8078",
+          "offsets": [
+            "0xc0",
+            "0xa4"
+          ]
+        },
+        {
+          "root": "0x143eecf80",
+          "offsets": [
+            "0x7c",
+            "0xa4"
+          ]
+        },
+        {
+          "root": "0x144b69c68",
+          "offsets": [
+            "0x112",
+            "0xa4"
+          ]
+        },
+        {
+          "root": "0x144c3b5d8",
+          "offsets": [
+            "0x5a",
+            "0xa4"
+          ]
+        },
+        {
+          "root": "0x145012c78",
+          "offsets": [
+            "0x85",
+            "0xa4"
+          ]
+        }
+      ]
+    },
+    "player_position_f32": {
+      "status": "VERIFIED 2026-10-25 for ONE chain only (0x143bd6788 +0x48 +0x120 +0x98): matched the i32 position and stood on the map's floors in Lith Harbor, through a map change to 10000010 and back, and after a re-login. The client's own f32 position, updated every game frame. Check with neon-calib/tools/possources.py.",
+      "type": "f32 pair (x, y at +4)",
+      "chains": [
+        {
+          "root": "0x143bd6788",
+          "offsets": [
+            "0x48",
+            "0x120",
+            "0x98"
+          ]
+        }
+      ],
+      "rejected": [
+        {
+          "root": "0x143eecf80",
+          "offsets": [
+            "0x15c",
+            "0x218"
+          ]
+        },
+        {
+          "root": "0x144c3b5d8",
+          "offsets": [
+            "0x13a",
+            "0x218"
+          ]
+        },
+        {
+          "root": "0x143eecf80",
+          "offsets": [
+            "0x1a4",
+            "0x0",
+            "0x218"
+          ]
+        },
+        {
+          "root": "0x144c3b5d8",
+          "offsets": [
+            "0x182",
+            "0x0",
+            "0x218"
+          ]
+        }
+      ],
+      "rejected_why": "These four reach another object: it matched the player in the first map, froze at the arrival point after leaving a shop (the bot then navigated on a frozen position and the shop's map data looked wrong), and read (0, 0) in the next map. Four of five agreeing outvoted the right one."
+    }
+  },
+  "entities": {
+    "_comment": "Collision-rect signature. 91 structures found map-wide (mobs, NPCs, players, in all animation frames). Addresses are transient heap; no static root found yet.",
+    "rect_signature_i32": [
+      "R",
+      "T",
+      "L",
+      "B",
+      "W",
+      "H",
+      "W",
+      "H",
+      "L",
+      "T",
+      "R",
+      "B"
+    ],
+    "invariants": "R-L==W, B-T==H, 8<=W,H<=400, words 6..11 repeat words 4..5,2,1,0,3",
+    "foot_position": "x=(L+R)/2, y=B (matches a separate (x,y) pair stored in the owning object, e.g. 0x3cf4e21c)",
+    "sizes_seen_slime_on_y_-265": [
+      "41x34",
+      "37x34",
+      "35x34",
+      "36x25 (squished/hopping)"
+    ],
+    "status": "NO STATIC ROOT. Hitbox rects are sprite-layer data. neon-stream --mobs rects finds them by signature (bounded scan, ~1% CPU) and keeps only feet that stand on a foothold (halves the noise in Henesys: ~85 -> ~42). Not yet classified as mob / player / NPC.",
+    "float_slots": "float32 (x,y) pairs at +0x158/+0x218/+0x398 of vtable 0x14353b9f0 / 0x143476a50 / 0x14340f550 instances follow moving entities (render-graph copies; 5 of 41 instances of 0x14340f550 sit on live feet, many read (0,0)).",
+    "network": "SOLVED differently: mobs and other players are decoded from the game's TCP stream (docs/network-protocol.md, neon-stream --net). Not a static root."
+  },
+  "footholds": {
+    "status": "NO STATIC ROOT. The two roots found earlier (0x143bd7fa0, 0x143bf0170) were coincidental: after a map change their paths point at plain numbers. Footholds are instead found by SIGNATURE SCAN, re-run on every map change by neon-stream (bounded per-tick budget, ~10 s for a full sweep, 198 distinct segments in Henesys, player confirmed on one).",
+    "signature_i32": [
+      "x1",
+      "y1",
+      "x2",
+      "y2",
+      "x1",
+      "y1",
+      "x2",
+      "y2",
+      "1",
+      "id(0..4999)"
+    ],
+    "invariants": "x1<=x2, not zero-length, |coords|<30000; walls have x1==x2",
+    "caveat": "copies of freed previous-map segments may linger; the stream checks that the player stands on the resulting set.",
+    "class": "vtable 0x1435a7de0: 152 instances (stride 0x120, blocks of 16), endpoints at +0x18/+0x20 and +0x40.. ; nodes link to each other; no container found (exact-pointer and range searches)."
+  },
+  "screen": {
+    "game_window_capture": "xdotool search --name MapleStory; the 1366x768 game area sits at offset (28,97) inside the 1422x900 decorated window"
+  },
+  "not_found": [
+    "max_hp",
+    "max_mp",
+    "ap",
+    "mob_pool",
+    "other_players",
+    "drops",
+    "stance_on_rope(verify grounded on a rope)",
+    "exp (hunted, see exp section)"
+  ],
+  "_safety_note": "Live-testing note: a level-7 Beginner died in 'A Hill West of Henesys' (pigs) during the map-change test on 2026-10-24. Any future in-game test must abort and retreat when HP < 60% and must not enter unfamiliar maps.",
+  "_verified_across_map_changes": "stats_object, player_position, player_state(grounded,map_id) survived Forest West of Henesys -> Hill West of Henesys -> death/revive -> Henesys.",
+  "exp": {
+    "status": "NOT FOUND after three real kills (EXP 39 -> 44 -> 47 -> 51 on screen, formula exp/560 = displayed percent).",
+    "ruled_out": [
+      "plain u32 anywhere (tracked 7155 addresses holding 39, then 40698 holding 44: only coincidences survived)",
+      "float32/float64 equal to the EXP value",
+      "percent or fraction as float32/float64",
+      "percent x100 / x10000 as u32",
+      "UI string 'NN [N.NN%]' near the stats object"
+    ],
+    "remaining_hypotheses": [
+      "XOR/obfuscated value",
+      "cumulative total EXP (level-7 base 705 + current)"
+    ],
+    "not_needed_by_bot": "kills are counted from target disappearance, level-ups from the level word, AP defaults to 5 per level."
+  },
+  "mob_ids": {
+    "status": "ID -> resource-path TABLE found and verified (heap, not static): entry = 0x1e37c2c8 + 0x20*id holds a pointer to UTF-16 'Mob/000000N.img'; ids 1..15 match meowdb. Spawned mobs do NOT point at these entries (0 exact holders).",
+    "loaded_resource_cache": "a std::map keyed by resource path (0xC0-byte nodes: header 0xa8, tree ptrs, key, name) holds one node per loaded mob type; also not pointed to by mobs.",
+    "avatar_parts": "sprite layers of vtables 0x14340f550/0x143476a50/0x14353b9f0/0x1435c4698 resolve to Character/{Coat,Hair,Shoes,Pants,Weapon,Cap,Glove}: avatar parts of PLAYERS (own + others).",
+    "tried_and_failed": "small-int id columns in vtable'd classes (index-like enumerations dominate); the numeric id is not stored as a plain small int in a recognisable mob class. Class scan for 'resolves to Mob/' found only cache-tree artifacts; no confirmed mob-instance class.",
+    "resolver_caveat": "Layer->resource-path BFS is NOT reliable for classification: the shared resource-cache tree links to every loaded path, so a deeper search can return an unrelated 'Mob/...' string (e.g. 16 Character/ layers of vtable 0x1435c4698 appeared to resolve to Mob/0000009.img in the hunting ground; inspected individually they are Character/Coat|Shoes|Glove). Only the nearest hit is meaningful.",
+    "hp_signature_negative": "Searched the hunting ground (12+ mobs on screen) for adjacent equal u32 pairs (maxHP,maxHP) from meowdb with the matching mob id and MP (30, or 0 for pigs) within 0x60 bytes: no hits for any type except meaningless Pig matches. Live mobs do not store HP as a plain pair beside their id."
+  }
+}

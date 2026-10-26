@@ -1,0 +1,31 @@
+{
+  "_doc": "One entry per extra game account (docs/launching.md, Several accounts). No secrets here: passwords live in ~/.config/neon/accounts.json (mode 600).",
+  "jib01": {
+    "email": "jib01@kryspin.dev",
+    "character": "KryJib01",
+    "display": 101,
+    "channel": 39
+  },
+  "jib02": {
+    "email": "jib02@kryspin.dev",
+    "display": 102,
+    "channel": 38,
+    "character": "KryJib02"
+  },
+  "jib03": {
+    "email": "jib03@kryspin.dev",
+    "display": 103,
+    "channel": 37,
+    "character": "KryJib03"
+  },
+  "shurella2": {
+    "_doc": "The main account (signed in in the main launcher prefix). Headless on its own display like the others.",
+    "prefix": "NexonLauncherSetup-91dd6ddf36",
+    "charm": "nexon_launcher_headless.charm",
+    "character": "shurella2",
+    "display": 104,
+    "channel": 35,
+    "plan": "plans/warrior-10-30.json",
+    "mp_key": "inv:use:0:4"
+  }
+}

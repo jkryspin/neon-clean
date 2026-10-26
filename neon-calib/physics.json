@@ -1,0 +1,21 @@
+{
+ "walkForce": 140000.0,
+ "walkSpeed": 125.0,
+ "walkDrag": 80000.0,
+ "slipForce": 60000.0,
+ "slipSpeed": 120.0,
+ "floatDrag1": 100000.0,
+ "floatDrag2": 10000.0,
+ "floatCoefficient": 0.01,
+ "swimForce": 120000.0,
+ "swimSpeed": 140.0,
+ "flyForce": 120000.0,
+ "flySpeed": 200.0,
+ "gravityAcc": 2000.0,
+ "fallSpeed": 670.0,
+ "jumpSpeed": 555.0,
+ "maxFriction": 2.0,
+ "minFriction": 0.05,
+ "swimSpeedDec": 0.9,
+ "flyJumpDec": 0.3499999940395355
+}

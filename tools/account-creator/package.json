@@ -1,0 +1,17 @@
+{
+  "name": "nexon-account-creator",
+  "version": "1.0.0",
+  "description": "Automated Nexon account creation for MapleStory Classic World",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "create": "node index.js",
+    "create:all": "node index.js --count 5"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.64.1",
+    "puppeteer": "^23.0.0",
+    "uuid": "^10.0.0"
+  }
+}

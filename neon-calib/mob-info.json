@@ -1,0 +1,299 @@
+{
+ "_source": "https://meowdb.com/msclassic/monsters (level, HP, EXP per kill), matched to client mob ids by name",
+ "mobs": {
+  "1": {
+   "name": "Tutorial Jr. Sentinel",
+   "level": 1,
+   "hp": 30,
+   "exp": 1
+  },
+  "2": {
+   "name": "Snail",
+   "level": 1,
+   "hp": 45,
+   "exp": 2
+  },
+  "3": {
+   "name": "Blue Snail",
+   "level": 2,
+   "hp": 51,
+   "exp": 4
+  },
+  "4": {
+   "name": "Shroom",
+   "level": 3,
+   "hp": 62,
+   "exp": 6
+  },
+  "5": {
+   "name": "Red Snail",
+   "level": 4,
+   "hp": 68,
+   "exp": 8
+  },
+  "6": {
+   "name": "Stump",
+   "level": 5,
+   "hp": 133,
+   "exp": 10
+  },
+  "7": {
+   "name": "Slime",
+   "level": 6,
+   "hp": 115,
+   "exp": 12
+  },
+  "8": {
+   "name": "Pig",
+   "level": 7,
+   "hp": 128,
+   "exp": 13
+  },
+  "9": {
+   "name": "Orange Mushroom",
+   "level": 8,
+   "hp": 142,
+   "exp": 15
+  },
+  "10": {
+   "name": "Ribbon Pig",
+   "level": 10,
+   "hp": 172,
+   "exp": 19
+  },
+  "11": {
+   "name": "Dark Stump",
+   "level": 11,
+   "hp": 236,
+   "exp": 21
+  },
+  "12": {
+   "name": "Octopus",
+   "level": 12,
+   "hp": 191,
+   "exp": 23
+  },
+  "13": {
+   "name": "Green Mushroom",
+   "level": 14,
+   "hp": 233,
+   "exp": 26
+  },
+  "14": {
+   "name": "Bubbling",
+   "level": 15,
+   "hp": 259,
+   "exp": 28
+  },
+  "15": {
+   "name": "Axe Stump",
+   "level": 17,
+   "hp": 371,
+   "exp": 32
+  },
+  "16": {
+   "name": "Blue Mushroom",
+   "level": 19,
+   "hp": 342,
+   "exp": 35
+  },
+  "800015": {
+   "name": "Blue Mushroom",
+   "level": 19,
+   "hp": 342,
+   "exp": 35
+  },
+  "39": {
+   "name": "Ghost Stump",
+   "level": 19,
+   "hp": 404,
+   "exp": 35
+  },
+  "17": {
+   "name": "Stirge",
+   "level": 20,
+   "hp": 296,
+   "exp": 37
+  },
+  "800020": {
+   "name": "Stirge",
+   "level": 20,
+   "hp": 296,
+   "exp": 37
+  },
+  "800021": {
+   "name": "Stirge",
+   "level": 20,
+   "hp": 296,
+   "exp": 37
+  },
+  "18": {
+   "name": "Jr. Necki",
+   "level": 21,
+   "hp": 272,
+   "exp": 39
+  },
+  "800001": {
+   "name": "Jr. Necki",
+   "level": 21,
+   "hp": 272,
+   "exp": 39
+  },
+  "19": {
+   "name": "Horny Mushroom",
+   "level": 22,
+   "hp": 403,
+   "exp": 41
+  },
+  "800013": {
+   "name": "Horny Mushroom",
+   "level": 22,
+   "hp": 403,
+   "exp": 41
+  },
+  "20": {
+   "name": "Dark Axe Stump",
+   "level": 23,
+   "hp": 547,
+   "exp": 43
+  },
+  "42": {
+   "name": "Wooden Mask",
+   "level": 23,
+   "hp": 462,
+   "exp": 43
+  },
+  "21": {
+   "name": "Zombie Mushroom",
+   "level": 24,
+   "hp": 436,
+   "exp": 45
+  },
+  "800011": {
+   "name": "Zombie Mushroom",
+   "level": 24,
+   "hp": 436,
+   "exp": 45
+  },
+  "64": {
+   "name": "Rocky Mask",
+   "level": 24,
+   "hp": 479,
+   "exp": 45
+  },
+  "22": {
+   "name": "Wild Boar",
+   "level": 25,
+   "hp": 510,
+   "exp": 46
+  },
+  "23": {
+   "name": "Evil Eye",
+   "level": 27,
+   "hp": 606,
+   "exp": 50
+  },
+  "800010": {
+   "name": "Evil Eye",
+   "level": 27,
+   "hp": 606,
+   "exp": 50
+  },
+  "24": {
+   "name": "Iron Hog",
+   "level": 28,
+   "hp": 572,
+   "exp": 52
+  },
+  "29": {
+   "name": "Ligator",
+   "level": 31,
+   "hp": 853,
+   "exp": 58
+  },
+  "800000": {
+   "name": "Ligator",
+   "level": 31,
+   "hp": 853,
+   "exp": 58
+  },
+  "30": {
+   "name": "Fire Boar",
+   "level": 32,
+   "hp": 842,
+   "exp": 60
+  },
+  "800016": {
+   "name": "Fire Boar",
+   "level": 32,
+   "hp": 842,
+   "exp": 60
+  },
+  "31": {
+   "name": "Curse Eye",
+   "level": 33,
+   "hp": 1001,
+   "exp": 63
+  },
+  "800002": {
+   "name": "Curse Eye",
+   "level": 33,
+   "hp": 1001,
+   "exp": 63
+  },
+  "800012": {
+   "name": "Curse Eye",
+   "level": 33,
+   "hp": 1001,
+   "exp": 63
+  },
+  "32": {
+   "name": "Jr. Wraith",
+   "level": 34,
+   "hp": 982,
+   "exp": 66
+  },
+  "35": {
+   "name": "Lupin",
+   "level": 37,
+   "hp": 1336,
+   "exp": 75
+  },
+  "800017": {
+   "name": "Lupin",
+   "level": 37,
+   "hp": 1336,
+   "exp": 75
+  },
+  "36": {
+   "name": "Lorang",
+   "level": 38,
+   "hp": 1714,
+   "exp": 78
+  },
+  "54": {
+   "name": "Glowshroom",
+   "level": 39,
+   "hp": 1377,
+   "exp": 82
+  },
+  "37": {
+   "name": "Cold Eye",
+   "level": 40,
+   "hp": 1894,
+   "exp": 85
+  },
+  "800014": {
+   "name": "Cold Eye",
+   "level": 40,
+   "hp": 1894,
+   "exp": 85
+  },
+  "55": {
+   "name": "Raffle",
+   "level": 40,
+   "hp": 1722,
+   "exp": 85
+  }
+ }
+}
