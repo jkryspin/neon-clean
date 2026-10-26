@@ -26,7 +26,10 @@ KNOWN = {
     0x00a7: ("party update", "decoded (create/leave/join)"),
 }
 
+import os, time
 paths = sys.argv[1:] or sorted(glob.glob("run/opcodes/*.json"))
+# Capture length per log = from the first time the file was created to its last rewrite; rates are summed per log.
+span = sum(max(1.0, os.stat(p).st_mtime - os.stat(p).st_ctime) for p in paths)
 agg = {}
 for p in paths:
     for k, v in json.load(open(p)).items():
@@ -46,14 +49,17 @@ out = [
     "\"Meaning\" is filled only for opcodes whose layout was verified against the live client; "
     "everything else is deliberately left unnamed rather than guessed from other MapleStory versions.",
     "",
-    "| Opcode | Seen | Size (min-max) | Meaning | Status |",
-    "|---|---:|---|---|---|",
+    "| Opcode | Seen | Per min | Size (min-max) | Meaning | Status |",
+    "|---|---:|---:|---|---|---|",
 ]
 for op in sorted(agg):
     a = agg[op]
     name, status = KNOWN.get(op, ("", "observed only"))
     size = f"{a['min']}" if a["min"] == a["max"] else f"{a['min']}-{a['max']}"
-    out.append(f"| `0x{op:04x}` | {a['count']} | {size} | {name} | {status} |")
+    per_min = a["count"] / span * 60 / max(1, len(paths))
+    if not name and a["min"] == a["max"] and per_min >= 5:
+        status = "observed only; fixed-size and frequent (heartbeat-like)"
+    out.append(f"| `0x{op:04x}` | {a['count']} | {per_min:.1f} | {size} | {name} | {status} |")
 missing = sorted(set(KNOWN) - set(agg))
 if missing:
     out += ["", "Documented but not seen in these logs: " + ", ".join(f"`0x{o:04x}`" for o in missing) + "."]
