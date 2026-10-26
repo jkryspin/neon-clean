@@ -7,6 +7,7 @@ Client->server packets use opcode numbers on the wire that differ from the inter
 the numbers differ on every connection. This finds the ones that can be told from the traffic alone:
   * keepalive (internal 0x02f0): the wire opcode of the 2-byte packets that answer the incoming 2-byte ping 0x062e (same count within
     10%, and most of them 0-300 ms after a ping);
+  * the opcodes that are the same on every connection (0x00c5, 0x009c), mapped to themselves;
   * attack (internal 0x00e1): a wire opcode whose packets have the length and bytes of the internal attack fixture (>= 85% of the bytes
     after the opcode equal).
 Everything else stays unmapped (never guessed). The result is {"<wire hex>": "<internal hex>"}.
@@ -23,9 +24,12 @@ def read(path):
             out.append((float(m[1]), int(m[2], 16), bytes.fromhex(m[4].replace(" ", ""))))
     return out
 
+# Wire numbers that are the same on every connection seen so far (two accounts, 2026-10-26); their registry entries use the wire number as id.
+FIXED = (0x00c5, 0x009c)
+
 def derive(incoming, wire, attack_fixture=None):
     """incoming/wire: lists of (t, opcode, bytes). Returns {wire opcode: internal opcode}."""
-    result = {}
+    result = {op: op for op in FIXED if any(o == op for t, o, b in wire)}
     pings = sorted(t for t, op, b in incoming if op == 0x062e and len(b) == 2)
     if len(pings) >= 5:
         by = collections.defaultdict(list)

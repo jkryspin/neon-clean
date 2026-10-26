@@ -54,6 +54,8 @@ class WireMap(unittest.TestCase):
         noise = [(100.0 + 7 * i, 0x00ba, bytes([0xba, 0, 1])) for i in range(30)]          # 3 bytes: never a keepalive
         other2 = [(100.0 + 13 * i, 0x1111, bytes([0x11, 0x11])) for i in range(12)]          # 2 bytes but not tied to the pings
         self.assertEqual(wiremap.derive(pings, keep + noise + other2), {0x8786: 0x02f0})
+        fixed = [(1.0, 0x00c5, bytes([0xc5, 0, 0, 1])), (2.0, 0x009c, bytes([0x9c, 0]))]
+        self.assertEqual(wiremap.derive([], fixed), {0x00c5: 0x00c5, 0x009c: 0x009c}, 'numbers that never change are mapped to themselves')
 
     def test_nothing_is_guessed_without_pings(self):
         self.assertEqual(wiremap.derive([], [(1.0, 0x8786, bytes([0x86, 0x87]))] * 20), {})
