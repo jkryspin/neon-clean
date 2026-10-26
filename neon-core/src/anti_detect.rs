@@ -19,6 +19,9 @@ pub struct AntiDetectConfig {
     pub mistake_chance: f64,
     /// Maximum session duration in hours
     pub max_session_hours: u64,
+    /// A break is also due after this long without one, drawn from this range in minutes (authorization: every 45-90 minutes),
+    /// whatever the action count: a bot that stands waiting makes few actions.
+    pub max_minutes_between_idle: (u64, u64),
     /// Wall-clock windows in which the bot must not act (server maintenance, optional peak hours).
     pub blackouts: Vec<Blackout>,
 }
@@ -56,6 +59,7 @@ impl Default for AntiDetectConfig {
             idle_frequency: 50,
             mistake_chance: 0.05,
             max_session_hours: 5,
+            max_minutes_between_idle: (45, 90),
             blackouts: vec![Blackout::MAINTENANCE],
         }
     }
@@ -69,6 +73,7 @@ pub struct AntiDetectState {
     pub last_action: Instant,
     pub is_idling: bool,
     pub idle_end_time: Option<Instant>,
+    pub last_idle: Instant,
 }
 
 impl Default for AntiDetectState {
@@ -80,6 +85,7 @@ impl Default for AntiDetectState {
             last_action: now,
             is_idling: false,
             idle_end_time: None,
+            last_idle: now,
         }
     }
 }
@@ -88,6 +94,8 @@ pub struct AntiDetect {
     config: AntiDetectConfig,
     state: AntiDetectState,
     rng: rand::rngs::StdRng,
+    /// How long after the last break the next one is due.
+    idle_due: Duration,
 }
 
 impl AntiDetect {
@@ -96,12 +104,25 @@ impl AntiDetect {
     }
 
     pub fn with_config(config: AntiDetectConfig) -> Self {
-        let rng = rand::rngs::StdRng::from_entropy();
+        let mut rng = rand::rngs::StdRng::from_entropy();
+        let idle_due = Self::draw_idle_due(&config, &mut rng);
         Self {
             config,
             state: AntiDetectState::default(),
             rng,
+            idle_due,
         }
+    }
+
+    fn draw_idle_due(config: &AntiDetectConfig, rng: &mut rand::rngs::StdRng) -> Duration {
+        let (lo, hi) = config.max_minutes_between_idle;
+        Duration::from_secs(rng.gen_range(lo.min(hi)..=hi.max(lo)) * 60)
+    }
+
+    /// Test hook: pretend the last break was `ago` ago.
+    #[cfg(test)]
+    fn set_last_idle_ago(&mut self, ago: Duration) {
+        self.state.last_idle = Instant::now().checked_sub(ago).unwrap();
     }
 
     pub fn with_defaults() -> Self {
@@ -145,7 +166,7 @@ impl AntiDetect {
             return false;
         }
 
-        self.state.actions_since_idle >= self.config.idle_frequency
+        self.state.actions_since_idle >= self.config.idle_frequency || self.state.last_idle.elapsed() >= self.idle_due
     }
 
     /// Start an idle break
@@ -157,6 +178,8 @@ impl AntiDetect {
         self.state.is_idling = true;
         self.state.idle_end_time = Some(Instant::now() + duration);
         self.state.actions_since_idle = 0;
+        self.state.last_idle = Instant::now();
+        self.idle_due = Self::draw_idle_due(&self.config, &mut self.rng);
         duration
     }
 
@@ -243,6 +266,20 @@ impl AntiDetect {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_break_is_due_by_time_even_with_no_actions_and_the_clock_restarts_after_it() {
+        let mut a = AntiDetect::new();
+        assert!(!a.should_idle(), "fresh session, no actions");
+        a.set_last_idle_ago(Duration::from_secs(44 * 60));
+        assert!(!a.should_idle(), "44 min is below the 45 min minimum");
+        a.set_last_idle_ago(Duration::from_secs(91 * 60));
+        assert!(a.should_idle(), "91 min is above the 90 min maximum, whatever was drawn");
+        a.start_idle();
+        assert!(!a.should_idle(), "break started: clock restarted (and is_idling)");
+        let due = a.idle_due.as_secs() / 60;
+        assert!((45..=90).contains(&due), "next break drawn from 45-90 min, got {due}");
+    }
+
     #[test]
     fn maintenance_window_edges_in_kst() {
         // 2026-10-25 is a Sunday. 06:00 KST = 2026-10-24 21:00 UTC.
