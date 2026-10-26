@@ -108,7 +108,7 @@ id = 0x007e
 dir = "in"
 name = "StatUpdate"
 status = "verified"
-summary = "Own stat update: a bitmask of stats, values follow in ascending bit order (sizes in neon-stream/src/net.rs; some unverified)"
+summary = "Own stat update: a bitmask of stats, values follow in ascending bit order (sizes in neon-stream/src/net.rs; some unverified). A 12-byte variant with an empty mask (7e 00 00 00 01 00 00 00 00 01 <u16>) is sent with every party create/leave (actlab, 3 of 3 repeats, 2026-10-26); its trailing u16 was 0x0808-ish on create and 0x000f on leave, meaning unknown"
 len_min = 11
 field = [{ name = "mask", ty = "u32", off = 5 }]
 
