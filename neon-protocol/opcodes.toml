@@ -162,7 +162,7 @@ summary = "Chat / megaphone text"
 id = 0x0456
 dir = "in"
 status = "structure"
-summary = "Busiest opcode in a crowded town; sizes 12 or 26+21n (n=1..5: 47,68,89,110,131): u16 op, u32 small counter, then 21-byte records. Meaning unknown"
+summary = "Busiest opcode in a town (1295 packets, 4 min): sizes 12, or 26+21n (n=1..5; 47 is most common). u32@2 is NOT a counter: only 3 values seen (138,139,140), a group/type tag. The 21-byte records start with a flag byte (0) then a u32 id; ids within a packet run in sequence (0x009a0710, 0x009a0718, 0x009a071c) and each record has small signed values (e.g. -15, -87) and a 0x50 or 0x24 constant. Not player or mob ids. Meaning unknown (2026-10-26, jib01 in Amherst)"
 
 [[opcode]]
 id = 0x004f
