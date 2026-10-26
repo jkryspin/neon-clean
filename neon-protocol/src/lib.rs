@@ -103,6 +103,10 @@ pub struct Opcode {
     pub records: Option<Records>,
     pub name: Option<String>,
     pub status: Status,
+    /// For `out` entries: the opcode this packet carries on the wire. The client's internal packet object (what the entries'
+    /// fields were first read from) and the wire use different opcode numbers; the payload is the same apart from clocks.
+    #[serde(default)]
+    pub wire_opcode: Option<u16>,
     pub summary: Option<String>,
     pub len_min: Option<usize>,
     pub len_max: Option<usize>,
@@ -172,6 +176,8 @@ struct File {
 #[derive(Debug, Clone)]
 pub struct Registry {
     ops: BTreeMap<(Dir, u16), Vec<Opcode>>,
+    /// wire opcode -> internal opcode (from `wire_opcode` of the `out` entries)
+    wire: BTreeMap<u16, u16>,
 }
 
 /// A byte range of a packet that the registry explains, with the field's name.
@@ -221,8 +227,20 @@ impl Registry {
             }
             group.push(op);
         }
+        let mut wire: BTreeMap<u16, u16> = BTreeMap::new();
+        for ((dir, id), group) in &ops {
+            for op in group {
+                if let Some(w) = op.wire_opcode {
+                    if *dir != Dir::Out {
+                        problems.push(format!("{dir:?} {id:#06x}: wire_opcode only makes sense for out entries"));
+                    } else if wire.insert(w, *id).map_or(false, |prev| prev != *id) {
+                        problems.push(format!("wire opcode {w:#06x} claimed by two internal opcodes"));
+                    }
+                }
+            }
+        }
         if problems.is_empty() {
-            Ok(Self { ops })
+            Ok(Self { ops, wire })
         } else {
             Err(Error::Invalid(problems))
         }
@@ -231,6 +249,18 @@ impl Registry {
     /// The first entry for an opcode (its primary description), whatever the packet looks like.
     pub fn get(&self, dir: Dir, id: u16) -> Option<&Opcode> {
         self.ops.get(&(dir, id)).and_then(|g| g.first())
+    }
+
+    /// A client->server packet as read from the wire, with its opcode rewritten to the internal one the registry describes.
+    /// `None` when the wire opcode is not mapped yet.
+    pub fn wire_to_internal(&self, plain: &[u8]) -> Option<Vec<u8>> {
+        if plain.len() < 2 {
+            return None;
+        }
+        let id = *self.wire.get(&u16::from_le_bytes([plain[0], plain[1]]))?;
+        let mut out = plain.to_vec();
+        out[..2].copy_from_slice(&id.to_le_bytes());
+        Some(out)
     }
 
     /// Every entry for an opcode (several when it has variants).

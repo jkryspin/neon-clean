@@ -274,3 +274,19 @@ Following the receive path (framer `0x14075c780` -> `0x14075ccb0` decrypt -> IV 
 * Consequence for Stage B (headless without the client): both directions are now readable, so a protocol-faithful client is a matter of writing, not of cryptography;
   that step stays gated on written Nexon approval (`docs/headless-plan.md`).
 
+### Wire opcodes vs internal opcodes: first three pairs (2026-10-26 19:10)
+
+A marks test on jib01 (6 repeats each, random gaps, `neon-calib/tools/marklab.py` over the incoming log and the new `.wire` log) found one wire opcode per action:
+
+| Action | Wire opcode | Internal opcode (registry) | Evidence |
+|---|---|---|---|
+| ctrl (basic attack) | `0x25d8`, 130 bytes | `Attack 0x00e1` | 6/6; 92% of the bytes after the opcode equal the internal fixture, including the `0a 00 ...` text |
+| alt (jump) | `0x5f28` | `MoveSelf 0x00db` | 6/6; same `01 6a 4d e8 f1` prefix, tick u32@7 and x/y fragments |
+| none (every 10 s) | `0x8786`, 2 bytes | `KeepAlive 0x02f0` | 12 frames, 12 different IVs, one plaintext |
+
+The payload is the internal packet's payload; only the opcode number differs, and the mapping looks arbitrary (no simple xor or offset). The registry records it as `wire_opcode` on the `out` entries;
+`Registry::wire_to_internal` rewrites a wire packet so the same entry decodes it (test with three real packets). Still unmapped, from the first two-minute capture:
+`0x7cec` (85% of all wire packets, 12-153 bytes, a counter-like u32@2 and movement-like coordinate pairs: likely the mob-movement report `0x02fe`, unconfirmed),
+`0x00ba` (3 bytes), `0x00c5` (4 bytes, a counter), `0x009c` (149 bytes, every 10 s), `0x0070` (48 bytes), `0xa409`, `0xd49e`. Opening the item/equipment/stats/skills/quest windows (clicking the entries of the shortcut menu that `i` opens;
+checked with a screenshot) produced no repeating wire or incoming opcode in 4 repeats each: those windows are client-only.
+

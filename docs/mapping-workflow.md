@@ -40,6 +40,8 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 
 **Marks pitfall (seen 2026-10-26):** never run an action loop whose period is a round number (60 s) without checking the periodicity first: `periodic.py` showed `0x004f` fires every 60 s, which phase-locked with a 60 s test loop and looked like "3/3 repeats" of opening the stats window. Vary the gaps (random 5-20 s) and run `periodic.py` on candidates before trusting them.
 
+**Corrected result (2026-10-26 19:15):** with the windows actually opened (screenshot-checked; the menu entries of `i` clicked at (1040, 503/529/555/581/633) on the 1600x1000 display), opening and closing the item, equipment, stats, skills and quest windows 4 times each produced no repeating packet in either direction.
+
 **Retracted (2026-10-26 19:00):** an earlier note here said the inventory, equipment, stats, skills and quest windows are client-only because `i e s k q` produced no packets. That test was invalid: on this client `i` opens a "SHORT CUT" menu (ITEM, EQUIPMENT, CHAR.STATS, SKILLS, PARTY, QUEST, CRAFTING, MAPLE CHAT, MAPLE SOCIAL, MAILBOX), and the other keys did not open the windows at all. Always screenshot (`import -window root`) to confirm that an action did what you think before reading its packets.
 
 **Negative result 2:** after walking jib01 next to the Amherst mailbox, 4 clicks on it (random 6-15 s gaps) opened no window and produced no repeating opcode (candidates appeared in at most 1 of 4 windows and were ordinary town traffic). Walking by held arrow key (`xdotool keydown Left`, 3.2 s) works on the test account.

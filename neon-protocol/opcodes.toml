@@ -1463,7 +1463,8 @@ id = 0x00db
 dir = "out"
 name = "MoveSelf"
 status = "structure"
-summary = "Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players"
+wire_opcode = 0x5f28
+summary = "Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players. WIRE: arrives as 0x5f28 (6/6 jump key presses of a marks test produce one; same layout: 01 6a 4d e8 f1 prefix, tick u32@7, x/y fragments)"
 len_min = 57
 field = [
   { name = "tick", ty = "u32", off = 7 },
@@ -1499,7 +1500,8 @@ id = 0x00e1
 dir = "out"
 name = "Attack"
 status = "structure"
-summary = "Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this"
+wire_opcode = 0x25d8
+summary = "Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this. WIRE: arrives as 0x25d8 (6/6 ctrl key presses produce one, 130 bytes; 92% of the bytes after the opcode equal the internal attack fixture, including the 0a 00 text)"
 len_min = 130
 len_max = 130
 
@@ -1597,7 +1599,8 @@ id = 0x02f0
 dir = "out"
 name = "KeepAlive"
 status = "structure"
-summary = "2 bytes, no fields, every 10.0 s (two intervals of exactly 10.0 s in the bot capture; also seen idle). Not a reply to the incoming 0x001b, which also repeats every 10 s but in another phase (3 to 7 s away)"
+wire_opcode = 0x8786
+summary = "2 bytes, no fields, every 10.0 s (two intervals of exactly 10.0 s in the bot capture; also seen idle). Not a reply to the incoming 0x001b, which also repeats every 10 s but in another phase (3 to 7 s away). WIRE: arrives as 0x8786 (2026-10-26 capture: twelve frames per two minutes, all the same plaintext 86 87 under twelve different IVs)"
 len_min = 2
 len_max = 2
 
