@@ -252,3 +252,25 @@ Following the receive path (framer `0x14075c780` -> `0x14075ccb0` decrypt -> IV 
 * Implementation: `neon-stream/src/recv.rs` (`find_iv`, `RecvCipher`), used by `NetDecoder`; heuristic fallback until synced and after lost bytes.
   Tests use a committed fixture of real headers (`neon-stream/tests/fixtures/recv_headers.json`: 60 header halves, their K, two tiny frames, no names).
 
+## SOLVED (2026-10-26 18:50): the client->server cipher too, passively
+
+* Framing: 4-byte header, two **big-endian** u16 `a`, `c`; body length = `swap16(a ^ c)`. `a = ((iv[2] << 8) | iv[3]) ^ 0xdf00`: the same header trick as incoming, so the
+  send IV is learned mid-connection from 12 headers (65,536 candidates, unique). The IV advances by the same shuffle after every packet.
+  Verified on a live capture: 270 consecutive frames, the whole chain reproduced.
+* Body: **AES-256-OFB**. First block = the 4-byte IV repeated four times; each 1456/1460-byte chunk restarts from that same block.
+  Key: the 8 words at stride 16 of the client's static table (`0x143bb4e80`, 128 bytes, the key schedule `0x140ce9d80` reads offsets
+  0, 0x10, ... 0x70; each word is a single byte 0..255): `0f 1b c5 46 f3 be ff 75` as words, i.e. the 32 bytes in `neon-stream/src/send.rs` (`KEY`).
+  (Reading 32 consecutive bytes of the table, as first assumed, gives the wrong key.)
+* Proof: the twelve 2-byte frames of a 2-minute capture (one every 10 s, twelve different IVs) all decrypt to the same plaintext `86 87`, which chance cannot produce;
+  every other frame decrypts to a structured packet (repeating counters, small ids).
+* **The wire plaintext is not the client's internal packet object.** The internal object (read at `+8` with gdb; the registry's outgoing entries and
+  `docs/outgoing-opcodes.json`) has opcode `0x02f0` for a keepalive; on the wire the same packet is `86 87`. Wire opcodes are a different numbering
+  (the client maps internal opcodes before sending; the mapping is not known yet), and payloads can differ. So the registry's `out` entries describe the client's
+  internal view; wire-level outgoing opcodes are logged separately (`*.wire`, printed as `wire op` by `neon-stream`, split off by `stamp.py`).
+  Wire opcodes seen in the first capture (jib01 standing in Amherst, 2 min): `0x7cec` x213 (lengths 48/12/111: periodic, counter-like), `0x0009c` x12 (149 bytes, 10 s),
+  `0x8786` x12 (2 bytes, 10 s keepalive), `0x00c5` x12 (4 bytes, `c5 00 NN 01` with NN counting 0, 1, 2, ...), others once.
+* Implementation: `neon-stream/src/aes.rs` (AES-256, FIPS-197 vector test), `neon-stream/src/send.rs` (framer, IV sync, decrypt; tests with real header fixtures
+  `tests/fixtures/send_headers.json`), used by `NetDecoder` for outbound segments. Nothing in this path sends anything.
+* Consequence for Stage B (headless without the client): both directions are now readable, so a protocol-faithful client is a matter of writing, not of cryptography;
+  that step stays gated on written Nexon approval (`docs/headless-plan.md`).
+

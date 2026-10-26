@@ -13,6 +13,8 @@ mod fuse;
 mod net;
 mod outgoing;
 mod recv;
+mod send;
+mod aes;
 mod rects;
 mod stackpos;
 mod scanner;
@@ -875,14 +877,16 @@ fn pump_pcap<R: std::io::Read>(r: R, tx: std::sync::mpsc::Sender<NetMsg>, opts: 
         let Some(seg) = net::parse_tcp(reader.linktype, &pkt) else { continue };
         // A port we do not know may be our client's new connection (login, channel change): look again at once (at
         // most every 50 ms) rather than lose its first packets, which carry the whole character at login.
+        // our client's local port: the destination of inbound segments, the source of outbound ones
+        let local = if net::NetDecoder::is_game_outbound(&seg) { seg.sport } else { seg.dport };
         if let Some(pid) = opts.own_pid {
-            if !own_ports.contains(&seg.dport) && ports_read.map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(50)) {
+            if !own_ports.contains(&local) && ports_read.map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(50)) {
                 ports_read = Some(std::time::Instant::now());
                 own_ports = net::game_ports_of(pid);
             }
         }
         // Unknown ports (unreadable /proc) keep everything, as with a single client.
-        if !own_ports.is_empty() && !own_ports.contains(&seg.dport) {
+        if !own_ports.is_empty() && !own_ports.contains(&local) {
             continue;
         }
         dec.cur_ts_us = reader.last_ts_us;

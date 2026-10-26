@@ -626,6 +626,13 @@ pub fn parse_tcp(linktype: u32, pkt: &[u8]) -> Option<TcpSeg> {
 type FlowKey = ([u8; 4], u16, [u8; 4], u16);
 
 #[derive(Default)]
+struct OutFlow {
+    re: Reassembler,
+    fr: crate::send::SendFramer,
+    sc: crate::send::SendCipher,
+}
+
+#[derive(Default)]
 struct Flow {
     re: Reassembler,
     fr: Framer,
@@ -636,6 +643,9 @@ struct Flow {
 #[derive(Default)]
 pub struct NetDecoder {
     flows: HashMap<FlowKey, Flow>,
+    out_flows: HashMap<FlowKey, OutFlow>,
+    /// Client->server packets decrypted so far.
+    pub out_packets: u64,
     /// Capture time (unix microseconds) of the segment being pushed; the dump line carries it when set.
     pub cur_ts_us: u64,
     pub packets: u64,
@@ -689,7 +699,37 @@ impl NetDecoder {
         (PORT_MIN..=PORT_MAX).contains(&seg.sport) && !seg.payload.is_empty()
     }
 
+    /// True when `seg` is client-to-server traffic to a game port.
+    pub fn is_game_outbound(seg: &TcpSeg) -> bool {
+        (PORT_MIN..=PORT_MAX).contains(&seg.dport) && !(PORT_MIN..=PORT_MAX).contains(&seg.sport) && !seg.payload.is_empty()
+    }
+
+    /// Decrypt the client's own traffic (exact: `send.rs`). Only printed (`NEON_DUMP_OPS`), there are no events for it yet.
+    fn push_outbound(&mut self, seg: &TcpSeg) {
+        let key = (seg.src, seg.sport, seg.dst, seg.dport);
+        let flow = self.out_flows.entry(key).or_default();
+        let (bytes, restarted) = flow.re.push(seg.seq, &seg.payload);
+        if restarted {
+            flow.fr.reset();
+        }
+        for (a, body) in flow.fr.push(&bytes) {
+            for plain in flow.sc.frame(a, &body) {
+                self.out_packets += 1;
+                if let Some(op) = u16le(&plain, 0) {
+                    if self.dump_ops.contains(&op) || self.dump_ops.contains(&0xffff) {
+                        let ts = if self.cur_ts_us > 0 { format!("ts {:.3} ", self.cur_ts_us as f64 / 1e6) } else { String::new() };
+                        eprintln!("{ts}wire op {op:04x} len {}: {}", plain.len(), plain.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
+                    }
+                }
+            }
+        }
+    }
+
     pub fn push(&mut self, seg: &TcpSeg) -> Vec<NetEvent> {
+        if Self::is_game_outbound(seg) {
+            self.push_outbound(seg);
+            return vec![];
+        }
         if !Self::is_game_inbound(seg) {
             return vec![];
         }
@@ -697,6 +737,7 @@ impl NetDecoder {
         if !self.flows.contains_key(&key) {
             self.new_flow = true; // a new connection means a new map/channel: consumers should reset
             self.flows.clear();
+            self.out_flows.clear();
         }
         let flow = self.flows.entry(key).or_default();
         let (bytes, restarted) = flow.re.push(seg.seq, &seg.payload);
