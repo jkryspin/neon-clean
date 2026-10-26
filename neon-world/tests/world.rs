@@ -31,13 +31,18 @@ fn line(t: f64, p: &[u8]) -> String {
 fn real_packets_become_the_expected_events() {
     let r = Registry::builtin().unwrap();
     let f = fixtures();
+    // The spawn's HP is checked against an independent source: the public monster database kept in neon-calib.
+    let db: serde_json::Value = serde_json::from_str(include_str!("../../neon-calib/mob-info.json")).unwrap();
+    let stump_hp = db["mobs"]["6"]["hp"].as_u64().unwrap() as u32;
+    assert_eq!(stump_hp, 133);
     assert_eq!(
         event_from_packet(&r, &fx("0x3c9")),
         Some(Event::MobSpawn {
             oid: f["0x3c9"]["expect"]["oid"].as_u64().unwrap() as u32,
             template: 6,
             x: 698,
-            y: -565
+            y: -565,
+            hp: Some(stump_hp)
         })
     );
     assert_eq!(event_from_packet(&r, &fx("0x3d4")), Some(Event::MobKill { oid: 20598982 }));
@@ -90,7 +95,7 @@ fn world_semantics() {
     let mut w = World::new();
     w.apply(&Event::MobMove { oid: 7, x: 1, y: 2 }, 10);
     assert_eq!(w.snapshot().mobs[&7].template, None, "move before spawn: template unknown");
-    w.apply(&Event::MobSpawn { oid: 7, template: 9, x: 5, y: 6 }, 20);
+    w.apply(&Event::MobSpawn { oid: 7, template: 9, x: 5, y: 6, hp: Some(142) }, 20);
     assert_eq!(w.snapshot().mobs[&7].template, Some(9));
     w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0, item: Some(4000001), mesos: None }, 30);
     w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0, item: Some(4000001), mesos: None }, 31); // sent twice by the server

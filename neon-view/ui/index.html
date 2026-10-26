@@ -147,7 +147,7 @@ function render(s) {
   list('chat', (s.chat || []).slice().reverse().slice(0, 30).map(c => '<span>' + esc(c.text) + '</span>'));
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
   list('players', Object.entries(s.players).map(([id, p]) => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
-  list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + mobName(m.template) + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));
+  list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + mobName(m.template) + (m.hp != null ? ' (' + m.hp + ' HP)' : '') + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + (d.item != null ? 'item ' + d.item : d.mesos != null ? d.mesos + ' mesos' : id) + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));
   draw();
 }

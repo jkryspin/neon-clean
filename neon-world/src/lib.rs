@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
-    MobSpawn { oid: u32, template: u32, x: i32, y: i32 },
+    MobSpawn { oid: u32, template: u32, x: i32, y: i32, hp: Option<u32> },
     MobMove { oid: u32, x: i32, y: i32 },
     MobKill { oid: u32 },
     PlayerSpawn { char_id: u32, name: String, equips: Vec<(u8, u32)> },
@@ -43,6 +43,8 @@ pub enum Event {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Mob {
     pub template: Option<u32>,
+    /// HP when it spawned (the spawn packet carries it).
+    pub hp: Option<u32>,
     pub x: i32,
     pub y: i32,
     pub last_ms: u64,
@@ -178,12 +180,12 @@ impl World {
         s.events += 1;
         s.now_ms = now_ms;
         match e {
-            Event::MobSpawn { oid, template, x, y } => {
-                s.mobs.insert(*oid, Mob { template: Some(*template), x: *x, y: *y, last_ms: now_ms });
+            Event::MobSpawn { oid, template, x, y, hp } => {
+                s.mobs.insert(*oid, Mob { template: Some(*template), hp: *hp, x: *x, y: *y, last_ms: now_ms });
             }
             Event::MobMove { oid, x, y } => {
                 // A move can arrive for a mob that spawned before we joined: template unknown.
-                let m = s.mobs.entry(*oid).or_insert(Mob { template: None, x: *x, y: *y, last_ms: now_ms });
+                let m = s.mobs.entry(*oid).or_insert(Mob { template: None, hp: None, x: *x, y: *y, last_ms: now_ms });
                 m.x = *x;
                 m.y = *y;
                 m.last_ms = now_ms;
@@ -359,7 +361,13 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
     let d = reg.decode(Dir::In, plain)?;
     let name = d.name.as_deref()?;
     Some(match name {
-        "MobSpawn" | "MobRespawn" => Event::MobSpawn { oid: int(&d, "oid")? as u32, template: int(&d, "template")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
+        "MobSpawn" | "MobRespawn" => Event::MobSpawn {
+            oid: int(&d, "oid")? as u32,
+            template: int(&d, "template")? as u32,
+            x: int(&d, "x")? as i32,
+            y: int(&d, "y")? as i32,
+            hp: int(&d, "hp").map(|v| v as u32),
+        },
         "MobMove" => {
             let (x, y) = end_position(&d)?;
             Event::MobMove { oid: int(&d, "oid")? as u32, x, y }
