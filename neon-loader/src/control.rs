@@ -30,6 +30,9 @@ pub struct Settings {
     pub attack_range_y: Option<i32>,
     pub stand_off_x: Option<i32>,
     pub evasion_distance: Option<i32>,
+    pub gm_evasion: Option<bool>,
+    /// Extra staff character names (case-insensitive) to pause for.
+    pub gm_names: Option<Vec<String>>,
     /// Mob template ids to fight; an empty list means "anything".
     pub mobs: Option<Vec<u32>>,
     /// Maps the bot may act in; empty = anywhere.
@@ -59,6 +62,8 @@ impl Settings {
         if let Some(v) = self.attack_range_y { cfg.attack_range_y = v.clamp(5, 300); }
         if let Some(v) = self.stand_off_x { cfg.stand_off_x = v.clamp(5, 300); }
         if let Some(v) = self.evasion_distance { cfg.evasion_distance = v.clamp(50, 2000); }
+        if let Some(v) = self.gm_evasion { cfg.gm_evasion = v; }
+        if let Some(v) = &self.gm_names { cfg.gm_names = v.iter().map(|s| s.to_lowercase()).collect(); }
         if let Some(v) = &self.mobs {
             cfg.allowed_mobs = if v.is_empty() { None } else { Some(v.iter().copied().collect::<HashSet<_>>()) };
         }
