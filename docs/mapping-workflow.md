@@ -42,6 +42,8 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 
 **Corrected result (2026-10-26 19:15):** with the windows actually opened (screenshot-checked; the menu entries of `i` clicked at (1040, 503/529/555/581/633) on the 1600x1000 display), opening and closing the item, equipment, stats, skills and quest windows 4 times each produced no repeating packet in either direction.
 
+**NPC dialog (2026-10-26 19:30, jib01 next to the quest NPC Pio in Amherst):** clicking the NPC opened the dialog 5 of 5 times (pixel-checked) and END CHAT closed it; neither produced a repeating incoming or client->server packet (only the usual background: pings, keepalives, NPC move echoes). Opening and closing an NPC dialog is local to the client; what goes to the server happens on the buttons (NEXT, accept), not tested to avoid changing the test account's quests.
+
 **Retracted (2026-10-26 19:00):** an earlier note here said the inventory, equipment, stats, skills and quest windows are client-only because `i e s k q` produced no packets. That test was invalid: on this client `i` opens a "SHORT CUT" menu (ITEM, EQUIPMENT, CHAR.STATS, SKILLS, PARTY, QUEST, CRAFTING, MAPLE CHAT, MAPLE SOCIAL, MAILBOX), and the other keys did not open the windows at all. Always screenshot (`import -window root`) to confirm that an action did what you think before reading its packets.
 
 **Negative result 2:** after walking jib01 next to the Amherst mailbox, 4 clicks on it (random 6-15 s gaps) opened no window and produced no repeating opcode (candidates appeared in at most 1 of 4 windows and were ordinary town traffic). Walking by held arrow key (`xdotool keydown Left`, 3.2 s) works on the test account.
