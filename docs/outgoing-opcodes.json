@@ -1,0 +1,194 @@
+{
+ "_doc": "Outgoing (client->server) opcodes read from the client's packet object before encryption (docs/network-protocol.md). Counts only; payload bytes deliberately omitted (login token/GUID in some). next_send_wire_lens is the wire length of the send after the packet was built: approximate for queued/bulk packets.",
+ "_capture": "jib01, ~150 s, 2026-10-26",
+ "opcodes": {
+  "0x02fe": {
+   "count": 340,
+   "next_send_wire_lens": {
+    "164": 99,
+    "185": 39,
+    "215": 4,
+    "143": 89,
+    "257": 5,
+    "206": 13,
+    "194": 5,
+    "227": 4,
+    "248": 1,
+    "173": 5,
+    "122": 66,
+    "236": 9,
+    "278": 1
+   }
+  },
+  "0x00db": {
+   "count": 88,
+   "next_send_wire_lens": {
+    "133": 4,
+    "124": 8,
+    "61": 5,
+    "208": 2,
+    "154": 3,
+    "145": 8,
+    "82": 17,
+    "222": 3,
+    "264": 1,
+    "103": 17,
+    "84": 1,
+    "147": 1,
+    "180": 4,
+    "166": 2,
+    "164": 1,
+    "212": 1,
+    "206": 1,
+    "63": 1,
+    "149": 2,
+    "243": 1,
+    "138": 1,
+    "159": 2,
+    "175": 1,
+    "78": 1
+   }
+  },
+  "0x00e1": {
+   "count": 20,
+   "next_send_wire_lens": {
+    "244": 7,
+    "236": 7,
+    "134": 5,
+    "228": 1
+   }
+  },
+  "0x00e7": {
+   "count": 12,
+   "next_send_wire_lens": {
+    "164": 12
+   }
+  },
+  "0x02ab": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "18": 1
+   }
+  },
+  "0x013e": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "57": 1
+   }
+  },
+  "0x02f0": {
+   "count": 5,
+   "next_send_wire_lens": {
+    "6": 5
+   }
+  },
+  "0x02ef": {
+   "count": 3,
+   "next_send_wire_lens": {
+    "18": 3
+   }
+  },
+  "0x013f": {
+   "count": 3,
+   "next_send_wire_lens": {
+    "55": 3
+   }
+  },
+  "0x032b": {
+   "count": 2,
+   "next_send_wire_lens": {
+    "40": 2
+   }
+  },
+  "0x00d3": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "41": 1
+   }
+  },
+  "0x01ef": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "164": 1
+   }
+  },
+  "0x0155": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "6": 1
+   }
+  },
+  "0x00de": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "6": 1
+   }
+  },
+  "0x02da": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "7": 1
+   }
+  },
+  "0x0186": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "18": 1
+   }
+  },
+  "0x0196": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "7": 1
+   }
+  },
+  "0x0228": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "16": 1
+   }
+  },
+  "0x009e": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "51": 1
+   }
+  },
+  "0x008f": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "585": 1
+   }
+  },
+  "0x0090": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "1460": 1
+   }
+  },
+  "0x02e7": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "10": 1
+   }
+  },
+  "0x0073": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "416": 1
+   }
+  },
+  "0x0077": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "1460": 1
+   }
+  },
+  "0x0070": {
+   "count": 1,
+   "next_send_wire_lens": {
+    "46": 1
+   }
+  }
+ }
+}

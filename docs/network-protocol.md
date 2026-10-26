@@ -173,3 +173,24 @@ RVAs from its export table): `EVP_EncryptUpdate` 0x749b, `EVP_CipherUpdate` 0x5d
 client packets/s) produced **zero hits** on any of them, and the client stayed connected and unflagged while attached.
 So the packet cipher does not go through that DLL; it runs in the Themida-protected executable's own AES-NI code. The
 next step would be tracing that virtualised code, which is a much larger job than a breakpoint and was not attempted.
+
+
+## Outgoing opcodes: read before encryption (2026-10-26, works)
+
+The cipher is not needed. The client builds each packet in a `COutPacket`-like object and hands it to its send
+function; reading that object gives the plaintext. Found with `sudo gdb -p <pid>` on a test client (classic Classic
+World v1.0.1 build; **all addresses are for this build**):
+
+* Windows `send` (`ws2_32.dll`, base from `/proc/PID/maps`, RVA `0x12c80`) is called from the game's socket wrapper at
+  `0x141665b20`, inside the big writer `0x141663fa0`. That is called from **`0x141660360`**, the send-packet entry:
+  `rcx` = packet object, `0x434(rcx)` = opcode (u32), and the packet bytes start at `rcx+8` as
+  `[opcode u16 LE][fields...]`. It is plain x86-64 (not virtualised), so no protection was bypassed.
+* How it was located: caught the host `sendmsg` on the game socket (fd to port 8578), broke on `send`, recovered real
+  return addresses on the Windows stack (a qword in the code section whose preceding bytes are `call`), and walked up
+  to the function that takes the packet.
+* `neon-calib/tools/outcap.sh PID SECONDS out.json` records every packet's opcode and the wire length of the following
+  send. Results: `docs/outgoing-opcodes.json`, rendered by `scripts/opcode-doc.py` into `docs/opcodes.md`. Payload bytes
+  are not committed (some packets carry the launcher login token).
+* Caveats: the packet's own length is not read yet (the wire length of the next send is only a hint); the breakpoint
+  sits in the game process, so a long attach should be watched; one capture of 150 s covered 25 opcodes, mostly
+  movement. The 2026-10-26 negative results above stand for the cipher itself.

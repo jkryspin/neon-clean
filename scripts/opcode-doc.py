@@ -66,24 +66,41 @@ for op in sorted(agg):
 missing = sorted(set(KNOWN) - set(agg))
 if missing:
     out += ["", "Documented but not seen in these logs: " + ", ".join(f"`0x{o:04x}`" for o in missing) + "."]
+try:
+    og = json.load(open("docs/outgoing-opcodes.json"))
+    cap = og.get("_capture", "")
+    ops = og["opcodes"]
+except OSError:
+    ops, cap = {}, ""
 out += [
-    "",
-    f"Total: {len(agg)} distinct incoming opcodes, {sum(a['count'] for a in agg.values())} packets.",
     "",
     "## Outgoing (client -> server)",
     "",
-    "Not documentable per opcode. The framing, the per-packet IV schedule and the header seed are solved "
-    "(`docs/network-protocol.md`, `neon-stream/src/outgoing.rs`), but the payload cipher key/mode is not recovered, "
-    "so the opcode inside each client packet cannot be read. Recovering it needs a debugger or hook on the "
-    "client's OpenSSL calls, which this project deliberately does not do (protected process, and Nexon asked that "
-    "there be no aggressive packet injection). What can be said from outside:",
+    "The payload cipher is not broken; instead the opcode is read from the client's own packet object just before it is "
+    "encrypted (breakpoint on the game's send-packet function, see `docs/network-protocol.md`, \"Outgoing plaintext\"). "
+    f"Source: `docs/outgoing-opcodes.json` ({cap}). Counts only: payload bytes are not stored because some packets carry "
+    "the launcher login token. \"Next-send wire lengths\" are the wire length (4-byte header + payload) of the send that followed, "
+    "which is only approximate for queued or bulk packets. Notes are given only where the evidence is in the table itself.",
     "",
-    "* Header: `[a>>8, a, c>>8, c]`, `c = a ^ byteswap(len)`, `a = ((iv[2]<<8)|iv[3]) ^ 0xdf00`.",
-    "* Keep-alive/ping is a 2-byte payload (21 seen in the reference capture).",
-    "* About 4 client packets per second in play.",
-    "",
-    "Until a legitimate way to read the payload exists, no outgoing opcode is listed here as known.",
-    "",
+    "| Opcode | Seen | Next-send wire lengths | Note |",
+    "|---|---:|---|---|",
 ]
+NOTE = {
+    "0x02fe": "most frequent by far; payload carries a small incrementing counter: probably movement (unverified)",
+    "0x00de": "bare opcode, no fields",
+    "0x0155": "bare opcode, no fields",
+    "0x02f0": "bare opcode, no fields",
+    "0x0073": "launcher login string (handshake); contains a session token",
+    "0x0070": "carries a GUID string; probably a client/session id",
+    "0x008f": "text log line (\"ELog|..|VERSION...\")",
+    "0x0090": "text log lines, bulk",
+    "0x0077": "bulk, ~1460 bytes",
+}
+for k in sorted(ops):
+    v = ops[k]
+    lens = ", ".join(f"{l}x{n}" if n > 1 else l for l, n in sorted(v["next_send_wire_lens"].items(), key=lambda t: int(t[0])))
+    out.append(f"| `{k}` | {v['count']} | {lens[:70]}{'...' if len(lens) > 70 else ''} | {NOTE.get(k, '')} |")
+out += ["", f"Total: {len(ops)} distinct outgoing opcodes, {sum(v['count'] for v in ops.values())} packets in one short capture; "
+        "rarer actions (chat, NPC, shop, skills, party) have not been triggered yet and are absent.", ""]
 open("docs/opcodes.md", "w").write("\n".join(out))
-print(f"wrote docs/opcodes.md: {len(agg)} incoming opcodes")
+print(f"wrote docs/opcodes.md: {len(agg)} incoming, {len(ops)} outgoing opcodes")

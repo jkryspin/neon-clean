@@ -8,97 +8,129 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 
 | Opcode | Seen | Per min | Size (min-max) | Meaning | Status |
 |---|---:|---:|---|---|---|
-| `0x0013` | 4 | 0.1 | 3 |  | observed only |
-| `0x0014` | 4 | 0.1 | 3 |  | observed only |
-| `0x001b` | 58 | 2.1 | 48 |  | observed only |
-| `0x001d` | 2 | 0.1 | 22 |  | observed only |
-| `0x0020` | 3 | 0.1 | 3 |  | observed only |
-| `0x0026` | 1 | 0.0 | 2 |  | observed only |
-| `0x0027` | 2 | 0.1 | 2 |  | observed only |
-| `0x0028` | 58 | 2.1 | 2 |  | observed only |
-| `0x002c` | 52 | 1.9 | 6 |  | observed only |
-| `0x003d` | 1039 | 38.1 | 10 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x004f` | 60 | 2.2 | 3 |  | observed only |
+| `0x0013` | 15 | 0.2 | 3 |  | observed only |
+| `0x0014` | 15 | 0.2 | 3 |  | observed only |
+| `0x001b` | 252 | 2.7 | 48 |  | observed only |
+| `0x001d` | 6 | 0.1 | 22 |  | observed only |
+| `0x0020` | 15 | 0.2 | 3 |  | observed only |
+| `0x0026` | 3 | 0.0 | 2 |  | observed only |
+| `0x0027` | 4 | 0.0 | 2 |  | observed only |
+| `0x0028` | 249 | 2.7 | 2 |  | observed only |
+| `0x002c` | 202 | 2.2 | 6 |  | observed only |
+| `0x003d` | 4622 | 49.4 | 10 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x004f` | 264 | 2.8 | 3 |  | observed only |
 | `0x005c` | 1 | 0.0 | 12 |  | observed only |
-| `0x006e` | 4 | 0.1 | 7-11 |  | observed only |
-| `0x0072` | 30 | 1.1 | 9-54 | inventory change | seen with pickups, not decoded |
-| `0x0077` | 33 | 1.2 | 7 |  | observed only |
-| `0x007e` | 355 | 13.0 | 11-19 | own stat update | decoded (bitmask; some sizes unverified) |
-| `0x007f` | 9 | 0.3 | 3-157 |  | observed only |
-| `0x0080` | 12 | 0.4 | 129 |  | observed only |
-| `0x0081` | 4 | 0.1 | 3 |  | observed only |
-| `0x0082` | 4 | 0.1 | 2 |  | observed only |
-| `0x0085` | 18 | 0.7 | 6 |  | observed only |
-| `0x008b` | 108 | 4.0 | 6-31 | pickup message | decoded |
-| `0x008d` | 2 | 0.1 | 11 |  | observed only |
-| `0x008e` | 2 | 0.1 | 7205-7364 |  | observed only |
-| `0x0090` | 3 | 0.1 | 2 |  | observed only |
-| `0x00a7` | 4 | 0.1 | 738 | party update | decoded (create/leave/join) |
-| `0x00ae` | 100 | 3.7 | 4-458 | chat / megaphone | text |
-| `0x00b7` | 1 | 0.0 | 7 |  | observed only |
-| `0x00d2` | 51 | 1.9 | 7 |  | observed only |
-| `0x00f9` | 4 | 0.1 | 3 |  | observed only |
-| `0x0165` | 4 | 0.1 | 6 |  | observed only |
-| `0x0178` | 1 | 0.0 | 7 |  | observed only |
-| `0x01a9` | 4 | 0.1 | 103 |  | observed only |
-| `0x01f4` | 4 | 0.1 | 5 |  | observed only |
-| `0x0209` | 46 | 1.7 | 12-13 |  | observed only |
-| `0x020f` | 4 | 0.1 | 7 |  | observed only |
-| `0x0211` | 4 | 0.1 | 6 |  | observed only |
-| `0x022d` | 59 | 2.2 | 886-991 | player spawn | decoded (id, name) |
-| `0x022e` | 1 | 0.0 | 6 |  | observed only |
-| `0x022f` | 2 | 0.1 | 75-79 |  | observed only |
-| `0x023d` | 157 | 5.8 | 24-37 |  | observed only |
-| `0x023f` | 12 | 0.4 | 10 |  | observed only |
-| `0x026f` | 4 | 0.1 | 10 |  | observed only |
-| `0x0270` | 2 | 0.1 | 11 |  | observed only |
-| `0x0281` | 15 | 0.6 | 52-58 | pet spawn | name only |
-| `0x0282` | 915 | 33.6 | 45-285 | pet move | name only |
-| `0x0283` | 1 | 0.0 | 17 |  | observed only |
-| `0x029d` | 4092 | 150.1 | 41-290 | player move | decoded |
-| `0x02a8` | 1047 | 38.4 | 63-207 |  | observed only |
-| `0x02a9` | 140 | 5.1 | 63-97 |  | observed only |
-| `0x02aa` | 59 | 2.2 | 63-97 |  | observed only |
-| `0x02af` | 380 | 13.9 | 164 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02b0` | 1 | 0.0 | 15 |  | observed only |
-| `0x02b7` | 3 | 0.1 | 15 |  | observed only |
-| `0x02b9` | 5 | 0.2 | 19 |  | observed only |
-| `0x02ba` | 1 | 0.0 | 157 |  | observed only |
-| `0x02bb` | 23 | 0.8 | 131 |  | observed only |
-| `0x02bd` | 9 | 0.3 | 22 |  | observed only |
-| `0x02db` | 39 | 1.4 | 7 |  | observed only |
-| `0x0345` | 9 | 0.3 | 14 |  | observed only |
-| `0x0362` | 1 | 0.0 | 14 |  | observed only |
-| `0x0370` | 4 | 0.1 | 6 |  | observed only |
-| `0x0381` | 2 | 0.1 | 18 |  | observed only |
-| `0x03c9` | 401 | 14.7 | 313 | mob spawn | decoded |
-| `0x03d4` | 388 | 14.2 | 16 | mob removed | decoded |
-| `0x03d5` | 59 | 2.2 | 313 |  | observed only |
-| `0x03dc` | 8719 | 319.8 | 62-335 | mob update/move | decoded (start position only) |
-| `0x03e7` | 2336 | 85.7 | 28 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x03f3` | 161 | 5.9 | 11 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0415` | 4 | 0.1 | 4 |  | observed only |
-| `0x0441` | 26 | 1.0 | 10 |  | observed only |
-| `0x044d` | 361 | 13.2 | 14 | mob damaged | layout known, unused |
-| `0x0452` | 7 | 0.3 | 67 |  | observed only |
-| `0x0453` | 2 | 0.1 | 6 |  | observed only |
+| `0x006e` | 76 | 0.8 | 7-11 |  | observed only |
+| `0x0072` | 73 | 0.8 | 9-54 | inventory change | seen with pickups, not decoded |
+| `0x0077` | 143 | 1.5 | 7 |  | observed only |
+| `0x007e` | 982 | 10.5 | 11-19 | own stat update | decoded (bitmask; some sizes unverified) |
+| `0x007f` | 35 | 0.4 | 3-157 |  | observed only |
+| `0x0080` | 49 | 0.5 | 129 |  | observed only |
+| `0x0081` | 15 | 0.2 | 3 |  | observed only |
+| `0x0082` | 15 | 0.2 | 2 |  | observed only |
+| `0x0085` | 24 | 0.3 | 6 |  | observed only |
+| `0x008b` | 190 | 2.0 | 6-50 | pickup message | decoded |
+| `0x008d` | 2 | 0.0 | 11 |  | observed only |
+| `0x008e` | 4 | 0.0 | 7037-7364 |  | observed only |
+| `0x0090` | 7 | 0.1 | 2 |  | observed only |
+| `0x00a7` | 17 | 0.2 | 2-738 | party update | decoded (create/leave/join) |
+| `0x00ae` | 479 | 5.1 | 4-527 | chat / megaphone | text |
+| `0x00b7` | 9 | 0.1 | 7 |  | observed only |
+| `0x00c1` | 2 | 0.0 | 6 |  | observed only |
+| `0x00d2` | 102 | 1.1 | 7 |  | observed only |
+| `0x00f9` | 15 | 0.2 | 3 |  | observed only |
+| `0x0165` | 15 | 0.2 | 6 |  | observed only |
+| `0x016f` | 1 | 0.0 | 11 |  | observed only |
+| `0x0178` | 14 | 0.1 | 7 |  | observed only |
+| `0x01a9` | 15 | 0.2 | 103 |  | observed only |
+| `0x01f4` | 15 | 0.2 | 5 |  | observed only |
+| `0x0209` | 202 | 2.2 | 12-13 |  | observed only |
+| `0x020f` | 15 | 0.2 | 7 |  | observed only |
+| `0x0211` | 15 | 0.2 | 6 |  | observed only |
+| `0x022d` | 249 | 2.7 | 886-1018 | player spawn | decoded (id, name) |
+| `0x022e` | 8 | 0.1 | 6 |  | observed only |
+| `0x022f` | 4 | 0.0 | 75-123 |  | observed only |
+| `0x023d` | 409 | 4.4 | 24-37 |  | observed only |
+| `0x023f` | 67 | 0.7 | 10 |  | observed only |
+| `0x024b` | 1 | 0.0 | 14 |  | observed only |
+| `0x026f` | 15 | 0.2 | 10 |  | observed only |
+| `0x0270` | 6 | 0.1 | 11 |  | observed only |
+| `0x0279` | 8 | 0.1 | 7 |  | observed only |
+| `0x0281` | 92 | 1.0 | 51-58 | pet spawn | name only |
+| `0x0282` | 3926 | 41.9 | 45-327 | pet move | name only |
+| `0x0283` | 3 | 0.0 | 17 |  | observed only |
+| `0x029d` | 19040 | 203.4 | 41-665 | player move | decoded |
+| `0x02a8` | 5165 | 55.2 | 63-207 |  | observed only |
+| `0x02a9` | 900 | 9.6 | 63-111 |  | observed only |
+| `0x02aa` | 389 | 4.2 | 63-97 |  | observed only |
+| `0x02af` | 1773 | 18.9 | 164 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x02b0` | 5 | 0.1 | 15 |  | observed only |
+| `0x02b7` | 14 | 0.1 | 15 |  | observed only |
+| `0x02b8` | 9 | 0.1 | 371-421 |  | observed only |
+| `0x02b9` | 29 | 0.3 | 7-19 |  | observed only |
+| `0x02ba` | 8 | 0.1 | 156-157 |  | observed only |
+| `0x02bb` | 135 | 1.4 | 131 |  | observed only |
+| `0x02bd` | 28 | 0.3 | 22 |  | observed only |
+| `0x02db` | 176 | 1.9 | 7 |  | observed only |
+| `0x031f` | 1 | 0.0 | 25 |  | observed only |
+| `0x0340` | 5 | 0.1 | 10 |  | observed only |
+| `0x0345` | 39 | 0.4 | 14 |  | observed only |
+| `0x0362` | 4 | 0.0 | 14 |  | observed only |
+| `0x0370` | 15 | 0.2 | 6 |  | observed only |
+| `0x0371` | 3 | 0.0 | 7-11 |  | observed only |
+| `0x037a` | 1 | 0.0 | 22 |  | observed only |
+| `0x0381` | 6 | 0.1 | 18 |  | observed only |
+| `0x03c9` | 1858 | 19.8 | 313-317 | mob spawn | decoded |
+| `0x03d4` | 1760 | 18.8 | 16 | mob removed | decoded |
+| `0x03d5` | 171 | 1.8 | 7-313 |  | observed only |
+| `0x03dc` | 34200 | 365.3 | 62-356 | mob update/move | decoded (start position only) |
+| `0x03e7` | 8931 | 95.4 | 28 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x03e9` | 2 | 0.0 | 40 |  | observed only |
+| `0x03f3` | 272 | 2.9 | 11 |  | observed only |
+| `0x0415` | 15 | 0.2 | 4 |  | observed only |
+| `0x0441` | 142 | 1.5 | 10 |  | observed only |
+| `0x044d` | 1708 | 18.2 | 14 | mob damaged | layout known, unused |
+| `0x0452` | 15 | 0.2 | 67 |  | observed only |
+| `0x0453` | 4 | 0.0 | 6 |  | observed only |
 | `0x0454` | 1 | 0.0 | 68 |  | observed only |
-| `0x0456` | 32 | 1.2 | 12-131 |  | observed only |
+| `0x0456` | 439 | 4.7 | 12-152 |  | observed only |
 | `0x045f` | 1 | 0.0 | 965 |  | observed only |
-| `0x0471` | 89 | 3.3 | 107-123 | drop spawn (own kills only) | decoded |
-| `0x0472` | 708 | 26.0 | 7-15 | drop removed | decoded |
-| `0x047b` | 1 | 0.0 | 22 |  | observed only |
-| `0x0487` | 15 | 0.6 | 19 |  | observed only |
-| `0x048f` | 1 | 0.0 | 13 |  | observed only |
-
-Total: 82 distinct incoming opcodes, 22390 packets.
+| `0x0471` | 145 | 1.5 | 107-123 | drop spawn (own kills only) | decoded |
+| `0x0472` | 2997 | 32.0 | 7-15 | drop removed | decoded |
+| `0x047b` | 9 | 0.1 | 22 |  | observed only |
+| `0x0487` | 41 | 0.4 | 19 |  | observed only |
+| `0x048f` | 3 | 0.0 | 13 |  | observed only |
 
 ## Outgoing (client -> server)
 
-Not documentable per opcode. The framing, the per-packet IV schedule and the header seed are solved (`docs/network-protocol.md`, `neon-stream/src/outgoing.rs`), but the payload cipher key/mode is not recovered, so the opcode inside each client packet cannot be read. Recovering it needs a debugger or hook on the client's OpenSSL calls, which this project deliberately does not do (protected process, and Nexon asked that there be no aggressive packet injection). What can be said from outside:
+The payload cipher is not broken; instead the opcode is read from the client's own packet object just before it is encrypted (breakpoint on the game's send-packet function, see `docs/network-protocol.md`, "Outgoing plaintext"). Source: `docs/outgoing-opcodes.json` (jib01, ~150 s, 2026-10-26). Counts only: payload bytes are not stored because some packets carry the launcher login token. "Next-send wire lengths" are the wire length (4-byte header + payload) of the send that followed, which is only approximate for queued or bulk packets. Notes are given only where the evidence is in the table itself.
 
-* Header: `[a>>8, a, c>>8, c]`, `c = a ^ byteswap(len)`, `a = ((iv[2]<<8)|iv[3]) ^ 0xdf00`.
-* Keep-alive/ping is a 2-byte payload (21 seen in the reference capture).
-* About 4 client packets per second in play.
+| Opcode | Seen | Next-send wire lengths | Note |
+|---|---:|---|---|
+| `0x0070` | 1 | 46 | carries a GUID string; probably a client/session id |
+| `0x0073` | 1 | 416 | launcher login string (handshake); contains a session token |
+| `0x0077` | 1 | 1460 | bulk, ~1460 bytes |
+| `0x008f` | 1 | 585 | text log line ("ELog|..|VERSION...") |
+| `0x0090` | 1 | 1460 | text log lines, bulk |
+| `0x009e` | 1 | 51 |  |
+| `0x00d3` | 1 | 41 |  |
+| `0x00db` | 88 | 61x5, 63, 78, 82x17, 84, 103x17, 124x8, 133x4, 138, 145x8, 147, 149x2,... |  |
+| `0x00de` | 1 | 6 | bare opcode, no fields |
+| `0x00e1` | 20 | 134x5, 228, 236x7, 244x7 |  |
+| `0x00e7` | 12 | 164x12 |  |
+| `0x013e` | 1 | 57 |  |
+| `0x013f` | 3 | 55x3 |  |
+| `0x0155` | 1 | 6 | bare opcode, no fields |
+| `0x0186` | 1 | 18 |  |
+| `0x0196` | 1 | 7 |  |
+| `0x01ef` | 1 | 164 |  |
+| `0x0228` | 1 | 16 |  |
+| `0x02ab` | 1 | 18 |  |
+| `0x02da` | 1 | 7 |  |
+| `0x02e7` | 1 | 10 |  |
+| `0x02ef` | 3 | 18x3 |  |
+| `0x02f0` | 5 | 6x5 | bare opcode, no fields |
+| `0x02fe` | 340 | 122x66, 143x89, 164x99, 173x5, 185x39, 194x5, 206x13, 215x4, 227x4, 23... | most frequent by far; payload carries a small incrementing counter: probably movement (unverified) |
+| `0x032b` | 2 | 40x2 |  |
 
-Until a legitimate way to read the payload exists, no outgoing opcode is listed here as known.
+Total: 25 distinct outgoing opcodes, 490 packets in one short capture; rarer actions (chat, NPC, shop, skills, party) have not been triggered yet and are absent.
