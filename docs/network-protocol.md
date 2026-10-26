@@ -345,3 +345,8 @@ Only one accept was done (repeating needs abandoning the quest, which I did not 
 **Second observation (jib02, a different connection, 19:55):** the same accept produced a wire packet `0xd5b8` (19 bytes) `b8 d5 | 01 | f4 03 00 00 | 12 00 00 00 | 15 02 | 12 01 | 00 00 00 00` (our position x = 533, y = 274) and the same three replies
 (`0x008b` 10 bytes, `0x008b` 17 bytes with `qid=1012`, `0x02e0` 16 bytes) within 0.18 s. The layout of the request is therefore: action byte, quest id u32, NPC id u32, x i16, y i16, 4 zero bytes. Its opcode is `0xcc5e` on jib01 and `0xd5b8` on jib02 (per-connection numbering again).
 
+### Negative results on how the wire numbering is chosen (2026-10-26 20:05)
+With three internal opcodes known on two connections (jib01: `0xdb`->`0x5f28`, `0xe1`->`0x25d8`, `0x2f0`->`0x8786`; jib02: `0xdb`->`0xd34b`, `0xe1`->`0x90b6`, `0x2f0`->`0x51f8`), no affine map `wire = A*internal + B (mod 2^16)` and no `xor`/multiply map fits either connection (exhaustive over A, B), and the differences and xors share no constant.
+The five wire numbers of jib02 (`0x51f8`, `0x90b6`, `0xd34b`) do not appear as little-endian u16 in the decoded additive-K table that the server sends after the hello (they occur only at chance rate), so that table is not the opcode table.
+What remains: the table is sent inside the encrypted in-game frames (which the jib02 pcap does not frame from its start), or it is derived locally from a seed. A capture that starts before the hello **and** is framed from the first server packet is what settles it; the server-side framing of the first in-game frames of a connection is the open problem.
+
