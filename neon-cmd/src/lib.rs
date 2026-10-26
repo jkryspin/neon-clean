@@ -341,3 +341,68 @@ impl StaffRules {
         }
     }
 }
+
+// ------------------------------------------------------------------ reconnect policy
+
+/// What to do after a failed login/launch. Born from 2026-10-26: both test clients were dropped to the login screen and
+/// repeated automated logins against a server that kept refusing them would look like exactly what the authorization
+/// asks us not to do. So: back off, cap the attempts per day, and hand over to a person.
+#[derive(Debug, Clone)]
+pub struct ReconnectPolicy {
+    /// Wait before attempt n (the last entry repeats).
+    pub backoff_ms: Vec<u64>,
+    pub max_per_day: usize,
+    attempts: Vec<u64>,
+    consecutive_failures: usize,
+    last_failure_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Reconnect {
+    /// Go ahead and try now.
+    Try,
+    /// Too soon: try again after this many ms.
+    Wait(u64),
+    /// Stop and alert a person; do not try again automatically.
+    GiveUp(String),
+}
+
+impl Default for ReconnectPolicy {
+    fn default() -> Self {
+        ReconnectPolicy { backoff_ms: vec![60_000, 300_000, 900_000, 3_600_000], max_per_day: 6, attempts: vec![], consecutive_failures: 0, last_failure_ms: None }
+    }
+}
+
+impl ReconnectPolicy {
+    pub fn decide(&mut self, now_ms: u64) -> Reconnect {
+        const DAY: u64 = 24 * 3600 * 1000;
+        self.attempts.retain(|t| now_ms.saturating_sub(*t) < DAY);
+        if self.attempts.len() >= self.max_per_day {
+            return Reconnect::GiveUp(format!("{} login attempts in 24 h", self.attempts.len()));
+        }
+        if let Some(last) = self.last_failure_ms {
+            let idx = self.consecutive_failures.saturating_sub(1).min(self.backoff_ms.len() - 1);
+            let wait = self.backoff_ms[idx];
+            let since = now_ms.saturating_sub(last);
+            if since < wait {
+                return Reconnect::Wait(wait - since);
+            }
+        }
+        Reconnect::Try
+    }
+
+    /// Call when an attempt starts.
+    pub fn attempted(&mut self, now_ms: u64) {
+        self.attempts.push(now_ms);
+    }
+
+    pub fn failed(&mut self, now_ms: u64) {
+        self.consecutive_failures += 1;
+        self.last_failure_ms = Some(now_ms);
+    }
+
+    pub fn succeeded(&mut self) {
+        self.consecutive_failures = 0;
+        self.last_failure_ms = None;
+    }
+}

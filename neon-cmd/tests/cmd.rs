@@ -173,3 +173,35 @@ fn staff_on_the_map_pauses_the_gate_and_leaving_resumes_it() {
     rules.sync(&mut g, w.snapshot());
     assert!(matches!(g.check(1000), Verdict::Blocked(_)));
 }
+
+#[test]
+fn reconnect_backs_off_then_gives_up_and_never_hammers() {
+    let mut p = ReconnectPolicy::default();
+    assert_eq!(p.decide(0), Reconnect::Try);
+    p.attempted(0);
+    p.failed(0);
+    assert_eq!(p.decide(1_000), Reconnect::Wait(59_000), "first retry after 1 min");
+    assert_eq!(p.decide(60_000), Reconnect::Try);
+    p.attempted(60_000);
+    p.failed(60_000);
+    assert_eq!(p.decide(61_000), Reconnect::Wait(299_000), "then 5 min");
+    p.attempted(400_000);
+    p.failed(400_000);
+    assert_eq!(p.decide(401_000), Reconnect::Wait(899_000), "then 15 min");
+    // a success resets the schedule
+    p.succeeded();
+    assert_eq!(p.decide(402_000), Reconnect::Try);
+}
+
+#[test]
+fn reconnect_attempts_per_day_are_capped() {
+    let mut p = ReconnectPolicy::default();
+    p.backoff_ms = vec![0];
+    for i in 0..6 {
+        assert_eq!(p.decide(i * 1000), Reconnect::Try);
+        p.attempted(i * 1000);
+        p.failed(i * 1000);
+    }
+    assert!(matches!(p.decide(10_000), Reconnect::GiveUp(r) if r.contains("6 login attempts")));
+    assert_eq!(p.decide(24 * 3600 * 1000 + 10_000), Reconnect::Try, "the window slides after a day");
+}
