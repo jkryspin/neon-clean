@@ -136,7 +136,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x03e9` | 2 | 0.0 | 40 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x03f3` | 314 | 1.6 | 11 |  | structure: 11 bytes: u32 mob oid @2 and a state byte @6 (0x00 sent for a mob that was just killed, 0x0f for a mob that just spawned: same oid as the 0x03d4 / 0x03d5 right next to it). 44 seen, 16 of 16 own-kill windows. Meaning unknown |
 | `0x0415` | 16 | 0.1 | 4 |  | observed |
-| `0x0441` | 150 | 0.8 | 10 |  | structure: 10 bytes: mob oid@2 is a known mob in 10 of 13 packets. Meaning unknown (2026-10-26). |
+| `0x0441` | 150 | 0.8 | 10 |  | structure: 10 bytes: mob oid@2 and a character id@6 (the same pair layout as MobHit 0x044d, without the factor). From an exact-decoded log (2026-10-26 18:45, 254 packets): 112 of 116 mob kills (0x03d4) have a 0x0441 for that mob in the 10 s before, most at the same instant as the kill; one mob gets 0x0441 for several different characters, and one character appears for many mobs at the same instant (an area attack). So it lists which characters are credited with a mob, near its death. Name not given: the exact event is not established. |
 | `0x044d` | 2144 | 11.0 | 14 | MobHit | structure: A character hit a mob (sent for every player's hits on the map, not only ours). oid@2 is a mob (233 of 245 ids were mobs seen spawning or moving); attacker@6 is a character id (matches the players on the map; our own id 334426 appears for our own hits); u32@10 is NOT the damage: always a multiple of 100 (100, 200, 300, 400 in 257 packets; our own plain attacks are always 100). 2026-10-26, shurelia2 grinding Perion Street Corner |
 | `0x0452` | 18 | 0.1 | 67 |  | observed |
 | `0x0453` | 4 | 0.0 | 6 |  | observed |

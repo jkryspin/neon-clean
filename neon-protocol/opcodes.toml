@@ -1099,11 +1099,12 @@ len_max = 4
 id = 0x0441
 dir = "in"
 status = "structure"
-summary = "10 bytes: mob oid@2 is a known mob in 10 of 13 packets. Meaning unknown (2026-10-26)."
+summary = "10 bytes: mob oid@2 and a character id@6 (the same pair layout as MobHit 0x044d, without the factor). From an exact-decoded log (2026-10-26 18:45, 254 packets): 112 of 116 mob kills (0x03d4) have a 0x0441 for that mob in the 10 s before, most at the same instant as the kill; one mob gets 0x0441 for several different characters, and one character appears for many mobs at the same instant (an area attack). So it lists which characters are credited with a mob, near its death. Name not given: the exact event is not established."
 len_min = 10
 len_max = 10
 field = [
   { name = "mob_oid", ty = "u32", off = 2 },
+  { name = "char_id", ty = "u32", off = 6 },
 ]
 
 [[opcode]]
