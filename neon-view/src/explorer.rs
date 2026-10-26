@@ -48,6 +48,12 @@ pub struct OffsetInfo {
     pub constant: Option<u8>,
     pub min: u8,
     pub max: u8,
+    /// The three most common byte values here and how often (a byte that is mostly one value is a flag, not a counter).
+    pub top: Vec<(u8, usize)>,
+    /// Range and distinct count of the little-endian u16 starting here (None at the last byte): ranges that look like
+    /// coordinates, ids or timestamps are the first clue to a field's type.
+    pub u16_range: Option<(u16, u16)>,
+    pub u16_distinct: Option<usize>,
     /// `mob`, `player` or `drop` when a 4-byte field starting here holds known ids (only set on the first byte).
     pub id_ref: Option<String>,
     pub id_share: Option<f64>,
@@ -151,8 +157,19 @@ impl Explorer {
         for off in 0..n {
             let vals: Vec<u8> = used.iter().map(|s| s[off]).collect();
             let set: HashSet<u8> = vals.iter().copied().collect();
+            let mut freq: std::collections::BTreeMap<u8, usize> = Default::default();
+            for v in &vals {
+                *freq.entry(*v).or_default() += 1;
+            }
+            let mut top: Vec<(u8, usize)> = freq.into_iter().collect();
+            top.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+            top.truncate(3);
+            let u16s: Vec<u16> = if off + 1 < n { used.iter().map(|s| u16::from_le_bytes([s[off], s[off + 1]])).collect() } else { vec![] };
             offsets.push(OffsetInfo {
                 off,
+                top,
+                u16_range: u16s.iter().copied().min().zip(u16s.iter().copied().max()),
+                u16_distinct: (!u16s.is_empty()).then(|| u16s.iter().collect::<HashSet<_>>().len()),
                 distinct: set.len(),
                 constant: (set.len() == 1).then(|| vals[0]),
                 min: vals.iter().copied().min().unwrap_or(0),

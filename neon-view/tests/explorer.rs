@@ -108,3 +108,23 @@ fn the_shared_state_feeds_the_explorer_and_clear_forgets() {
     assert!(sh.explorer.explore(&reg, Dir::In, 0x03c9).is_none());
     assert!(sh.explorer.ids.mobs.is_empty());
 }
+
+#[test]
+fn offsets_report_top_values_and_the_u16_range() {
+    let reg = Registry::builtin().unwrap();
+    let mut ex = Explorer::default();
+    // @2 is a flag that is 7 in 9 of 10 packets; @3..4 is a little-endian u16 counter 1000..1009
+    for i in 0..10u16 {
+        let mut p = vec![0u8; 8];
+        p[0] = 0x01;
+        p[1] = 0x72;
+        p[2] = if i == 3 { 9 } else { 7 };
+        p[3..5].copy_from_slice(&(1000 + i).to_le_bytes());
+        ex.record(Dir::In, &p);
+    }
+    let x = ex.explore(&reg, Dir::In, 0x7201).unwrap();
+    assert_eq!(x.offsets[2].top, vec![(7, 9), (9, 1)]);
+    assert_eq!(x.offsets[3].u16_range, Some((1000, 1009)));
+    assert_eq!(x.offsets[3].u16_distinct, Some(10));
+    assert_eq!(x.offsets[7].u16_range, None, "no u16 starts at the last byte");
+}

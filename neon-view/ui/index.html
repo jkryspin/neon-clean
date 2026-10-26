@@ -194,7 +194,7 @@ function loadExplorer() {
     document.getElementById('ex-title').textContent = (x.dir === 'out' ? '\u2192 ' : '\u2190 ') + x.op + (x.name ? ' ' + x.name : '') + ' (' + x.status + ')';
     const last = x.samples.length ? x.samples[0].split(' ') : [];
     document.getElementById('ex-map').innerHTML = x.offsets.map(o => {
-      let cls = 'c-var', tip = 'unexplained, varies (' + o.distinct + ' values, ' + o.min + '..' + o.max + ')';
+      let cls = 'c-var', tip = 'unexplained, varies (' + o.distinct + ' values, ' + o.min + '..' + o.max + '; most common ' + o.top.map(t => t[0] + 'x' + t[1]).join(', ') + ')' + (o.u16_range ? '; as u16: ' + o.u16_range[0] + '..' + o.u16_range[1] + ', ' + o.u16_distinct + ' distinct' : '');
       const inRef = x.offsets.some(r => r.id_ref && o.off >= r.off && o.off < r.off + 4);
       if (o.field) { cls = 'c-known'; tip = 'registry field: ' + o.field; }
       else if (inRef) { const r = x.offsets.find(r => r.id_ref && o.off >= r.off && o.off < r.off + 4); cls = 'c-ref'; tip = 'part of a ' + r.id_ref + ' id starting at ' + r.off + ' (' + Math.round(r.id_share * 100) + '% of packets)'; }
