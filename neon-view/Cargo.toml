@@ -1,0 +1,11 @@
+[package]
+name = "neon-view"
+version = "0.1.0"
+edition = "2021"
+description = "Neon View: the first-class window into the game (live, replay, opcode explorer)"
+
+[dependencies]
+neon-protocol = { path = "../neon-protocol" }
+neon-world = { path = "../neon-world" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

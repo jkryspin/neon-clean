@@ -8,7 +8,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-pub const INDEX_HTML: &str = include_str!("../view/index.html");
+pub const INDEX_HTML: &str = include_str!("../ui/index.html");
 
 pub enum Route {
     Body { status: u16, content_type: &'static str, body: String },

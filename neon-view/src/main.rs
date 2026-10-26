@@ -4,7 +4,8 @@
 //! so another machine on the LAN can open it). Read-only, but there is no authentication: use `--host 127.0.0.1` anywhere untrusted.
 //! The log is what `NEON_DUMP_OPS=all neon-stream --net` prints with a timestamp in front of each line.
 use neon_protocol::Registry;
-use neon_world::{parse_log_line, view, Shared};
+use neon_view::{server, Shared};
+use neon_world::parse_log_line;
 use std::io::BufRead;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -49,7 +50,7 @@ fn main() {
         });
     }
     let (w2, r2) = (world.clone(), reg.clone());
-    std::thread::spawn(move || view::serve(listener, w2, r2, Duration::from_millis(250)));
+    std::thread::spawn(move || server::serve(listener, w2, r2, Duration::from_millis(250)));
 
     let mut rd = std::io::BufReader::new(std::fs::File::open(&log).expect("open log"));
     let (mut t0, mut prev): (Option<f64>, Option<f64>) = (None, None);

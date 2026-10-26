@@ -4,7 +4,7 @@
 set -u
 cd "$(dirname "$0")/.."
 fail=0
-for c in neon-protocol neon-world neon-cmd neon-stream; do
+for c in neon-protocol neon-world neon-view neon-cmd neon-stream; do
   out=$(cd "$c" && cargo test --offline --release 2>&1)
   n=$(echo "$out" | grep -E "^test result: ok\." | sed -E 's/.* ([0-9]+) passed.*/\1/' | paste -sd+ | bc)
   if echo "$out" | grep -qE "^test result: FAILED|^error"; then

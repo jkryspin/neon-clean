@@ -5,9 +5,6 @@
 //! [`replay`], so the model is testable without a live client.
 
 pub mod decode;
-pub mod inspector;
-pub mod view;
-
 use neon_protocol::{Dir, Registry};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -350,23 +347,4 @@ pub struct ReplayStats {
     pub events: u64,
     pub unused: u64,
     pub bad_lines: u64,
-}
-
-/// Everything the view serves, behind one lock.
-#[derive(Debug, Default)]
-pub struct Shared {
-    pub world: World,
-    pub packets: inspector::Inspector,
-    /// Directory of per-map geometry files (`<id>.json`: footholds, ladders, portals, npcs), served at `/map/<id>`.
-    pub maps_dir: Option<std::path::PathBuf>,
-}
-
-impl Shared {
-    /// Feed one plaintext packet: inspector always, world when it maps to an event.
-    pub fn feed(&mut self, reg: &Registry, plain: &[u8], t_ms: u64) {
-        self.packets.record(reg, plain, t_ms);
-        if let Some(e) = event_from_packet(reg, plain) {
-            self.world.apply(&e, t_ms);
-        }
-    }
 }
