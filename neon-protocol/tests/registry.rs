@@ -182,3 +182,15 @@ fn real_combat_packets_decode_with_the_registered_layouts() {
     assert_eq!(live.get("state").unwrap().as_i64(), Some(15));
     assert!(r.decode(Dir::In, &get("0xd2")).is_some());
 }
+
+#[test]
+fn a_real_player_attack_broadcast_decodes() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("fixtures/combat_packets.json")).unwrap();
+    let d = r.decode(Dir::In, &plain(c["0x2a8"]["plain"].as_str().unwrap())).expect("0x02a8 decodes");
+    assert_eq!(d.name.as_deref(), Some("PlayerAttack"));
+    let (pl, mob, val) = (d.get("char_id").unwrap().as_i64().unwrap(), d.get("mob_oid").unwrap().as_i64().unwrap(), d.get("value").unwrap().as_i64().unwrap());
+    assert!((100_000..10_000_000).contains(&pl), "player id {pl}");
+    assert!((10_000_000..100_000_000).contains(&mob), "mob oid {mob}");
+    assert!((1..10_000).contains(&val), "value {val} (probably damage)");
+}

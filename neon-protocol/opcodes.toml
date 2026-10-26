@@ -748,9 +748,13 @@ len_max = 5
 [[opcode]]
 id = 0x0209
 dir = "in"
-status = "observed"
-len_min = 12
+status = "structure"
+summary = "13 bytes: char id@2 is a known player in 34 of 36 packets (28 distinct). About a player; meaning unknown (2026-10-26)."
+len_min = 13
 len_max = 13
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x020f
@@ -790,9 +794,13 @@ len_max = 5206
 [[opcode]]
 id = 0x023d
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "24 bytes: char id@2 is a known player in 51 of 51 packets. About a player; meaning unknown (2026-10-26)."
 len_min = 24
-len_max = 37
+len_max = 24
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x023f
@@ -839,30 +847,54 @@ len_max = 17
 [[opcode]]
 id = 0x02a8
 dir = "in"
-status = "observed"
-len_min = 63
-len_max = 207
+name = "PlayerAttack"
+status = "structure"
+summary = "Another player's attack on a mob, as the server broadcasts it (our own attacks are not echoed back). char_id@2 is a known player in 100% of packets; mob_oid@63 is a known mob in 94%; it pairs with a 0x044d for the same (player, mob) within 0.6 s in 28% of packets (381/1325), against 0 of 1325 when the mob ids are shuffled. value@71 is probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). 2026-10-26, Perion grind."
+len_min = 87
+len_max = 87
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+  { name = "mob_oid", ty = "u32", off = 63 },
+  { name = "value", ty = "u32", off = 71 },
+]
 
 [[opcode]]
 id = 0x02a9
 dir = "in"
-status = "observed"
-len_min = 63
-len_max = 111
+status = "structure"
+summary = "Same layout as 0x02a8 (char_id@2 100%, mob_oid@63 91%): a second attack variant (which weapon or skill kind is not known). Pairs with 0x044d in 52% of packets (69/131)."
+len_min = 87
+len_max = 87
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+  { name = "mob_oid", ty = "u32", off = 63 },
+  { name = "value", ty = "u32", off = 71 },
+]
 
 [[opcode]]
 id = 0x02aa
 dir = "in"
-status = "observed"
-len_min = 63
-len_max = 97
+status = "structure"
+summary = "Same layout as 0x02a8 (char_id@2, mob_oid@63 96%): a third attack variant (kind not known). Pairs with 0x044d in 39% of packets (37/94)."
+len_min = 87
+len_max = 87
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+  { name = "mob_oid", ty = "u32", off = 63 },
+  { name = "value", ty = "u32", off = 71 },
+]
 
 [[opcode]]
 id = 0x02af
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "164 bytes: char_id@2 is a known player in 100% of 420 packets and u32@63 a known mob in 94%, like the attack broadcasts, but it pairs with 0x044d in only 6%: probably a different attack kind (two targets?). Unverified."
 len_min = 164
 len_max = 164
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+  { name = "mob_oid", ty = "u32", off = 63 },
+]
 
 [[opcode]]
 id = 0x02b0
@@ -888,9 +920,13 @@ len_max = 421
 [[opcode]]
 id = 0x02b9
 dir = "in"
-status = "observed"
-len_min = 7
+status = "structure"
+summary = "19 bytes: char id@2 is a known player in 12 of 12 packets. About a player; meaning unknown (2026-10-26)."
+len_min = 19
 len_max = 19
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x02ba
@@ -902,9 +938,13 @@ len_max = 157
 [[opcode]]
 id = 0x02bb
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26)."
 len_min = 131
 len_max = 131
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x02bd
@@ -973,9 +1013,13 @@ len_max = 18
 [[opcode]]
 id = 0x03e7
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "28 bytes, about 85 per minute while mobs are around: mob oid@2 is a known mob in 112 of 112 packets (20 distinct mobs). Meaning unknown (2026-10-26)."
 len_min = 28
 len_max = 28
+field = [
+  { name = "mob_oid", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x03e9
@@ -995,9 +1039,13 @@ len_max = 4
 [[opcode]]
 id = 0x0441
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "10 bytes: mob oid@2 is a known mob in 10 of 13 packets. Meaning unknown (2026-10-26)."
 len_min = 10
 len_max = 10
+field = [
+  { name = "mob_oid", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x0452

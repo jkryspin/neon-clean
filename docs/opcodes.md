@@ -91,14 +91,14 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x01ae` | 1 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x01f1` | 1 | 0.0 | 1342 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x01f4` | 16 | 0.1 | 5 |  | observed |
-| `0x0209` | 280 | 1.4 | 12-13 |  | observed |
+| `0x0209` | 280 | 1.4 | 12-13 |  | structure: 13 bytes: char id@2 is a known player in 34 of 36 packets (28 distinct). About a player; meaning unknown (2026-10-26). |
 | `0x020f` | 16 | 0.1 | 7 |  | observed |
 | `0x0211` | 16 | 0.1 | 6 |  | observed |
 | `0x022d` | 331 | 1.7 | 884-1018 | PlayerSpawn | verified: Another player (or us) appears on the map |
 | `0x022e` | 8 | 0.0 | 6 |  | observed |
 | `0x022f` | 13 | 0.1 | 75-123 |  | observed |
 | `0x0234` | 1 | 0.0 | 5206 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x023d` | 482 | 2.5 | 24-37 |  | observed |
+| `0x023d` | 482 | 2.5 | 24-37 |  | structure: 24 bytes: char id@2 is a known player in 51 of 51 packets. About a player; meaning unknown (2026-10-26). |
 | `0x023f` | 76 | 0.4 | 10 |  | observed |
 | `0x024b` | 1 | 0.0 | 14 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x026f` | 16 | 0.1 | 10 |  | observed |
@@ -108,16 +108,16 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0282` | 5515 | 28.2 | 45-327 | PetMove | decoded: Pet move (name only) |
 | `0x0283` | 3 | 0.0 | 17 |  | observed |
 | `0x029d` | 25221 | 129.0 | 41-665 | PlayerMove | verified: Another player moved |
-| `0x02a8` | 6521 | 33.4 | 63-207 |  | observed |
-| `0x02a9` | 1122 | 5.7 | 63-111 |  | observed |
-| `0x02aa` | 415 | 2.1 | 63-97 |  | observed |
-| `0x02af` | 2105 | 10.8 | 164 |  | observed; fixed-size and frequent (heartbeat-like) |
+| `0x02a8` | 6521 | 33.4 | 63-207 | PlayerAttack | structure: Another player's attack on a mob, as the server broadcasts it (our own attacks are not echoed back). char_id@2 is a known player in 100% of packets; mob_oid@63 is a known mob in 94%; it pairs with a 0x044d for the same (player, mob) within 0.6 s in 28% of packets (381/1325), against 0 of 1325 when the mob ids are shuffled. value@71 is probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). 2026-10-26, Perion grind. |
+| `0x02a9` | 1122 | 5.7 | 63-111 |  | structure: Same layout as 0x02a8 (char_id@2 100%, mob_oid@63 91%): a second attack variant (which weapon or skill kind is not known). Pairs with 0x044d in 52% of packets (69/131). |
+| `0x02aa` | 415 | 2.1 | 63-97 |  | structure: Same layout as 0x02a8 (char_id@2, mob_oid@63 96%): a third attack variant (kind not known). Pairs with 0x044d in 39% of packets (37/94). |
+| `0x02af` | 2105 | 10.8 | 164 |  | structure: 164 bytes: char_id@2 is a known player in 100% of 420 packets and u32@63 a known mob in 94%, like the attack broadcasts, but it pairs with 0x044d in only 6%: probably a different attack kind (two targets?). Unverified. |
 | `0x02b0` | 5 | 0.0 | 15 |  | observed |
 | `0x02b7` | 25 | 0.1 | 15 |  | observed |
 | `0x02b8` | 11 | 0.1 | 366-421 |  | observed |
-| `0x02b9` | 56 | 0.3 | 7-19 |  | observed |
+| `0x02b9` | 56 | 0.3 | 7-19 |  | structure: 19 bytes: char id@2 is a known player in 12 of 12 packets. About a player; meaning unknown (2026-10-26). |
 | `0x02ba` | 10 | 0.1 | 156-157 |  | observed |
-| `0x02bb` | 190 | 1.0 | 131 |  | observed |
+| `0x02bb` | 190 | 1.0 | 131 |  | structure: 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26). |
 | `0x02bd` | 33 | 0.2 | 22 |  | observed |
 | `0x02db` | 200 | 1.0 | 7 |  | structure: 7 bytes: op + 5 bytes (10 0a 00 00 00 seen) |
 | `0x031f` | 1 | 0.0 | 25 |  | observed, rare (<=2 sightings: may be decode noise) |
@@ -132,11 +132,11 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x03d4` | 2192 | 11.2 | 16 | MobKill | verified: A mob was removed (killed) |
 | `0x03d5` | 180 | 0.9 | 7-313 | MobRespawn | verified: A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding) |
 | `0x03dc` | 40302 | 206.1 | 62-356 | MobMove | verified: Mob movement; x,y is where the move starts (later fragments are not decoded) |
-| `0x03e7` | 8991 | 46.0 | 28 |  | observed; fixed-size and frequent (heartbeat-like) |
+| `0x03e7` | 8991 | 46.0 | 28 |  | structure: 28 bytes, about 85 per minute while mobs are around: mob oid@2 is a known mob in 112 of 112 packets (20 distinct mobs). Meaning unknown (2026-10-26). |
 | `0x03e9` | 2 | 0.0 | 40 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x03f3` | 314 | 1.6 | 11 |  | structure: 11 bytes: u32 mob oid @2 and a state byte @6 (0x00 sent for a mob that was just killed, 0x0f for a mob that just spawned: same oid as the 0x03d4 / 0x03d5 right next to it). 44 seen, 16 of 16 own-kill windows. Meaning unknown |
 | `0x0415` | 16 | 0.1 | 4 |  | observed |
-| `0x0441` | 150 | 0.8 | 10 |  | observed |
+| `0x0441` | 150 | 0.8 | 10 |  | structure: 10 bytes: mob oid@2 is a known mob in 10 of 13 packets. Meaning unknown (2026-10-26). |
 | `0x044d` | 2144 | 11.0 | 14 | MobHit | structure: A character hit a mob (sent for every player's hits on the map, not only ours). oid@2 is a mob (233 of 245 ids were mobs seen spawning or moving); attacker@6 is a character id (matches the players on the map; our own id 334426 appears for our own hits); u32@10 is NOT the damage: always a multiple of 100 (100, 200, 300, 400 in 257 packets; our own plain attacks are always 100). 2026-10-26, shurelia2 grinding Perion Street Corner |
 | `0x0452` | 18 | 0.1 | 67 |  | observed |
 | `0x0453` | 4 | 0.0 | 6 |  | observed |
