@@ -29,7 +29,9 @@ LOG=run/view.$NAME.log
 # never destroy a capture by restarting the view: keep the previous log (run/ is git-ignored)
 if [ -s "$LOG" ]; then
   mkdir -p run/sessions
-  mv "$LOG" "run/sessions/$NAME-$(date -r "$LOG" +%Y%m%d-%H%M%S).log"
+  STAMP=$NAME-$(date -r "$LOG" +%Y%m%d-%H%M%S)
+  mv "$LOG" "run/sessions/$STAMP.log"
+  [ -s "$LOG.wire" ] && mv "$LOG.wire" "run/sessions/$STAMP.log.wire"
 fi
 : >"$LOG"
 # Own session, so stopping it (kill -- -PGID) cannot touch the caller and `kill 0` below only reaches these processes.
