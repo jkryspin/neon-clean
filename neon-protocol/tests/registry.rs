@@ -60,10 +60,10 @@ fn size_bounds_and_truncation_are_rejected() {
     let f = fixtures();
     let p = plain(f["0x3d4"]["plain"].as_str().unwrap());
     assert!(r.decode(Dir::In, &p).is_some());
-    assert!(r.decode(Dir::In, &p[..10]).is_none(), "shorter than len_min");
-    let mut long = p.clone();
-    long.push(0);
-    assert!(r.decode(Dir::In, &long).is_none(), "longer than len_max");
+    assert!(r.decode(Dir::In, &p[..5]).is_none(), "shorter than len_min");
+    // 0x0028 is registered as exactly 2 bytes (structure only: no fields, so it decodes to an empty field list).
+    assert!(r.decode(Dir::In, &[0x28, 0x00]).is_some());
+    assert!(r.decode(Dir::In, &[0x28, 0x00, 0x00]).is_none(), "longer than len_max");
     assert!(r.decode(Dir::In, &[0xff]).is_none());
     assert!(r.decode(Dir::In, &[0xee, 0xee, 0, 0]).is_none(), "unknown opcode");
 }
@@ -132,4 +132,32 @@ fn evidence_rule_every_verified_opcode_with_a_fixture_decodes() {
         .map(|o| format!("{:#06x}", o.id))
         .collect();
     assert!(untested.is_empty(), "verified without a real packet fixture: {untested:?}");
+}
+
+#[test]
+fn noise_from_a_misestimated_constant_is_rejected_like_the_live_decoder_does() {
+    let r = Registry::builtin().unwrap();
+    let fp: serde_json::Value = serde_json::from_str(include_str!("fixtures/false_positives.json")).unwrap();
+    let bad = plain(fp["022d_bad_name_len"]["plain"].as_str().unwrap());
+    assert!(r.decode(Dir::In, &bad).is_none(), "garbage name must not decode");
+    // And the same real packet shape with a valid name does decode.
+    let f = fixtures();
+    assert!(r.decode(Dir::In, &plain(f["0x22d"]["plain"].as_str().unwrap())).is_some());
+    // Coordinates out of range are rejected (player move with x = 30000).
+    let mut mv = plain(f["0x29d"]["plain"].as_str().unwrap());
+    mv[10..12].copy_from_slice(&30000i16.to_le_bytes());
+    assert!(r.decode(Dir::In, &mv).is_none());
+}
+
+#[test]
+fn constraint_validation() {
+    let bad = r#"
+[[opcode]]
+id = 9
+dir = "in"
+status = "structure"
+field = [{ name = "a", ty = "u32", off = 2, min = 5, max = 1 }, { name = "b", ty = "u32", off = 6, charset = "ident" }]
+"#;
+    let e = Registry::parse(bad).unwrap_err().to_string();
+    assert!(e.contains("min 5 > max 1") && e.contains("charset but is not str16"), "{e}");
 }

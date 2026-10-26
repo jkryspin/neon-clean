@@ -13,13 +13,12 @@ dir = "in"
 name = "MobSpawn"
 status = "verified"
 summary = "A mob appears (also sent for mobs already on the map when we enter it)"
-len_min = 313
-len_max = 313
+len_min = 210
 field = [
   { name = "oid", ty = "u32", off = 3 },
-  { name = "template", ty = "u32", off = 8 },
-  { name = "x", ty = "i16", off = 206 },
-  { name = "y", ty = "i16", off = 208 },
+  { name = "template", ty = "u32", off = 8, min = 1, max = 1000000 },
+  { name = "x", ty = "i16", off = 206, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 208, min = -20000, max = 20000 },
 ]
 
 [[opcode]]
@@ -28,11 +27,11 @@ dir = "in"
 name = "MobMove"
 status = "verified"
 summary = "Mob movement; x,y is where the move starts (later fragments are not decoded)"
-len_min = 83
+len_min = 34
 field = [
   { name = "oid", ty = "u32", off = 2 },
-  { name = "x", ty = "i16", off = 30 },
-  { name = "y", ty = "i16", off = 32 },
+  { name = "x", ty = "i16", off = 30, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 32, min = -20000, max = 20000 },
 ]
 
 [[opcode]]
@@ -41,8 +40,7 @@ dir = "in"
 name = "MobKill"
 status = "verified"
 summary = "A mob was removed (killed)"
-len_min = 16
-len_max = 16
+len_min = 6
 field = [{ name = "oid", ty = "u32", off = 2 }]
 
 [[opcode]]
@@ -63,7 +61,7 @@ summary = "Another player (or us) appears on the map"
 len_min = 24
 field = [
   { name = "char_id", ty = "u32", off = 6 },
-  { name = "name", ty = "str16", off = 18 },
+  { name = "name", ty = "str16", off = 18, min = 1, max = 16, charset = "ident" },
 ]
 
 [[opcode]]
@@ -75,8 +73,8 @@ summary = "Another player moved"
 len_min = 14
 field = [
   { name = "char_id", ty = "u32", off = 2 },
-  { name = "x", ty = "i16", off = 10 },
-  { name = "y", ty = "i16", off = 12 },
+  { name = "x", ty = "i16", off = 10, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 12, min = -20000, max = 20000 },
 ]
 
 [[opcode]]
@@ -89,8 +87,8 @@ len_min = 40
 field = [
   { name = "oid", ty = "u32", off = 4 },
   { name = "owner", ty = "u32", off = 25 },
-  { name = "x", ty = "i16", off = 30 },
-  { name = "y", ty = "i16", off = 32 },
+  { name = "x", ty = "i16", off = 30, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 32, min = -20000, max = 20000 },
 ]
 
 [[opcode]]
@@ -99,8 +97,7 @@ dir = "in"
 name = "DropRemove"
 status = "verified"
 summary = "A drop is gone: reason u8@6 (2 picked up, 5 pet loot, 0 expired), picker char id u32@7"
-len_min = 11
-len_max = 11
+len_min = 6
 field = [{ name = "oid", ty = "u32", off = 2 }]
 
 [[opcode]]

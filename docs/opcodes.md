@@ -10,38 +10,38 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 |---|---:|---:|---|---|---|
 | `0x0013` | 16 | 0.1 | 3 |  | observed |
 | `0x0014` | 16 | 0.1 | 3 |  | observed |
-| `0x001b` | 339 | 2.5 | 48 |  | structure: 48 bytes, mostly zeros with two u64-looking values near the end; about 1 per 10 s |
+| `0x001b` | 387 | 2.5 | 48 |  | structure: 48 bytes, mostly zeros with two u64-looking values near the end; about 1 per 10 s |
 | `0x001c` | 1 | 0.0 | 2 |  | observed |
-| `0x001d` | 8 | 0.1 | 22 |  | observed |
+| `0x001d` | 10 | 0.1 | 22 |  | observed |
 | `0x001e` | 1 | 0.0 | 8 |  | observed |
-| `0x0020` | 20 | 0.1 | 3 |  | observed |
+| `0x0020` | 23 | 0.2 | 3 |  | observed |
 | `0x0024` | 1 | 0.0 | 3 |  | observed |
-| `0x0026` | 3 | 0.0 | 2 |  | observed |
-| `0x0027` | 6 | 0.0 | 2 |  | observed |
-| `0x0028` | 333 | 2.4 | 2 |  | structure: Bare opcode, no fields, about 1 per 10 s |
-| `0x002c` | 253 | 1.8 | 6 |  | observed |
+| `0x0026` | 4 | 0.0 | 2 |  | observed |
+| `0x0027` | 7 | 0.0 | 2 |  | observed |
+| `0x0028` | 381 | 2.5 | 2 |  | structure: Bare opcode, no fields, about 1 per 10 s |
+| `0x002c` | 259 | 1.7 | 6 |  | observed |
 | `0x002e` | 1 | 0.0 | 2 |  | observed |
 | `0x0037` | 1 | 0.0 | 18 |  | observed |
 | `0x0039` | 1 | 0.0 | 193 |  | observed |
 | `0x003a` | 1 | 0.0 | 6 |  | observed |
 | `0x003b` | 1 | 0.0 | 6 |  | observed |
 | `0x003c` | 1 | 0.0 | 77 |  | observed |
-| `0x003d` | 5774 | 42.1 | 2-10 |  | observed |
-| `0x004f` | 342 | 2.5 | 3 |  | structure: 3 bytes: op + one byte (0/1 seen) |
+| `0x003d` | 5774 | 37.7 | 2-10 |  | observed |
+| `0x004f` | 390 | 2.5 | 3 |  | structure: 3 bytes: op + one byte (0/1 seen) |
 | `0x0055` | 2 | 0.0 | 10 |  | observed |
 | `0x005c` | 1 | 0.0 | 12 |  | observed |
 | `0x0065` | 1 | 0.0 | 10 |  | observed |
-| `0x006e` | 118 | 0.9 | 7-11 |  | observed |
+| `0x006e` | 118 | 0.8 | 7-11 |  | observed |
 | `0x0070` | 1 | 0.0 | 15 |  | observed |
-| `0x0072` | 95 | 0.7 | 9-54 | InventoryChange | decoded: One inventory slot changed; decoded in neon-stream |
-| `0x0077` | 166 | 1.2 | 7 |  | observed |
-| `0x007e` | 1096 | 8.0 | 11-19 | StatUpdate | verified: Own stat update: a bitmask of stats, values follow in ascending bit order (sizes in neon-stream/src/net.rs; some unverified) |
-| `0x007f` | 37 | 0.3 | 3-157 |  | observed |
-| `0x0080` | 52 | 0.4 | 129 |  | observed |
+| `0x0072` | 103 | 0.7 | 9-54 | InventoryChange | decoded: One inventory slot changed; decoded in neon-stream |
+| `0x0077` | 173 | 1.1 | 7 |  | observed |
+| `0x007e` | 1115 | 7.3 | 11-19 | StatUpdate | verified: Own stat update: a bitmask of stats, values follow in ascending bit order (sizes in neon-stream/src/net.rs; some unverified). A 12-byte variant with an empty mask (7e 00 00 00 01 00 00 00 00 01 <u16>) is sent with every party create/leave (actlab, 3 of 3 repeats, 2026-10-26); its trailing u16 was 0x0808-ish on create and 0x000f on leave, meaning unknown |
+| `0x007f` | 37 | 0.2 | 3-157 |  | observed |
+| `0x0080` | 52 | 0.3 | 129 |  | observed |
 | `0x0081` | 16 | 0.1 | 3 |  | observed |
 | `0x0082` | 16 | 0.1 | 2 |  | observed |
 | `0x0085` | 29 | 0.2 | 6 |  | observed |
-| `0x008b` | 228 | 1.7 | 6-50 | StatusMessage | decoded: Pickup message (type 0: item or mesos), quest progress (type 1); decoded in neon-stream |
+| `0x008b` | 235 | 1.5 | 6-50 | StatusMessage | decoded: Pickup message (type 0: item or mesos), quest progress (type 1); decoded in neon-stream |
 | `0x008d` | 2 | 0.0 | 11 |  | observed |
 | `0x008e` | 5 | 0.0 | 7037-7364 |  | observed |
 | `0x0090` | 8 | 0.1 | 2 |  | observed |
@@ -51,18 +51,18 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0097` | 1 | 0.0 | 10 |  | observed |
 | `0x0098` | 1 | 0.0 | 19 |  | observed |
 | `0x009a` | 1 | 0.0 | 14 |  | observed |
-| `0x00a7` | 20 | 0.1 | 2-738 | PartyUpdate | decoded: Party create (mode 0x0e), member joined (0x13), member left (0x10); decoded in neon-stream |
+| `0x00a7` | 39 | 0.3 | 2-738 | PartyUpdate | decoded: Party create (mode 0x0e), member joined (0x13), member left (0x10); decoded in neon-stream |
 | `0x00a9` | 3 | 0.0 | 7 |  | observed |
 | `0x00ab` | 4 | 0.0 | 8-42 |  | observed |
-| `0x00ae` | 601 | 4.4 | 4-527 | Chat | decoded: Chat / megaphone text |
-| `0x00b7` | 17 | 0.1 | 7 |  | observed |
+| `0x00ae` | 670 | 4.4 | 4-527 | Chat | decoded: Chat / megaphone text |
+| `0x00b7` | 42 | 0.3 | 7 |  | observed |
 | `0x00be` | 1 | 0.0 | 3 |  | observed |
 | `0x00c1` | 3 | 0.0 | 6 |  | observed |
 | `0x00c6` | 2 | 0.0 | 11-17 |  | observed |
 | `0x00c9` | 1 | 0.0 | 2 |  | observed |
 | `0x00cb` | 1 | 0.0 | 2 |  | observed |
 | `0x00cf` | 1 | 0.0 | 1450 |  | observed |
-| `0x00d2` | 112 | 0.8 | 7 |  | observed |
+| `0x00d2` | 112 | 0.7 | 7 |  | observed |
 | `0x00e5` | 1 | 0.0 | 115 |  | observed |
 | `0x00f1` | 1 | 0.0 | 6 |  | observed |
 | `0x00f2` | 1 | 0.0 | 6 |  | observed |
@@ -91,62 +91,62 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x01ae` | 1 | 0.0 | 10 |  | observed |
 | `0x01f1` | 1 | 0.0 | 1342 |  | observed |
 | `0x01f4` | 16 | 0.1 | 5 |  | observed |
-| `0x0209` | 242 | 1.8 | 12-13 |  | observed |
+| `0x0209` | 250 | 1.6 | 12-13 |  | observed |
 | `0x020f` | 16 | 0.1 | 7 |  | observed |
 | `0x0211` | 16 | 0.1 | 6 |  | observed |
-| `0x022d` | 294 | 2.1 | 886-1018 | PlayerSpawn | verified: Another player (or us) appears on the map |
+| `0x022d` | 301 | 2.0 | 884-1018 | PlayerSpawn | verified: Another player (or us) appears on the map |
 | `0x022e` | 8 | 0.1 | 6 |  | observed |
 | `0x022f` | 10 | 0.1 | 75-123 |  | observed |
 | `0x0234` | 1 | 0.0 | 5206 |  | observed |
-| `0x023d` | 482 | 3.5 | 24-37 |  | observed |
-| `0x023f` | 76 | 0.6 | 10 |  | observed |
+| `0x023d` | 482 | 3.1 | 24-37 |  | observed |
+| `0x023f` | 76 | 0.5 | 10 |  | observed |
 | `0x024b` | 1 | 0.0 | 14 |  | observed |
 | `0x026f` | 16 | 0.1 | 10 |  | observed |
 | `0x0270` | 8 | 0.1 | 11 |  | observed |
-| `0x0279` | 8 | 0.1 | 7 |  | observed |
-| `0x0281` | 109 | 0.8 | 12-58 | PetSpawn | decoded: Pet spawn (name only); not mobs |
-| `0x0282` | 5515 | 40.3 | 45-327 | PetMove | decoded: Pet move (name only) |
+| `0x0279` | 9 | 0.1 | 7-22 |  | observed |
+| `0x0281` | 109 | 0.7 | 12-58 | PetSpawn | decoded: Pet spawn (name only); not mobs |
+| `0x0282` | 5515 | 36.0 | 45-327 | PetMove | decoded: Pet move (name only) |
 | `0x0283` | 3 | 0.0 | 17 |  | observed |
-| `0x029d` | 23838 | 174.0 | 41-665 | PlayerMove | verified: Another player moved |
-| `0x02a8` | 6450 | 47.1 | 63-207 |  | observed |
-| `0x02a9` | 1122 | 8.2 | 63-111 |  | observed |
-| `0x02aa` | 415 | 3.0 | 63-97 |  | observed |
-| `0x02af` | 2105 | 15.4 | 164 |  | observed; fixed-size and frequent (heartbeat-like) |
+| `0x029d` | 24100 | 157.2 | 41-665 | PlayerMove | verified: Another player moved |
+| `0x02a8` | 6469 | 42.2 | 63-207 |  | observed |
+| `0x02a9` | 1122 | 7.3 | 63-111 |  | observed |
+| `0x02aa` | 415 | 2.7 | 63-97 |  | observed |
+| `0x02af` | 2105 | 13.7 | 164 |  | observed; fixed-size and frequent (heartbeat-like) |
 | `0x02b0` | 5 | 0.0 | 15 |  | observed |
-| `0x02b7` | 14 | 0.1 | 15 |  | observed |
+| `0x02b7` | 18 | 0.1 | 15 |  | observed |
 | `0x02b8` | 11 | 0.1 | 366-421 |  | observed |
-| `0x02b9` | 38 | 0.3 | 7-19 |  | observed |
-| `0x02ba` | 8 | 0.1 | 156-157 |  | observed |
-| `0x02bb` | 153 | 1.1 | 131 |  | observed |
+| `0x02b9` | 43 | 0.3 | 7-19 |  | observed |
+| `0x02ba` | 9 | 0.1 | 156-157 |  | observed |
+| `0x02bb` | 160 | 1.0 | 131 |  | observed |
 | `0x02bd` | 33 | 0.2 | 22 |  | observed |
-| `0x02db` | 200 | 1.5 | 7 |  | structure: 7 bytes: op + 5 bytes (10 0a 00 00 00 seen) |
+| `0x02db` | 200 | 1.3 | 7 |  | structure: 7 bytes: op + 5 bytes (10 0a 00 00 00 seen) |
 | `0x031f` | 1 | 0.0 | 25 |  | observed |
 | `0x0340` | 5 | 0.0 | 10 |  | observed |
 | `0x0345` | 42 | 0.3 | 14 |  | observed |
-| `0x0362` | 7 | 0.1 | 14 |  | observed |
+| `0x0362` | 11 | 0.1 | 14 |  | observed |
 | `0x0370` | 15 | 0.1 | 6 |  | observed |
 | `0x0371` | 4 | 0.0 | 7-11 |  | observed |
 | `0x037a` | 2 | 0.0 | 22 |  | observed |
-| `0x0381` | 10 | 0.1 | 18 |  | observed |
-| `0x03c9` | 2286 | 16.7 | 313-317 | MobSpawn | verified: A mob appears (also sent for mobs already on the map when we enter it) |
-| `0x03d4` | 2192 | 16.0 | 16 | MobKill | verified: A mob was removed (killed) |
-| `0x03d5` | 180 | 1.3 | 7-313 |  | observed |
-| `0x03dc` | 40302 | 294.2 | 62-356 | MobMove | verified: Mob movement; x,y is where the move starts (later fragments are not decoded) |
-| `0x03e7` | 8991 | 65.6 | 28 |  | observed; fixed-size and frequent (heartbeat-like) |
+| `0x0381` | 11 | 0.1 | 18 |  | observed |
+| `0x03c9` | 2286 | 14.9 | 313-317 | MobSpawn | verified: A mob appears (also sent for mobs already on the map when we enter it) |
+| `0x03d4` | 2192 | 14.3 | 16 | MobKill | verified: A mob was removed (killed) |
+| `0x03d5` | 180 | 1.2 | 7-313 |  | observed |
+| `0x03dc` | 40302 | 263.0 | 62-356 | MobMove | verified: Mob movement; x,y is where the move starts (later fragments are not decoded) |
+| `0x03e7` | 8991 | 58.7 | 28 |  | observed; fixed-size and frequent (heartbeat-like) |
 | `0x03e9` | 2 | 0.0 | 40 |  | observed |
-| `0x03f3` | 314 | 2.3 | 11 |  | observed |
+| `0x03f3` | 314 | 2.0 | 11 |  | observed |
 | `0x0415` | 16 | 0.1 | 4 |  | observed |
-| `0x0441` | 150 | 1.1 | 10 |  | observed |
-| `0x044d` | 2144 | 15.7 | 14 | MobDamaged | structure: Mob damaged: oid u32@2, attacker char id u32@6, damage u32@10 (layout from docs, not yet tested; unused) |
+| `0x0441` | 150 | 1.0 | 10 |  | observed |
+| `0x044d` | 2144 | 14.0 | 14 | MobDamaged | structure: Mob damaged: oid u32@2, attacker char id u32@6, damage u32@10 (layout from docs, not yet tested; unused) |
 | `0x0452` | 18 | 0.1 | 67 |  | observed |
 | `0x0453` | 4 | 0.0 | 6 |  | observed |
 | `0x0454` | 1 | 0.0 | 68 |  | observed |
-| `0x0456` | 1408 | 10.3 | 12-152 |  | structure: Busiest opcode in a crowded town; sizes 12 or 26+21n (n=1..5: 47,68,89,110,131): u16 op, u32 small counter, then 21-byte records. Meaning unknown |
+| `0x0456` | 2198 | 14.3 | 12-152 |  | structure: Busiest opcode in a crowded town; sizes 12 or 26+21n (n=1..5: 47,68,89,110,131): u16 op, u32 small counter, then 21-byte records. Meaning unknown |
 | `0x045f` | 1 | 0.0 | 965 |  | observed |
-| `0x0471` | 171 | 1.2 | 107-123 | DropSpawn | verified: A drop of ours appeared (sent twice: flag byte 1 then 0; dedupe by oid). Only our own kills' drops are sent to us |
-| `0x0472` | 3746 | 27.3 | 7-15 | DropRemove | verified: A drop is gone: reason u8@6 (2 picked up, 5 pet loot, 0 expired), picker char id u32@7 |
-| `0x047b` | 17 | 0.1 | 22 |  | observed |
-| `0x0487` | 49 | 0.4 | 19 |  | observed |
+| `0x0471` | 171 | 1.1 | 107-123 | DropSpawn | verified: A drop of ours appeared (sent twice: flag byte 1 then 0; dedupe by oid). Only our own kills' drops are sent to us |
+| `0x0472` | 3756 | 24.5 | 7-15 | DropRemove | verified: A drop is gone: reason u8@6 (2 picked up, 5 pet loot, 0 expired), picker char id u32@7 |
+| `0x047b` | 28 | 0.2 | 22 |  | observed |
+| `0x0487` | 51 | 0.3 | 19 |  | observed |
 | `0x048f` | 3 | 0.0 | 13 |  | observed |
 
 ## Outgoing (client -> server)

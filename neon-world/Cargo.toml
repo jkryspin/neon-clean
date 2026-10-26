@@ -1,0 +1,10 @@
+[package]
+name = "neon-world"
+version = "0.1.0"
+edition = "2021"
+description = "Neon world model: typed events from decoded packets, replayable, with JSON snapshots"
+
+[dependencies]
+neon-protocol = { path = "../neon-protocol" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

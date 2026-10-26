@@ -1,0 +1,6 @@
+{
+ "022d_bad_name_len": {
+  "plain": "2d026782b30b00000000e6ba090000000000050000000000000000000000000000000000000000000000000000000000",
+  "why": "real capture (jib01, Amherst): a 0x022d-shaped packet whose name field is garbage; the registry must reject it (bytes after the length field zeroed so no player name is stored)"
+ }
+}

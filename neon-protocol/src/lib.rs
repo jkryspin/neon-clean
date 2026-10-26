@@ -48,6 +48,12 @@ pub struct Field {
     pub name: String,
     pub ty: Ty,
     pub off: usize,
+    /// Inclusive bounds. For numbers the value; for `str16` the text length. A packet outside them does not decode:
+    /// the capture's decoding constant is a heuristic, so noise has to be rejected here, not downstream.
+    pub min: Option<i64>,
+    pub max: Option<i64>,
+    /// `"ident"`: ASCII letters, digits and `_` only (str16 fields).
+    pub charset: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -184,7 +190,11 @@ impl Registry {
         }
         let mut fields = Vec::with_capacity(op.field.len());
         for f in &op.field {
-            fields.push((f.name.clone(), read(plain, f)?));
+            let v = read(plain, f)?;
+            if !in_bounds(&v, f) {
+                return None;
+            }
+            fields.push((f.name.clone(), v));
         }
         Some(Decoded { dir, id, name: op.name.clone(), fields })
     }
@@ -210,6 +220,19 @@ impl Registry {
         }
         s
     }
+}
+
+fn in_bounds(v: &Value, f: &Field) -> bool {
+    let n = match v {
+        Value::Str(t) => {
+            if f.charset.as_deref() == Some("ident") && !t.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_') {
+                return false;
+            }
+            t.len() as i64
+        }
+        other => other.as_i64().unwrap_or(0),
+    };
+    f.min.map_or(true, |m| n >= m) && f.max.map_or(true, |m| n <= m)
 }
 
 fn read(p: &[u8], f: &Field) -> Option<Value> {
@@ -257,6 +280,14 @@ fn validate(op: &Opcode) -> Vec<String> {
             Ty::U16 | Ty::I16 | Ty::Str16 => 2,
             Ty::U32 | Ty::I32 => 4,
         };
+        if let (Some(a), Some(b)) = (f.min, f.max) {
+            if a > b {
+                out.push(format!("{tag}: field {} min {a} > max {b}", f.name));
+            }
+        }
+        if f.charset.is_some() && f.ty != Ty::Str16 {
+            out.push(format!("{tag}: field {} has a charset but is not str16", f.name));
+        }
         if let Some(min) = op.len_min {
             if end > min {
                 out.push(format!("{tag}: field {} ends at {end}, beyond len_min {min}", f.name));
