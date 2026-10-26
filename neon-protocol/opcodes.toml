@@ -341,13 +341,6 @@ summary = "Bare opcode, no fields"
 len_min = 2
 len_max = 2
 
-[[opcode]]
-id = 0x02f0
-dir = "out"
-status = "structure"
-summary = "Bare opcode, no fields"
-len_min = 2
-len_max = 2
 
 [[opcode]]
 id = 0x0013
@@ -1263,17 +1256,13 @@ id = 0x02ef
 dir = "out"
 status = "observed"
 
-[[opcode]]
-id = 0x032b
-dir = "out"
-status = "observed"
 
 [[opcode]]
 id = 0x03d5
 dir = "in"
-name = "MobRespawn"
+name = "MobControl"
 status = "verified"
-summary = "A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering) plus our OWN character id at @308 in 26 of 26 packets (0x03c9 does not carry it): consistent with the classic spawn-and-control packet, i.e. this client becomes the mob's controller (interpretation, not verified). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding)"
+summary = "We are made the controller of a mob: the full 313-byte spawn layout of MobSpawn (0x03c9) again, plus OUR OWN character id at @308 in 26 of 26 packets (0x03c9 does not carry it). All 26 are for mobs already announced by an earlier 0x03c9 (none introduces a new mob: an earlier reading of this opcode as a respawn was wrong), and the mob moves we send (outgoing 0x02fe) are all for mobs this assigned to us (5 of 5). Positions all lie within 6 px of a platform (23 of 23), HP at @225 as in MobSpawn (2026-10-26)"
 len_min = 313
 field = [
   { name = "oid", ty = "u32", off = 3 },
@@ -1558,11 +1547,6 @@ summary = "22 bytes, sent together with 0x0265; unexplained"
 len_min = 22
 len_max = 22
 
-[[opcode]]
-id = 0x02fe
-dir = "out"
-status = "structure"
-summary = "The most frequent outgoing opcode in the bot's runs (340 of ~500 packets), carrying a small incrementing counter. NOT movement (that is 0x00db) and not the basic attack (0x00e1); with the bot holding the attack key it is probably the repeated attack or skill packet, unverified"
 
 [[opcode]]
 id = 0x0184
@@ -1594,3 +1578,47 @@ field = [
   { name = "action", ty = "u16", off = 2 },
   { name = "tick", ty = "u32", off = 6 },
 ]
+
+[[opcode]]
+id = 0x02fe
+dir = "out"
+name = "MoveMob"
+status = "structure"
+summary = "We report the movement of a mob we control (see incoming 0x03d5 MobControl): the mob oid u32@2 is a mob seen in the incoming stream in 5 of 5 packets (and each is a mob whose 0x03d5 carried our id), followed by a u16 move counter @6 that counts 1, 2, 3 per mob. Lengths 160 and 169. The server relays this to others as the incoming 0x03dc MobMove. It filled the bot's runs (340 of ~500 outgoing packets) because every mob near the bot is controlled by it. Remaining fields unexplained (2026-10-26)"
+len_min = 100
+field = [
+  { name = "mob_oid", ty = "u32", off = 2 },
+  { name = "move_id", ty = "u16", off = 6 },
+]
+
+[[opcode]]
+id = 0x032b
+dir = "out"
+name = "PickupDrop"
+status = "structure"
+summary = "We ask to pick up a drop (the bot's loot key): 36 bytes, tick u32@3 (same ms clock as MoveSelf), our position x i16@11 / y i16@13, the drop's oid u32@15. In 6 of 6 packets the oid is a drop that had spawned, and each was answered 0.6 to 1.2 s later by the incoming 0x0472 DropRemove with reason 2 (picked up) and picker = our own id 334426 (2026-10-26, shurelia2 grinding). Other bytes unexplained"
+len_min = 36
+len_max = 36
+field = [
+  { name = "tick", ty = "u32", off = 3 },
+  { name = "x", ty = "i16", off = 11, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 13, min = -20000, max = 20000 },
+  { name = "drop_oid", ty = "u32", off = 15, min = 1 },
+]
+
+[[opcode]]
+id = 0x02f0
+dir = "out"
+name = "KeepAlive"
+status = "structure"
+summary = "2 bytes, no fields, every 10.0 s (two intervals of exactly 10.0 s in the bot capture; also seen idle). Not a reply to the incoming 0x001b, which also repeats every 10 s but in another phase (3 to 7 s away)"
+len_min = 2
+len_max = 2
+
+[[opcode]]
+id = 0x00e1
+dir = "out"
+name = "AttackSkill"
+status = "structure"
+summary = "A longer attack packet (253 bytes, also 151) sent by the Swordsman while grinding (10 in 18 s, one per swing): it contains the text User Melee Skill System (the basic attack's action name as in the 130-byte beginner form's User Melee1), a counter that cycles 5 to 17, and a millisecond tick (@~64)"
+len_min = 151

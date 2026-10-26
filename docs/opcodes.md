@@ -10,7 +10,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 |---|---:|---:|---|---|---|
 | `0x0013` | 16 | 0.1 | 3 |  | observed |
 | `0x0014` | 16 | 0.1 | 3 |  | observed |
-| `0x001b` | 510 | 2.6 | 48 |  | structure: 48 bytes, mostly zeros with two u64-looking values near the end; about 1 per 10 s |
+| `0x001b` | 510 | 2.6 | 48 |  | structure: 48 bytes every ~10 s (118 seen in 5 min, from both accounts): 30 zero bytes, a 1 at @31, then two 24-bit values at @32 and @40 (0 to ~3.8 million) that look uniformly random and change every time, each followed by five zero bytes. Hypothesis, NOT verified: a server challenge that the client answers with the outgoing heartbeat family (0x0265/0x0266); the log that would show the delay between them was overwritten (view.sh now archives logs) |
 | `0x001c` | 1 | 0.0 | 2 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x001d` | 14 | 0.1 | 22 |  | observed |
 | `0x001e` | 1 | 0.0 | 8 |  | observed, rare (<=2 sightings: may be decode noise) |
@@ -130,7 +130,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0381` | 15 | 0.1 | 18 |  | observed |
 | `0x03c9` | 2286 | 11.7 | 313-317 | MobSpawn | verified: A mob appears (HP u32@225: equals the mob's HP from the public database for its template in 100% of 540 packets: Snail 45, Blue Snail 51, Red Snail 68, Stump 133, Dark Stump 236; all real spawns are 313 bytes) (also sent for mobs already on the map when we enter it) |
 | `0x03d4` | 2192 | 11.2 | 16 | MobKill | verified: A mob was removed (killed) |
-| `0x03d5` | 180 | 0.9 | 7-313 | MobRespawn | verified: A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering) plus our OWN character id at @308 in 26 of 26 packets (0x03c9 does not carry it): consistent with the classic spawn-and-control packet, i.e. this client becomes the mob's controller (interpretation, not verified). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding) |
+| `0x03d5` | 180 | 0.9 | 7-313 | MobControl | verified: We are made the controller of a mob: the full 313-byte spawn layout of MobSpawn (0x03c9) again, plus OUR OWN character id at @308 in 26 of 26 packets (0x03c9 does not carry it). All 26 are for mobs already announced by an earlier 0x03c9 (none introduces a new mob: an earlier reading of this opcode as a respawn was wrong), and the mob moves we send (outgoing 0x02fe) are all for mobs this assigned to us (5 of 5). Positions all lie within 6 px of a platform (23 of 23), HP at @225 as in MobSpawn (2026-10-26) |
 | `0x03dc` | 40302 | 206.1 | 62-356 | MobMove | verified: Mob movement: a 39-byte header (mob oid @2, start x @30 / y @32, fragment count @38), then n 21-byte movement fragments (same layout as PlayerMove: end position, velocity, foothold, stance, duration), then 2 trailing bytes; length = 41 + 21n. In 5477 of 5477 such packets of a real grind the count byte equals n and all 12706 fragment ends lie within 8 px of a platform (2026-10-26) |
 | `0x03e7` | 8991 | 46.0 | 28 |  | structure: 28 bytes, about 85 per minute while mobs are around: mob oid@2 is a known mob in 112 of 112 packets (20 distinct mobs). Meaning unknown (2026-10-26). |
 | `0x03e9` | 2 | 0.0 | 40 |  | observed, rare (<=2 sightings: may be decode noise) |
@@ -164,7 +164,7 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x00d3` | 1 | 41 |  |
 | `0x00db` | 88 | 61x5, 63, 78, 82x17, 84, 103x17, 124x8, 133x4, 138, 145x8, 147, 149x2,... | MoveSelf (structure): Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players |
 | `0x00de` | 1 | 6 | Bare opcode, no fields |
-| `0x00e1` | 20 | 134x5, 228, 236x7, 244x7 | Attack (structure): Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this |
+| `0x00e1` | 20 | 134x5, 228, 236x7, 244x7 | Attack, AttackSkill (structure): Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this |
 | `0x00e7` | 12 | 164x12 |  |
 | `0x013e` | 1 | 57 |  |
 | `0x013f` | 3 | 55x3 | 27 bytes, seen twice, once as we changed walking direction; unexplained |
@@ -180,9 +180,9 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x02da` | 1 | 7 |  |
 | `0x02e7` | 1 | 10 |  |
 | `0x02ef` | 3 | 18x3 |  |
-| `0x02f0` | 5 | 6x5 | Bare opcode, no fields |
-| `0x02fe` | 340 | 122x66, 143x89, 164x99, 173x5, 185x39, 194x5, 206x13, 215x4, 227x4, 23... | The most frequent outgoing opcode in the bot's runs (340 of ~500 packets), carrying a small incrementing counter. NOT movement (that is 0x00db) and not the basic attack (0x00e1); with the bot holding the attack key it is probably the repeated attack or skill packet, unverified |
-| `0x032b` | 2 | 40x2 |  |
+| `0x02f0` | 5 | 6x5 | KeepAlive (structure): 2 bytes, no fields, every 10.0 s (two intervals of exactly 10.0 s in the bot capture; also seen idle). Not a reply to the incoming 0x001b, which also repeats every 10 s but in another phase (3 to 7 s away) |
+| `0x02fe` | 340 | 122x66, 143x89, 164x99, 173x5, 185x39, 194x5, 206x13, 215x4, 227x4, 23... | MoveMob (structure): We report the movement of a mob we control (see incoming 0x03d5 MobControl): the mob oid u32@2 is a mob seen in the incoming stream in 5 of 5 packets (and each is a mob whose 0x03d5 carried our id), followed by a u16 move counter @6 that counts 1, 2, 3 per mob. Lengths 160 and 169. The server relays this to others as the incoming 0x03dc MobMove. It filled the bot's runs (340 of ~500 outgoing packets) because every mob near the bot is controlled by it. Remaining fields unexplained (2026-10-26) |
+| `0x032b` | 2 | 40x2 | PickupDrop (structure): We ask to pick up a drop (the bot's loot key): 36 bytes, tick u32@3 (same ms clock as MoveSelf), our position x i16@11 / y i16@13, the drop's oid u32@15. In 6 of 6 packets the oid is a drop that had spawned, and each was answered 0.6 to 1.2 s later by the incoming 0x0472 DropRemove with reason 2 (picked up) and picker = our own id 334426 (2026-10-26, shurelia2 grinding). Other bytes unexplained |
 | `0x0407` | later capture | (see summary) | 20 bytes, seen once after about 14 s of standing still (a heartbeat?); unexplained |
 
 Total: 29 distinct outgoing opcodes (25 in the first counts capture, the rest from later aligned captures; see docs/mapping-workflow.md).

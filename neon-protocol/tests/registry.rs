@@ -179,9 +179,9 @@ fn real_combat_packets_decode_with_the_registered_layouts() {
     let c: serde_json::Value = serde_json::from_str(include_str!("fixtures/combat_packets.json")).unwrap();
     let get = |k: &str| plain(c[k]["plain"].as_str().unwrap());
     let spawn = r.decode(Dir::In, &get("0x3d5")).expect("0x03d5 decodes");
-    assert_eq!(spawn.name.as_deref(), Some("MobRespawn"));
+    assert_eq!(spawn.name.as_deref(), Some("MobControl"));
     assert!(spawn.get("template").unwrap().as_i64().unwrap() >= 2);
-    // MobSpawn and MobRespawn share one layout: the same bytes under 0x03c9 give the same fields.
+    // MobSpawn and MobControl share one layout: the same bytes under 0x03c9 give the same fields.
     let mut as_spawn = get("0x3d5");
     as_spawn[0..2].copy_from_slice(&0x03c9u16.to_le_bytes());
     let old = r.decode(Dir::In, &as_spawn).unwrap();
@@ -449,4 +449,23 @@ fn real_chat_messages_decode_and_noise_is_rejected() {
         bad[7] = 0x01;
         assert!(r.decode(Dir::In, &bad).is_none(), "{k}: control byte in text");
     }
+}
+
+#[test]
+fn real_outgoing_mob_moves_pickups_and_keepalives_decode() {
+    let r = Registry::builtin().unwrap();
+    let o: serde_json::Value = serde_json::from_str(include_str!("fixtures/out_packets.json")).unwrap();
+    let get = |k: &str| plain(o[k]["plain"].as_str().unwrap());
+    let mm = r.decode(Dir::Out, &get("0x2fe_mobmove")).unwrap();
+    assert_eq!(mm.name.as_deref(), Some("MoveMob"));
+    let oid = mm.get("mob_oid").unwrap().as_i64().unwrap();
+    assert!((10_000_000..100_000_000).contains(&oid), "mob oid {oid}");
+    assert_eq!(mm.get("move_id").unwrap().as_i64(), Some(1));
+    let pk = r.decode(Dir::Out, &get("0x32b_pickup")).unwrap();
+    assert_eq!(pk.name.as_deref(), Some("PickupDrop"));
+    let drop = pk.get("drop_oid").unwrap().as_i64().unwrap();
+    assert!((1_000_000..2_000_000).contains(&drop), "drop oids of this session are 1,0xx,xxx: {drop}");
+    assert!((-2000..2000).contains(&pk.get("x").unwrap().as_i64().unwrap()));
+    assert_eq!(r.decode(Dir::Out, &get("0x2f0_keepalive")).unwrap().name.as_deref(), Some("KeepAlive"));
+    assert_eq!(r.decode(Dir::Out, &get("0xe1_attack_skill")).unwrap().name.as_deref(), Some("AttackSkill"));
 }

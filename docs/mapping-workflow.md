@@ -48,9 +48,9 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 
 Registry entries by status: incoming 18 verified, 8 decoded, 20 structure, 104 observed; outgoing 11 structure, 18 observed.
 Opcodes with a name: incoming `PlayerMove` (fragments), `MobMove` (fragments), `PetMove`, `NpcMove`, `PlayerSpawn`, `MobSpawn`,
-`MobRespawn`, `MobKill`, `MobHit`, `PlayerAttack` (+2 variants, position pairs), `DropSpawn`, `DropRemove`, `StatUpdate`,
+`MobControl`, `MobKill`, `MobHit`, `PlayerAttack` (+2 variants, position pairs), `DropSpawn`, `DropRemove`, `StatUpdate`,
 `ExpMessage`, `QuestRecordMessage`, `PickupMessage`, `QuestMessage`, `PartyCreated/Joined/Left`, `MapEnter`, `LoginInventory`,
-`InventoryChange`, `Chat`, `PetSpawn`; outgoing `MoveSelf`, `Attack`.
+`InventoryChange`, `Chat`, `PetSpawn`; outgoing `MoveSelf`, `Attack`, `AttackSkill`, `MoveMob`, `PickupDrop`, `KeepAlive`, `PartyCreateRequest`, `PartyLeaveRequest`.
 
 Biggest remaining unexplained traffic (open the **Map next** panel): attack-packet header bytes, pet and spawn headers,
 `0x003d` (sequence counter, 30 streams), `0x02af`, `0x03e7`, chat text, the outgoing heartbeat/telemetry family

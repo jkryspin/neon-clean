@@ -363,7 +363,7 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
     let d = reg.decode(Dir::In, plain)?;
     let name = d.name.as_deref()?;
     Some(match name {
-        "MobSpawn" | "MobRespawn" => Event::MobSpawn {
+        "MobSpawn" | "MobControl" => Event::MobSpawn {
             oid: int(&d, "oid")? as u32,
             template: int(&d, "template")? as u32,
             x: int(&d, "x")? as i32,

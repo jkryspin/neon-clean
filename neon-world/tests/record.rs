@@ -214,3 +214,22 @@ fn a_real_party_exchange_shows_request_then_reply_and_the_world_follows() {
     rp.seek(&mut sink, u64::MAX);
     assert!(sink.w.snapshot().party.is_empty() && sink.w.snapshot().party_id.is_none());
 }
+
+#[test]
+fn every_real_pickup_request_is_answered_by_the_drop_being_picked_up_by_us() {
+    // The bot's loot key (2026-10-26, shurelia2, Perion): each outgoing PickupDrop names a drop that had spawned, and the server's
+    // DropRemove for that drop follows with reason 2 (picked up) and our own character id as the picker.
+    let reg = Registry::builtin().unwrap();
+    let s = Session::from_lines(include_str!("fixtures/pickup_exchange.jsonl").lines().map(String::from));
+    let dec = |r: &Record| reg.decode(r.dir, &r.plain);
+    let reqs: Vec<(&Record, i64)> = s.records.iter().filter(|r| r.dir == Dir::Out).filter_map(|r| dec(r).filter(|d| d.name.as_deref() == Some("PickupDrop")).map(|d| (r, d.get("drop_oid").unwrap().as_i64().unwrap()))).collect();
+    assert_eq!(reqs.len(), 6);
+    for (req, oid) in &reqs {
+        let spawned = s.records.iter().any(|r| r.dir == Dir::In && r.t_ms <= req.t_ms && dec(r).map_or(false, |d| d.name.as_deref().map_or(false, |n| n.starts_with("DropSpawn")) && d.get("oid").unwrap().as_i64() == Some(*oid)));
+        assert!(spawned, "drop {oid} was never announced before it was picked up");
+        let removal = s.records.iter().find(|r| r.dir == Dir::In && r.t_ms >= req.t_ms && r.plain.len() >= 11 && r.plain[0..2] == [0x72, 0x04] && u32::from_le_bytes(r.plain[2..6].try_into().unwrap()) as i64 == *oid).expect("no DropRemove after the request");
+        assert!(removal.t_ms - req.t_ms <= 2000, "answered after {} ms", removal.t_ms - req.t_ms);
+        assert_eq!(removal.plain[6], 2, "reason 2 = picked up");
+        assert_eq!(u32::from_le_bytes(removal.plain[7..11].try_into().unwrap()), 334426, "the picker is us");
+    }
+}
