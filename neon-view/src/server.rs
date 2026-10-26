@@ -89,6 +89,7 @@ pub fn control(app: &App, path: &str) -> Route {
 fn reason(status: u16) -> &'static str {
     match status {
         200 => "OK",
+        400 => "Bad Request",
         405 => "Method Not Allowed",
         _ => "Not Found",
     }
@@ -103,6 +104,11 @@ fn handle(mut stream: TcpStream, app: Arc<App>, tick: Duration) {
     let (method, path) = (parts.next().unwrap_or(""), parts.next().unwrap_or("/"));
     let r = match (method, path) {
         ("GET", p) if p == "/replay" || p.starts_with("/replay?") => Route::Body { status: 200, content_type: "application/json", body: app.replay_status() },
+        ("GET", "/sessions") => Route::Body { status: 200, content_type: "application/json", body: app.list_sessions() },
+        ("POST", p) if p.starts_with("/replay/load?name=") => match app.load_session(&p["/replay/load?name=".len()..]) {
+            Ok(()) => Route::Body { status: 200, content_type: "application/json", body: app.replay_status() },
+            Err(e) => Route::Body { status: 400, content_type: "text/plain", body: e },
+        },
         ("POST", p) if p.starts_with("/replay/") => control(&app, p),
         ("GET", p) if p.starts_with("/replay/") => Route::Body { status: 405, content_type: "text/plain", body: "use POST".into() },
         ("GET", p) => route(p, &app.shared.lock().unwrap(), &app.reg),

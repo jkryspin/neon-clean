@@ -69,3 +69,7 @@ packet inspector (opcode, registry name, status, decoded fields, bytes; "hide ve
   `start_unix_ms`; tested at the window edges). The live loader (`neon-loader`) already has ±25% jitter, idle breaks, a 5 h cap and
   5% mistakes (`neon-core/src/anti_detect.rs`), but no maintenance window or peak-hour rule: use plan time windows for those until
   the loader is moved onto the command layer.
+
+* **Session browser:** `scripts/replay.sh [port]` serves Neon View with a "session..." picker (archived captures in `run/sessions/`, the live logs
+  linked in as `live-NAME.log`, any `.nsr`/`.jsonl` dropped there). `GET /sessions`, `POST /replay/load?name=...` (plain file names only; refused
+  on a live `--follow` server). Seeking and playing work as for any replay.

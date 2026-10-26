@@ -62,11 +62,15 @@ pub struct App {
     pub shared: Mutex<Shared>,
     pub replay: Mutex<Option<Replayer>>,
     pub reg: Registry,
+    /// Directory the page may load sessions from (`/sessions`, `POST /replay/load`). None: no browser.
+    pub sessions_dir: Option<std::path::PathBuf>,
+    /// True when a live follower feeds `shared`: loading a replay would fight it, so it is refused.
+    pub live: bool,
 }
 
 impl App {
     pub fn new(reg: Registry, shared: Shared) -> Self {
-        App { shared: Mutex::new(shared), replay: Mutex::new(None), reg }
+        App { shared: Mutex::new(shared), replay: Mutex::new(None), reg, sessions_dir: None, live: false }
     }
 
     /// Advance an active replay by `dt_ms` of wall time (call about every 50 ms).
@@ -102,9 +106,56 @@ impl App {
         true
     }
 
+    /// Files the session browser offers: plain file names (no paths) of `.log`, `.nsr` and `.jsonl` files, newest first.
+    pub fn list_sessions(&self) -> String {
+        let Some(dir) = &self.sessions_dir else { return "[]".into() };
+        let mut rows: Vec<(std::time::SystemTime, String, u64)> = std::fs::read_dir(dir)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                let ok = [".log", ".nsr", ".jsonl"].iter().any(|x| name.ends_with(x));
+                let md = std::fs::metadata(e.path()).ok()?; // follows symlinks (the live logs are linked in)
+                (ok && md.is_file()).then(|| (md.modified().unwrap_or(std::time::UNIX_EPOCH), name, md.len()))
+            })
+            .collect();
+        rows.sort_by(|a, b| b.0.cmp(&a.0));
+        let items: Vec<serde_json::Value> = rows.iter().map(|(_, n, sz)| serde_json::json!({"name": n, "bytes": sz})).collect();
+        serde_json::to_string(&items).unwrap()
+    }
+
+    /// Load one session file from the sessions directory into the replayer (replaces the current one), showing its end.
+    /// Returns an error text for a bad name, a live server, or an unreadable file.
+    pub fn load_session(&self, name: &str) -> Result<(), String> {
+        if self.live {
+            return Err("this server follows a live capture; start neon-view without --follow to browse sessions".into());
+        }
+        let dir = self.sessions_dir.as_ref().ok_or("no sessions directory configured")?;
+        let ok = !name.is_empty()
+            && name.len() <= 120
+            && name.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.'))
+            && !name.starts_with('.')
+            && !name.contains("..");
+        if !ok {
+            return Err("bad session name".into());
+        }
+        let text = std::fs::read_to_string(dir.join(name)).map_err(|e| format!("cannot read {name}: {e}"))?;
+        let session = neon_world::record::Session::from_lines(text.lines().map(String::from));
+        if session.records.is_empty() {
+            return Err(format!("{name} holds no readable records"));
+        }
+        let mut rp = Replayer::new(session);
+        let mut sh = self.shared.lock().unwrap();
+        rp.seek(&mut ViewSink { shared: &mut sh, reg: &self.reg }, u64::MAX);
+        *self.replay.lock().unwrap() = Some(rp);
+        Ok(())
+    }
+
     pub fn replay_status(&self) -> String {
         let rp = self.replay.lock().unwrap();
         match rp.as_ref() {
+            None if self.sessions_dir.is_some() && !self.live => r#"{"mode":"browser"}"#.to_string(),
             None => r#"{"mode":"live"}"#.to_string(),
             Some(r) => format!(
                 "{{\"mode\":\"replay\",\"duration_ms\":{},\"pos_ms\":{},\"playing\":{},\"speed\":{},\"records\":{}}}",

@@ -1,4 +1,4 @@
-//! neon-view --log <packet log> [--log <more>] [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps]
+//! neon-view [--log <packet log> [--log <more>]] [--sessions <dir>] [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps]
 //!             [--mem <file with the latest neon-stream line>] [--start <ms>] [--speed 1.0]
 //!
 //! Two modes, one page:
@@ -20,10 +20,12 @@ fn main() {
     let get = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
     // --log may be given several times (an incoming capture and an outgoing one of the same period merge by time)
     let logs: Vec<String> = args.iter().enumerate().filter(|(_, a)| *a == "--log").filter_map(|(i, _)| args.get(i + 1).cloned()).collect();
-    let Some(log) = logs.first().cloned() else {
-        eprintln!("usage: neon-view --log <packet log> [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps] [--mem <file>] [--start <ms>] [--speed 1.0]");
+    let sessions = get("--sessions").map(std::path::PathBuf::from);
+    if logs.is_empty() && sessions.is_none() {
+        eprintln!("usage: neon-view [--log <packet log>] [--sessions <dir>] [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps] [--mem <file>] [--start <ms>] [--speed 1.0]");
         std::process::exit(2);
-    };
+    }
+    let log = logs.first().cloned().unwrap_or_default();
     let follow = args.iter().any(|a| a == "--follow");
     let port: u16 = get("--port").and_then(|s| s.parse().ok()).unwrap_or(8765);
     let host = get("--host").unwrap_or_else(|| "0.0.0.0".to_string());
@@ -32,7 +34,10 @@ fn main() {
         d.is_dir().then_some(d)
     });
 
-    let app = Arc::new(App::new(Registry::builtin().expect("registry"), Shared { maps_dir: maps, ..Shared::default() }));
+    let mut app = App::new(Registry::builtin().expect("registry"), Shared { maps_dir: maps, ..Shared::default() });
+    app.sessions_dir = sessions;
+    app.live = follow;
+    let app = Arc::new(app);
     let listener = std::net::TcpListener::bind((host.as_str(), port)).expect("bind (is the port taken or the host wrong?)");
     eprintln!("neon-view on http://{host}:{port}/  (log {log}, {}; no authentication)", if follow { "live" } else { "replay" });
 
@@ -77,7 +82,14 @@ fn main() {
         }
     }
 
-    // Replay: load, show as of --start (default the end), then tick the transport.
+    // Replay: load, show as of --start (default the end), then tick the transport. With only --sessions, start empty and let the page pick.
+    if logs.is_empty() {
+        eprintln!("session browser on {:?}: pick a session in the page", app.sessions_dir);
+        loop {
+            std::thread::sleep(Duration::from_millis(50));
+            app.tick_replay(50);
+        }
+    }
     let mut all: Vec<String> = Vec::new();
     for l in &logs {
         all.extend(std::io::BufReader::new(std::fs::File::open(l).expect("open log")).lines().map_while(Result::ok));

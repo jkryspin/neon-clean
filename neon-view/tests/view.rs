@@ -170,3 +170,62 @@ fn name_tables_are_served_only_from_the_whitelist() {
     }
     let _ = std::fs::remove_dir_all(base);
 }
+
+#[test]
+fn the_session_browser_lists_loads_and_refuses_bad_names() {
+    use std::io::{Read, Write};
+    use std::sync::Arc;
+    let dir = std::env::temp_dir().join(format!("neon-sessions-test-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("walk.nsr"), include_str!("../../neon-world/tests/fixtures/out_walk.jsonl")).unwrap();
+    std::fs::write(dir.join("old.log"), include_str!("../../neon-world/tests/fixtures/exp_session.log")).unwrap();
+    std::fs::write(dir.join("empty.log"), "nothing useful\n").unwrap();
+    std::fs::write(dir.join("notes.txt"), "not a session").unwrap();
+    let mk = |live: bool| {
+        let mut app = App::new(Registry::builtin().unwrap(), Shared::default());
+        app.sessions_dir = Some(dir.clone());
+        app.live = live;
+        let app = Arc::new(app);
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let a2 = app.clone();
+        std::thread::spawn(move || server::serve(listener, a2, std::time::Duration::from_millis(20)));
+        (app, addr)
+    };
+    let req = |addr: std::net::SocketAddr, method: &str, path: &str| {
+        let mut s = std::net::TcpStream::connect(addr).unwrap();
+        write!(s, "{method} {path} HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        let mut out = String::new();
+        s.read_to_string(&mut out).unwrap();
+        out
+    };
+    let body = |r: &str| r.split("\r\n\r\n").nth(1).unwrap().to_string();
+    let (app, addr) = mk(false);
+    // before anything is loaded the server says it is a browser, not live
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&body(&req(addr, "GET", "/replay"))).unwrap()["mode"], "browser");
+    let list: serde_json::Value = serde_json::from_str(&body(&req(addr, "GET", "/sessions"))).unwrap();
+    let names: Vec<&str> = list.as_array().unwrap().iter().map(|r| r["name"].as_str().unwrap()).collect();
+    assert!(names.contains(&"walk.nsr") && names.contains(&"old.log") && !names.contains(&"notes.txt"), "{names:?}");
+    // load an outgoing-only session: the world takes our position from it, and the transport reports a replay
+    let ok = req(addr, "POST", "/replay/load?name=walk.nsr");
+    assert!(ok.starts_with("HTTP/1.1 200"), "{ok}");
+    let st: serde_json::Value = serde_json::from_str(&body(&ok)).unwrap();
+    assert_eq!((st["mode"].as_str(), st["records"].as_u64()), (Some("replay"), Some(17)));
+    assert_eq!(app.shared.lock().unwrap().world.snapshot().me.x, Some(598), "ended where the walk ended");
+    // loading another session replaces the first
+    assert!(req(addr, "POST", "/replay/load?name=old.log").starts_with("HTTP/1.1 200"));
+    assert!(app.shared.lock().unwrap().world.snapshot().exp_gained > 0);
+    assert_eq!(app.shared.lock().unwrap().world.snapshot().me.x, None, "the previous session's state is gone");
+    // names that could escape the directory, or hold nothing, are refused
+    for bad in ["../secret", "..%2Fsecret", "/etc/passwd", ".hidden", "a/b.log", "missing.log", "empty.log", "walk.nsr%00"] {
+        let r = req(addr, "POST", &format!("/replay/load?name={bad}"));
+        assert!(r.starts_with("HTTP/1.1 400"), "{bad}: {}", r.lines().next().unwrap());
+    }
+    // loading is a POST
+    assert!(req(addr, "GET", "/replay/load?name=walk.nsr").starts_with("HTTP/1.1 405"));
+    // a live server refuses to load (the follower owns the state)
+    let (_live, laddr) = mk(true);
+    assert!(req(laddr, "POST", "/replay/load?name=walk.nsr").starts_with("HTTP/1.1 400"));
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&body(&req(laddr, "GET", "/replay"))).unwrap()["mode"], "live");
+    let _ = std::fs::remove_dir_all(dir);
+}

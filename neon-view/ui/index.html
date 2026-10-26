@@ -36,6 +36,7 @@
   <span id="conn" class="dim">connecting...</span>
 </header>
 <div id="transport" style="display:none;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap">
+  <select id="tp-session" title="load a saved session"><option value="">session...</option></select>
   <button id="tp-play" style="min-width:64px">Play</button>
   <select id="tp-speed"><option>0.5</option><option selected>1</option><option>2</option><option>5</option><option>10</option><option>50</option></select><span class="dim">x</span>
   <input id="tp-seek" type="range" min="0" max="1" value="0" style="flex:1;min-width:160px">
@@ -153,10 +154,23 @@ function render(s) {
 }
 let seeking = false;
 const post = path => fetch(path, { method: 'POST' }).then(r => r.ok ? r.json() : null).then(s => { if (s) renderTransport(s); });
+let sessionsLoaded = false;
+function loadSessionList() {
+  if (sessionsLoaded) return; sessionsLoaded = true;
+  fetch('sessions').then(r => r.json()).then(rows => {
+    const sel = document.getElementById('tp-session');
+    sel.innerHTML = '<option value="">session...</option>' + rows.map(r => '<option value="' + esc(r.name) + '">' + esc(r.name) + ' (' + (r.bytes / 1048576).toFixed(1) + ' MB)</option>').join('');
+  });
+}
+document.getElementById('tp-session').onchange = e => {
+  if (!e.target.value) return;
+  fetch('replay/load?name=' + encodeURIComponent(e.target.value), { method: 'POST' }).then(r => r.ok ? r.json() : r.text().then(t => { alert(t); return null; })).then(s => { if (s) { renderTransport(s); pollInspector(); fetch('state').then(r => r.json()).then(render); } });
+};
 function renderTransport(s) {
   const t = document.getElementById('transport');
+  if (s.mode === 'browser') { t.style.display = 'flex'; loadSessionList(); return; }
   if (s.mode !== 'replay') { t.style.display = 'none'; return; }
-  t.style.display = 'flex';
+  t.style.display = 'flex'; loadSessionList();
   const seek = document.getElementById('tp-seek');
   seek.max = s.duration_ms;
   if (!seeking) seek.value = s.pos_ms;
