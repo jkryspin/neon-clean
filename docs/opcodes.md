@@ -8,90 +8,90 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 
 | Opcode | Seen | Per min | Size (min-max) | Meaning | Status |
 |---|---:|---:|---|---|---|
-| `0x0013` | 4 | 60.0 | 3 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0014` | 4 | 60.0 | 3 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x001b` | 57 | 855.0 | 48 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x001d` | 2 | 30.0 | 22 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0020` | 3 | 45.0 | 3 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0026` | 1 | 15.0 | 2 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0027` | 2 | 30.0 | 2 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0028` | 56 | 840.0 | 2 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x002c` | 50 | 750.0 | 6 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x003d` | 1025 | 15375.0 | 10 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x004f` | 60 | 900.0 | 3 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x005c` | 1 | 15.0 | 12 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x006e` | 4 | 60.0 | 7-11 |  | observed only |
-| `0x0072` | 30 | 450.0 | 9-54 | inventory change | seen with pickups, not decoded |
-| `0x0077` | 32 | 480.0 | 7 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x007e` | 347 | 5205.0 | 11-19 | own stat update | decoded (bitmask; some sizes unverified) |
-| `0x007f` | 9 | 135.0 | 3-157 |  | observed only |
-| `0x0080` | 12 | 180.0 | 129 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0081` | 4 | 60.0 | 3 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0082` | 4 | 60.0 | 2 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0085` | 18 | 270.0 | 6 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x008b` | 105 | 1575.0 | 6-31 | pickup message | decoded |
-| `0x008d` | 2 | 30.0 | 11 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x008e` | 2 | 30.0 | 7205-7364 |  | observed only |
-| `0x0090` | 3 | 45.0 | 2 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x00a7` | 4 | 60.0 | 738 | party update | decoded (create/leave/join) |
-| `0x00ae` | 100 | 1500.0 | 4-458 | chat / megaphone | text |
-| `0x00b7` | 1 | 15.0 | 7 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x00d2` | 50 | 750.0 | 7 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x00f9` | 4 | 60.0 | 3 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0165` | 4 | 60.0 | 6 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0178` | 1 | 15.0 | 7 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x01a9` | 4 | 60.0 | 103 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x01f4` | 4 | 60.0 | 5 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0209` | 44 | 660.0 | 12-13 |  | observed only |
-| `0x020f` | 4 | 60.0 | 7 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0211` | 4 | 60.0 | 6 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x022d` | 58 | 870.0 | 886-991 | player spawn | decoded (id, name) |
-| `0x022e` | 1 | 15.0 | 6 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x022f` | 2 | 30.0 | 75-79 |  | observed only |
-| `0x023d` | 154 | 2310.0 | 24-37 |  | observed only |
-| `0x023f` | 12 | 180.0 | 10 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x026f` | 4 | 60.0 | 10 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0270` | 2 | 30.0 | 11 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0281` | 14 | 210.0 | 52-58 | pet spawn | name only |
-| `0x0282` | 910 | 13650.0 | 45-285 | pet move | name only |
-| `0x0283` | 1 | 15.0 | 17 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x029d` | 4047 | 60705.0 | 41-290 | player move | decoded |
-| `0x02a8` | 1039 | 15585.0 | 63-207 |  | observed only |
-| `0x02a9` | 139 | 2085.0 | 63-97 |  | observed only |
-| `0x02aa` | 59 | 885.0 | 63-97 |  | observed only |
-| `0x02af` | 376 | 5640.0 | 164 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02b0` | 1 | 15.0 | 15 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02b7` | 2 | 30.0 | 15 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02b9` | 5 | 75.0 | 19 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02ba` | 1 | 15.0 | 157 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02bb` | 22 | 330.0 | 131 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02bd` | 9 | 135.0 | 22 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x02db` | 38 | 570.0 | 7 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0345` | 9 | 135.0 | 14 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0362` | 1 | 15.0 | 14 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0370` | 4 | 60.0 | 6 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0381` | 2 | 30.0 | 18 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x03c9` | 394 | 5910.0 | 313 | mob spawn | decoded |
-| `0x03d4` | 383 | 5745.0 | 16 | mob removed | decoded |
-| `0x03d5` | 57 | 855.0 | 313 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x03dc` | 8620 | 129300.0 | 62-335 | mob update/move | decoded (start position only) |
-| `0x03e7` | 2152 | 32280.0 | 28 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x03f3` | 158 | 2370.0 | 11 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0415` | 4 | 60.0 | 4 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0441` | 26 | 390.0 | 10 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x044d` | 357 | 5355.0 | 14 | mob damaged | layout known, unused |
-| `0x0452` | 7 | 105.0 | 67 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0453` | 2 | 30.0 | 6 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0454` | 1 | 15.0 | 68 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0456` | 32 | 480.0 | 12-131 |  | observed only |
-| `0x045f` | 1 | 15.0 | 965 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0471` | 85 | 1275.0 | 107-123 | drop spawn (own kills only) | decoded |
-| `0x0472` | 700 | 10500.0 | 7-15 | drop removed | decoded |
-| `0x047b` | 1 | 15.0 | 22 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x0487` | 15 | 225.0 | 19 |  | observed only; fixed-size and frequent (heartbeat-like) |
-| `0x048f` | 1 | 15.0 | 13 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x0013` | 4 | 0.1 | 3 |  | observed only |
+| `0x0014` | 4 | 0.1 | 3 |  | observed only |
+| `0x001b` | 58 | 2.1 | 48 |  | observed only |
+| `0x001d` | 2 | 0.1 | 22 |  | observed only |
+| `0x0020` | 3 | 0.1 | 3 |  | observed only |
+| `0x0026` | 1 | 0.0 | 2 |  | observed only |
+| `0x0027` | 2 | 0.1 | 2 |  | observed only |
+| `0x0028` | 58 | 2.1 | 2 |  | observed only |
+| `0x002c` | 52 | 1.9 | 6 |  | observed only |
+| `0x003d` | 1039 | 38.1 | 10 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x004f` | 60 | 2.2 | 3 |  | observed only |
+| `0x005c` | 1 | 0.0 | 12 |  | observed only |
+| `0x006e` | 4 | 0.1 | 7-11 |  | observed only |
+| `0x0072` | 30 | 1.1 | 9-54 | inventory change | seen with pickups, not decoded |
+| `0x0077` | 33 | 1.2 | 7 |  | observed only |
+| `0x007e` | 355 | 13.0 | 11-19 | own stat update | decoded (bitmask; some sizes unverified) |
+| `0x007f` | 9 | 0.3 | 3-157 |  | observed only |
+| `0x0080` | 12 | 0.4 | 129 |  | observed only |
+| `0x0081` | 4 | 0.1 | 3 |  | observed only |
+| `0x0082` | 4 | 0.1 | 2 |  | observed only |
+| `0x0085` | 18 | 0.7 | 6 |  | observed only |
+| `0x008b` | 108 | 4.0 | 6-31 | pickup message | decoded |
+| `0x008d` | 2 | 0.1 | 11 |  | observed only |
+| `0x008e` | 2 | 0.1 | 7205-7364 |  | observed only |
+| `0x0090` | 3 | 0.1 | 2 |  | observed only |
+| `0x00a7` | 4 | 0.1 | 738 | party update | decoded (create/leave/join) |
+| `0x00ae` | 100 | 3.7 | 4-458 | chat / megaphone | text |
+| `0x00b7` | 1 | 0.0 | 7 |  | observed only |
+| `0x00d2` | 51 | 1.9 | 7 |  | observed only |
+| `0x00f9` | 4 | 0.1 | 3 |  | observed only |
+| `0x0165` | 4 | 0.1 | 6 |  | observed only |
+| `0x0178` | 1 | 0.0 | 7 |  | observed only |
+| `0x01a9` | 4 | 0.1 | 103 |  | observed only |
+| `0x01f4` | 4 | 0.1 | 5 |  | observed only |
+| `0x0209` | 46 | 1.7 | 12-13 |  | observed only |
+| `0x020f` | 4 | 0.1 | 7 |  | observed only |
+| `0x0211` | 4 | 0.1 | 6 |  | observed only |
+| `0x022d` | 59 | 2.2 | 886-991 | player spawn | decoded (id, name) |
+| `0x022e` | 1 | 0.0 | 6 |  | observed only |
+| `0x022f` | 2 | 0.1 | 75-79 |  | observed only |
+| `0x023d` | 157 | 5.8 | 24-37 |  | observed only |
+| `0x023f` | 12 | 0.4 | 10 |  | observed only |
+| `0x026f` | 4 | 0.1 | 10 |  | observed only |
+| `0x0270` | 2 | 0.1 | 11 |  | observed only |
+| `0x0281` | 15 | 0.6 | 52-58 | pet spawn | name only |
+| `0x0282` | 915 | 33.6 | 45-285 | pet move | name only |
+| `0x0283` | 1 | 0.0 | 17 |  | observed only |
+| `0x029d` | 4092 | 150.1 | 41-290 | player move | decoded |
+| `0x02a8` | 1047 | 38.4 | 63-207 |  | observed only |
+| `0x02a9` | 140 | 5.1 | 63-97 |  | observed only |
+| `0x02aa` | 59 | 2.2 | 63-97 |  | observed only |
+| `0x02af` | 380 | 13.9 | 164 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x02b0` | 1 | 0.0 | 15 |  | observed only |
+| `0x02b7` | 3 | 0.1 | 15 |  | observed only |
+| `0x02b9` | 5 | 0.2 | 19 |  | observed only |
+| `0x02ba` | 1 | 0.0 | 157 |  | observed only |
+| `0x02bb` | 23 | 0.8 | 131 |  | observed only |
+| `0x02bd` | 9 | 0.3 | 22 |  | observed only |
+| `0x02db` | 39 | 1.4 | 7 |  | observed only |
+| `0x0345` | 9 | 0.3 | 14 |  | observed only |
+| `0x0362` | 1 | 0.0 | 14 |  | observed only |
+| `0x0370` | 4 | 0.1 | 6 |  | observed only |
+| `0x0381` | 2 | 0.1 | 18 |  | observed only |
+| `0x03c9` | 401 | 14.7 | 313 | mob spawn | decoded |
+| `0x03d4` | 388 | 14.2 | 16 | mob removed | decoded |
+| `0x03d5` | 59 | 2.2 | 313 |  | observed only |
+| `0x03dc` | 8719 | 319.8 | 62-335 | mob update/move | decoded (start position only) |
+| `0x03e7` | 2336 | 85.7 | 28 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x03f3` | 161 | 5.9 | 11 |  | observed only; fixed-size and frequent (heartbeat-like) |
+| `0x0415` | 4 | 0.1 | 4 |  | observed only |
+| `0x0441` | 26 | 1.0 | 10 |  | observed only |
+| `0x044d` | 361 | 13.2 | 14 | mob damaged | layout known, unused |
+| `0x0452` | 7 | 0.3 | 67 |  | observed only |
+| `0x0453` | 2 | 0.1 | 6 |  | observed only |
+| `0x0454` | 1 | 0.0 | 68 |  | observed only |
+| `0x0456` | 32 | 1.2 | 12-131 |  | observed only |
+| `0x045f` | 1 | 0.0 | 965 |  | observed only |
+| `0x0471` | 89 | 3.3 | 107-123 | drop spawn (own kills only) | decoded |
+| `0x0472` | 708 | 26.0 | 7-15 | drop removed | decoded |
+| `0x047b` | 1 | 0.0 | 22 |  | observed only |
+| `0x0487` | 15 | 0.6 | 19 |  | observed only |
+| `0x048f` | 1 | 0.0 | 13 |  | observed only |
 
-Total: 82 distinct incoming opcodes, 21969 packets.
+Total: 82 distinct incoming opcodes, 22390 packets.
 
 ## Outgoing (client -> server)
 

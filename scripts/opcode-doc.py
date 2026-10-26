@@ -28,8 +28,11 @@ KNOWN = {
 
 import os, time
 paths = sys.argv[1:] or sorted(glob.glob("run/opcodes/*.json"))
-# Capture length per log = from the first time the file was created to its last rewrite; rates are summed per log.
-span = sum(max(1.0, os.stat(p).st_mtime - os.stat(p).st_ctime) for p in paths)
+# Capture length per log = file birth time to last rewrite (ctime would reset on every rewrite).
+import subprocess
+def _born(p):
+    return int(subprocess.check_output(["stat", "-c", "%W", p]))
+span = sum(max(1.0, os.stat(p).st_mtime - _born(p)) for p in paths)
 agg = {}
 for p in paths:
     for k, v in json.load(open(p)).items():
