@@ -14,7 +14,8 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 
 ## Capturing
 
-* **Incoming, passive (safe):** `scripts/view.sh INSTANCE` runs `neon-stream --net` through `tcpdump` into `run/view.INSTANCE.log`.
+* **Incoming, passive (safe):** (since 2026-10-26 evening the log carries each packet's real capture time from tcpdump, not the time it was printed; older logs are quantised to ~1 s, so request/reply delays measured from them have about a second of slack)
+   `scripts/view.sh INSTANCE` runs `neon-stream --net` through `tcpdump` into `run/view.INSTANCE.log`.
   Nothing touches the game process.
 * **Outgoing, short attach (opt-in):** the opcode and plaintext are read from the client's packet object just before encryption,
   not by breaking the cipher. `neon-calib/tools/outraw.py` (via `sudo gdb -p PID`, about 12 s) logs the raw object and the wire

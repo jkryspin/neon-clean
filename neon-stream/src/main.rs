@@ -884,6 +884,7 @@ fn pump_pcap<R: std::io::Read>(r: R, tx: std::sync::mpsc::Sender<NetMsg>, opts: 
         if !own_ports.is_empty() && !own_ports.contains(&seg.dport) {
             continue;
         }
+        dec.cur_ts_us = reader.last_ts_us;
         let evs = dec.push(&seg);
         if let Some(p) = &opts.packets {
             p.store(dec.packets, std::sync::atomic::Ordering::Relaxed);

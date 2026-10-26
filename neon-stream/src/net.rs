@@ -544,6 +544,9 @@ pub struct PcapReader<R: Read> {
     r: R,
     pub linktype: u32,
     be: bool,
+    /// Capture time (unix microseconds) of the record `next_packet` returned last. Nanosecond pcaps are not converted: 0xa1b23c4d files
+    /// carry nanoseconds in that field, which is read as microseconds (off by 1000x), and tcpdump's default writes microseconds.
+    pub last_ts_us: u64,
 }
 
 impl<R: Read> PcapReader<R> {
@@ -558,7 +561,7 @@ impl<R: Read> PcapReader<R> {
         };
         let lt = [h[20], h[21], h[22], h[23]];
         let linktype = if be { u32::from_be_bytes(lt) } else { u32::from_le_bytes(lt) };
-        Ok(Self { r, linktype, be })
+        Ok(Self { r, linktype, be, last_ts_us: 0 })
     }
 
     pub fn next_packet(&mut self) -> io::Result<Option<Vec<u8>>> {
@@ -568,6 +571,11 @@ impl<R: Read> PcapReader<R> {
             Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => return Ok(None),
             Err(e) => return Err(e),
         }
+        let rd = |i: usize| {
+            let b = [h[i], h[i + 1], h[i + 2], h[i + 3]];
+            u64::from(if self.be { u32::from_be_bytes(b) } else { u32::from_le_bytes(b) })
+        };
+        self.last_ts_us = rd(0) * 1_000_000 + rd(4);
         let cap = [h[8], h[9], h[10], h[11]];
         let len = if self.be { u32::from_be_bytes(cap) } else { u32::from_le_bytes(cap) } as usize;
         if len > 1 << 20 {
@@ -621,6 +629,8 @@ struct Flow {
 #[derive(Default)]
 pub struct NetDecoder {
     flows: HashMap<FlowKey, Flow>,
+    /// Capture time (unix microseconds) of the segment being pushed; the dump line carries it when set.
+    pub cur_ts_us: u64,
     pub packets: u64,
     pub new_flow: bool,
     /// Every opcode seen, with counts and sizes.
@@ -693,7 +703,8 @@ impl NetDecoder {
                 let plain = decode_payload(&body);
                 if let Some(op) = u16le(&plain, 0) {
                     if self.dump_ops.contains(&op) || self.dump_ops.contains(&0xffff) {
-                        eprintln!("op {op:04x} len {}: {}", plain.len(), plain.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
+                        let ts = if self.cur_ts_us > 0 { format!("ts {:.3} ", self.cur_ts_us as f64 / 1e6) } else { String::new() };
+                        eprintln!("{ts}op {op:04x} len {}: {}", plain.len(), plain.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
                     }
                     let st = self.ops.entry(op).or_default();
                     st.count += 1;
@@ -1236,8 +1247,9 @@ mod tests {
         file.extend_from_slice(&[2, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         file.extend_from_slice(&65535u32.to_le_bytes());
         file.extend_from_slice(&276u32.to_le_bytes());
-        for _ in 0..2 {
-            file.extend_from_slice(&[0; 8]);
+        for i in 0..2u32 {
+            file.extend_from_slice(&(1_793_000_000u32 + i).to_le_bytes()); // seconds
+            file.extend_from_slice(&(250_000u32 + i).to_le_bytes()); // microseconds
             file.extend_from_slice(&(pkt.len() as u32).to_le_bytes());
             file.extend_from_slice(&(pkt.len() as u32).to_le_bytes());
             file.extend_from_slice(&pkt);
@@ -1247,6 +1259,7 @@ mod tests {
         let mut n = 0;
         while let Some(p) = r.next_packet().unwrap() {
             assert_eq!(parse_tcp(276, &p).unwrap().payload, b"abc");
+            assert_eq!(r.last_ts_us, (1_793_000_000 + n) * 1_000_000 + 250_000 + n, "the record's capture time is kept");
             n += 1;
         }
         assert_eq!(n, 2);
