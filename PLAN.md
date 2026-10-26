@@ -20,6 +20,10 @@ Nexon approved up to 5 bot instances on MapleStory Classic World for price data 
 
 See `docs/authorization.md` for the full email thread.
 
+## Headless mode / own UI
+
+See `docs/headless-plan.md`: stage A keeps the official client as the connection (MVP), stage B (no official client) is gated on written Nexon approval.
+
 ## Remaining Work
 
 **Phase 6 (Lie Detector Solver)** and **Phase 8 (GM Evasion)** remain to be implemented.
