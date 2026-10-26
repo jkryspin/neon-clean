@@ -1,4 +1,4 @@
-//! neon-view --log <packet log> [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps]
+//! neon-view --log <packet log> [--log <more>] [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps]
 //!             [--mem <file with the latest neon-stream line>] [--start <ms>] [--speed 1.0]
 //!
 //! Two modes, one page:
@@ -18,7 +18,9 @@ use std::time::{Duration, Instant};
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let get = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
-    let Some(log) = get("--log") else {
+    // --log may be given several times (an incoming capture and an outgoing one of the same period merge by time)
+    let logs: Vec<String> = args.iter().enumerate().filter(|(_, a)| *a == "--log").filter_map(|(i, _)| args.get(i + 1).cloned()).collect();
+    let Some(log) = logs.first().cloned() else {
         eprintln!("usage: neon-view --log <packet log> [--follow] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps] [--mem <file>] [--start <ms>] [--speed 1.0]");
         std::process::exit(2);
     };
@@ -76,8 +78,11 @@ fn main() {
     }
 
     // Replay: load, show as of --start (default the end), then tick the transport.
-    let lines = std::io::BufReader::new(std::fs::File::open(&log).expect("open log")).lines().map_while(Result::ok);
-    let session = Session::from_lines(lines);
+    let mut all: Vec<String> = Vec::new();
+    for l in &logs {
+        all.extend(std::io::BufReader::new(std::fs::File::open(l).expect("open log")).lines().map_while(Result::ok));
+    }
+    let session = Session::from_lines(all);
     eprintln!("{} records, {} unreadable lines, {:.1} s", session.records.len(), session.bad_lines, session.duration_ms() as f64 / 1000.0);
     let mut rp = Replayer::new(session);
     rp.speed = get("--speed").and_then(|s| s.parse().ok()).unwrap_or(1.0);

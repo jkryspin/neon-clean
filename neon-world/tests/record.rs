@@ -178,3 +178,14 @@ fn our_own_position_comes_from_the_packets_we_send() {
     let me = &sink.w.snapshot().me;
     assert_eq!((me.x, me.y), (Some(598), Some(274)));
 }
+
+#[test]
+fn an_incoming_log_and_an_outgoing_capture_of_the_same_period_merge_by_time() {
+    // legacy stamped incoming lines (unix seconds) and an .nsr outgoing file (absolute unix milliseconds), as neon-view --log a --log b
+    let incoming = vec!["1793049935.000 op 0028 len 2: 28 00".to_string(), "1793049937.000 op 0028 len 2: 28 00".to_string()];
+    let outgoing = vec![r#"{"t":1793049936500,"d":"out","hex":"de00"}"#.to_string(), r#"{"t":1793049934000,"d":"out","hex":"de00"}"#.to_string()];
+    let s = Session::from_lines(incoming.into_iter().chain(outgoing));
+    let order: Vec<(u64, Dir)> = s.records.iter().map(|r| (r.t_ms, r.dir)).collect();
+    assert_eq!(order, vec![(0, Dir::Out), (1000, Dir::In), (2500, Dir::Out), (3000, Dir::In)]);
+    assert_eq!(s.bad_lines, 0);
+}

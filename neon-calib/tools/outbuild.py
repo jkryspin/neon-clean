@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Turn an outraw.py capture (raw packet objects + send lengths) into a session file (.nsr) of outgoing records.
 
-  outbuild.py raw.jsonl out.nsr
+  outbuild.py raw.jsonl out.nsr [--relative]
+
+Times are absolute unix milliseconds by default, so the file merges with a stamped incoming log of the same period
+(`neon-view --log in.log --log out.nsr`); --relative starts at 0 (for self-contained fixtures).
 
 The packet object (rcx of the client's send-packet function 0x141660360, Classic World v1.0.1) holds the plaintext at +8 and
 its length as a u32 at +0x428 (validated: equal to the wire length minus 4 for 21 of 21 packets, 2 ms apart). Each object is
@@ -11,7 +14,8 @@ carry login tokens: keep it local (it is git-ignored via run/ and *.nsr).
 import json, struct, sys
 
 ev = sorted((json.loads(l) for l in open(sys.argv[1]) if l.strip()), key=lambda e: e["t"])
-t0 = ev[0]["t"] if ev else 0
+relative = "--relative" in sys.argv
+t0 = ev[0]["t"] if (ev and relative) else 0
 out, checked, mismatch = [], 0, 0
 for i, e in enumerate(ev):
     if e["k"] != "pkt":
