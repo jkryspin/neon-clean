@@ -350,3 +350,8 @@ With three internal opcodes known on two connections (jib01: `0xdb`->`0x5f28`, `
 The five wire numbers of jib02 (`0x51f8`, `0x90b6`, `0xd34b`) do not appear as little-endian u16 in the decoded additive-K table that the server sends after the hello (they occur only at chance rate), so that table is not the opcode table.
 What remains: the table is sent inside the encrypted in-game frames (which the jib02 pcap does not frame from its start), or it is derived locally from a seed. A capture that starts before the hello **and** is framed from the first server packet is what settles it; the server-side framing of the first in-game frames of a connection is the open problem.
 
+### The first server frames of a connection (jib02, 2026-10-26 20:10; unresolved)
+The Rust framer, run on the single connection of jib02 (`tcpdump -r ... port 8577`), frames the whole stream: 1,176 incoming frames (1,164 exact after the IV is learned; the first 12 use the old heuristic), 0 breaks; the first frames are `0x0039` (193 bytes, the "table" with the text `All`), `0x003a` (6 bytes) and `0x0234` (5,198 bytes, probably the character/login data).
+So the bulk "table" after the hello **is** ordinary framed packets, not a separate stage. What does not work is chaining them from the hello's receive IV `12 9a db 06`: no offset from 21 to 60 starts a chain whose first header satisfies `a ^ 0xfffe == iv[3]<<8 | iv[2]`,
+so the first frames of a connection are framed or keyed differently from the later ones (their raw header bytes begin with six zero bytes), and the exact plaintext of those first 12 frames is not recovered yet. The opcode-numbering question stays open for the same reason: the packet that would carry it is most likely among these first frames.
+
