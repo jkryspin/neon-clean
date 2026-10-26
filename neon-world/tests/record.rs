@@ -25,6 +25,7 @@ impl Sink for WorldSink {
         let e = match rec.dir {
             Dir::In => event_from_packet(&self.reg, &rec.plain),
             Dir::Out => event_from_out_packet(&self.reg, &rec.plain),
+            Dir::Wire => None,
         };
         if let Some(e) = e {
             self.w.apply(&e, rec.t_ms);

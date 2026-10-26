@@ -50,6 +50,7 @@ pub fn route(path: &str, sh: &Shared, reg: &Registry) -> Route {
             let q = |k: &str| query.split('&').find_map(|kv| kv.strip_prefix(&format!("{k}=")));
             let dir = match q("dir") {
                 Some("out") => neon_protocol::Dir::Out,
+                Some("wire") => neon_protocol::Dir::Wire,
                 _ => neon_protocol::Dir::In,
             };
             let id = q("op").and_then(|o| u16::from_str_radix(o.trim_start_matches("0x"), 16).ok());

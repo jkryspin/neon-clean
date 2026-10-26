@@ -43,6 +43,7 @@ fn dir_str(d: Dir) -> &'static str {
     match d {
         Dir::In => "in",
         Dir::Out => "out",
+        Dir::Wire => "wire",
     }
 }
 

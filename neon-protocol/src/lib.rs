@@ -16,6 +16,8 @@ pub enum Dir {
     In,
     /// Client to server.
     Out,
+    /// Client to server exactly as it travelled (opcode numbers are scrambled per connection); no registry entries describe it.
+    Wire,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]

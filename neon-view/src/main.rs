@@ -111,8 +111,9 @@ fn main() {
                     let t = if b > 1_000_000_000_000 { rec.t_ms.saturating_sub(b) } else { rec.t_ms };
                     let mut sh = app.shared.lock().unwrap();
                     if rec.wire {
-                        if let Some(p) = sh.wire_map.translate(&rec.plain) {
-                            sh.feed(&app.reg, rec.dir, &p, t);
+                        match sh.wire_map.translate(&rec.plain) {
+                            Some(p) => sh.feed(&app.reg, rec.dir, &p, t),
+                            None => sh.feed(&app.reg, neon_protocol::Dir::Wire, &rec.plain, t),
                         }
                     } else {
                         sh.feed(&app.reg, rec.dir, &rec.plain, t);

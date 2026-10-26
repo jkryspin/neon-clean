@@ -39,6 +39,7 @@ impl Record {
         let d = match self.dir {
             Dir::In => "in",
             Dir::Out => "out",
+            Dir::Wire => "wire",
         };
         let w = if self.wire { ",\"w\":1" } else { "" };
         format!("{{\"t\":{},\"d\":\"{d}\"{w},\"hex\":\"{}\"}}", self.t_ms, hex_of(&self.plain))
@@ -52,6 +53,7 @@ impl Record {
             let dir = match v.get("d")?.as_str()? {
                 "in" => Dir::In,
                 "out" => Dir::Out,
+                "wire" => Dir::Wire,
                 _ => return None,
             };
             let wire = v.get("w").and_then(|w| w.as_u64()) == Some(1);

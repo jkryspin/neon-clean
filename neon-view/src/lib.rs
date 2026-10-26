@@ -29,6 +29,7 @@ impl Shared {
         let event = match dir {
             Dir::In => event_from_packet(reg, plain),
             Dir::Out => neon_world::event_from_out_packet(reg, plain),
+            Dir::Wire => None,
         };
         if let Some(e) = event {
             self.explorer.learn(&e);
@@ -56,9 +57,11 @@ impl Sink for ViewSink<'_> {
     }
     fn feed(&mut self, rec: &Record) {
         if rec.wire {
-            // a wire packet is shown as the internal packet the registry describes; unmapped wire opcodes are not shown yet
-            if let Some(p) = self.shared.wire_map.translate(&rec.plain) {
-                self.shared.feed(self.reg, Dir::Out, &p, rec.t_ms);
+            // a wire packet is shown as the internal packet the registry describes; one this connection's map does not cover
+            // is shown as a raw `wire` packet (no registry name can apply to it)
+            match self.shared.wire_map.translate(&rec.plain) {
+                Some(p) => self.shared.feed(self.reg, Dir::Out, &p, rec.t_ms),
+                None => self.shared.feed(self.reg, Dir::Wire, &rec.plain, rec.t_ms),
             }
             return;
         }
