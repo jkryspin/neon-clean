@@ -117,7 +117,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x02b8` | 11 | 0.1 | 366-421 |  | observed |
 | `0x02b9` | 56 | 0.3 | 7-19 |  | structure: 19 bytes: char id@2 is a known player in 12 of 12 packets. About a player; meaning unknown (2026-10-26). |
 | `0x02ba` | 10 | 0.1 | 156-157 |  | structure: u32@2 is a known player id in 9 of 9 packets of the 157-byte form (idscan, pooled captures 2026-10-26). |
-| `0x02bb` | 190 | 1.0 | 131 |  | structure: 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26). |
+| `0x02bb` | 190 | 1.0 | 131 |  | structure: 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26) Lifecycle (lifecycle.py, pooled captures): arrival-like. In the 5 s before it that player sent 265 movement packets over the 198 events, in the 5 s after 2038 (the same players at random times: 0 and 8), so it marks a player becoming visible or active; exactly what it adds to the 888-byte PlayerSpawn is unknown. |
 | `0x02bd` | 33 | 0.2 | 22 |  | structure: u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26). |
 | `0x02db` | 200 | 1.0 | 7 |  | structure: 7 bytes: op + 5 bytes (10 0a 00 00 00 seen) |
 | `0x031f` | 1 | 0.0 | 25 |  | observed, rare (<=2 sightings: may be decode noise) |
