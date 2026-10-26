@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Append opcodes seen in logs but missing from neon-protocol/opcodes.toml as `observed` entries.
 
-  scripts/registry-merge.py            (reads run/opcodes/*.json for incoming, docs/outgoing-opcodes.json for outgoing)
+  scripts/registry-merge.py            (reads run/opcodes/*.json and run/view.*.log for incoming, docs/outgoing-opcodes.json for outgoing)
 
 Never edits existing entries: names, statuses and field layouts are only added by hand, with evidence.
 """
@@ -17,6 +17,13 @@ for m in re.finditer(r'\[\[opcode\]\]\nid = (0x[0-9a-fA-F]+)\ndir = "(in|out)"',
     have.add((m[2], int(m[1], 16)))
 add = []
 inc = {}
+# stamped packet logs (scripts/view.sh writes run/view.NAME.log): "<t> op <hex4> len <n>: bytes"
+for p in sorted(glob.glob("run/view.*.log")):
+    for line in open(p, errors="replace"):
+        m = re.match(r"\S+ op ([0-9a-f]{4}) len (\d+):", line)
+        if m:
+            a = inc.setdefault(int(m[1], 16), [10**9, 0])
+            a[0] = min(a[0], int(m[2])); a[1] = max(a[1], int(m[2]))
 for p in sorted(glob.glob("run/opcodes/*.json")):
     for k, v in json.load(open(p)).items():
         a = inc.setdefault(int(k, 16), [10**9, 0])

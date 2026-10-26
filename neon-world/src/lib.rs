@@ -278,6 +278,8 @@ pub struct ReplayStats {
 pub struct Shared {
     pub world: World,
     pub packets: inspector::Inspector,
+    /// Directory of per-map geometry files (`<id>.json`: footholds, ladders, portals, npcs), served at `/map/<id>`.
+    pub maps_dir: Option<std::path::PathBuf>,
 }
 
 impl Shared {

@@ -13,7 +13,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let get = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
     let Some(log) = get("--log") else {
-        eprintln!("usage: neon-view --log <packet log> [--follow] [--speed 1.0 (0 = as fast as possible)] [--port 8765] [--host 0.0.0.0]");
+        eprintln!("usage: neon-view --log <packet log> [--follow] [--speed 1.0 (0 = as fast as possible)] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps]");
         std::process::exit(2);
     };
     let follow = args.iter().any(|a| a == "--follow");
@@ -22,7 +22,11 @@ fn main() {
     let host = get("--host").unwrap_or_else(|| "0.0.0.0".to_string());
 
     let reg = Arc::new(Registry::builtin().expect("registry"));
-    let world = Arc::new(Mutex::new(Shared::default()));
+    let maps = get("--maps").map(std::path::PathBuf::from).or_else(|| {
+        let d = std::path::PathBuf::from("neon-calib/maps");
+        d.is_dir().then_some(d)
+    });
+    let world = Arc::new(Mutex::new(Shared { maps_dir: maps, ..Shared::default() }));
     let listener = std::net::TcpListener::bind((host.as_str(), port)).expect("bind (is the port taken or the host wrong?)");
     eprintln!("neon-view on http://{host}:{port}/  (log {log}, follow={follow}, speed={speed}; no authentication)");
 

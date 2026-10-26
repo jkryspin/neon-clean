@@ -249,3 +249,26 @@ fn me_pickups_and_inventory_accumulate() {
     w.apply(&Event::Inventory { tab: 2, slot: 3, item: None, qty: None }, 5);
     assert!(w.snapshot().inventory.is_empty());
 }
+
+#[test]
+fn map_geometry_is_served_by_id_and_only_by_digits() {
+    let dir = std::env::temp_dir().join(format!("neon-maps-test-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("1010.json"), r#"{"footholds":[{"x1":0,"y1":0,"x2":10,"y2":0}]}"#).unwrap();
+    std::fs::write(dir.join("secret.json"), "no").unwrap();
+    let sh = Shared { maps_dir: Some(dir.clone()), ..Shared::default() };
+    let reg = Registry::builtin().unwrap();
+    let body = |p: &str| match view::route(p, &sh, &reg) {
+        view::Route::Body { status, body, .. } => (status, body),
+        _ => panic!("not a body"),
+    };
+    assert_eq!(body("/map/1010").0, 200);
+    assert!(body("/map/1010").1.contains("footholds"));
+    assert_eq!(body("/map/9999").0, 404);
+    for bad in ["/map/../1010", "/map/secret", "/map/1010.json", "/map/", "/map/%2e%2e", "/map/12345678901"] {
+        assert_eq!(body(bad).0, 404, "{bad}");
+    }
+    let none = Shared::default();
+    assert!(matches!(view::route("/map/1010", &none, &reg), view::Route::Body { status: 404, .. }));
+    let _ = std::fs::remove_dir_all(dir);
+}

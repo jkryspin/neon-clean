@@ -20,6 +20,18 @@ pub fn route(path: &str, sh: &Shared, reg: &Registry) -> Route {
     let limit = query.split('&').find_map(|kv| kv.strip_prefix("limit=")).and_then(|n| n.parse().ok()).unwrap_or(100usize).min(400);
     let json = |v: String| Route::Body { status: 200, content_type: "application/json", body: v };
     match p {
+        m if m.starts_with("/map/") => {
+            let id = &m[5..];
+            // Digits only: the id becomes part of a file name, so nothing else may get through.
+            let ok = !id.is_empty() && id.len() <= 10 && id.bytes().all(|c| c.is_ascii_digit());
+            match (ok, &sh.maps_dir) {
+                (true, Some(dir)) => match std::fs::read_to_string(dir.join(format!("{id}.json"))) {
+                    Ok(body) => json(body),
+                    Err(_) => Route::Body { status: 404, content_type: "text/plain", body: "no geometry for that map".into() },
+                },
+                _ => Route::Body { status: 404, content_type: "text/plain", body: "not found".into() },
+            }
+        }
         "/packets" => json(serde_json::to_string(&sh.packets.recent(limit)).unwrap()),
         "/opcodes" => json(serde_json::to_string(&sh.packets.histogram(reg)).unwrap()),
         "/" | "/index.html" => Route::Body { status: 200, content_type: "text/html; charset=utf-8", body: INDEX_HTML.to_string() },

@@ -28,7 +28,7 @@
 <body>
 <header>
   <b>Neon View</b>
-  <span id="map" class="dim">map: -</span>
+  <span id="map" class="dim">map: -</span><label class="dim">map id <input id="mapid" size="9" placeholder="e.g. 1010" style="background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 4px"></label>
   <span id="counts" class="dim"></span>
   <span id="conn" class="dim">connecting...</span>
 </header>
@@ -53,7 +53,13 @@
 <script>
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-let snap = null;
+let snap = null, geo = null, geoId = null;
+function loadGeo(id) {
+  if (!id || id === geoId) return;
+  geoId = id; geo = null;
+  fetch('map/' + id).then(r => r.ok ? r.json() : null).then(g => { geo = g; draw(); });
+}
+document.getElementById('mapid').onchange = e => { geoId = null; loadGeo(e.target.value.trim()); };
 function pts(s) {
   const out = [];
   for (const [id, p] of Object.entries(s.players)) if (p.x != null) out.push({k:'player', x:p.x, y:p.y, label:p.name || id});
@@ -65,13 +71,21 @@ function draw() {
   if (!snap) return;
   const r = cv.getBoundingClientRect(); cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio;
   ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); ctx.clearRect(0,0,r.width,r.height);
-  const P = pts(snap); if (!P.length) return;
+  const P = pts(snap);
+  const G = geo && geo.footholds ? geo.footholds : [];
+  if (!P.length && !G.length) return;
   const q = (a, f) => { const b = [...a].sort((m, n) => m - n); return b[Math.min(b.length - 1, Math.floor(f * (b.length - 1)))]; };
-  const xs = P.map(p => p.x), ys = P.map(p => p.y);       // 5th-95th percentile: one far outlier must not squash the rest
-  const x0 = q(xs, .05) - 50, x1 = q(xs, .95) + 50, y0 = q(ys, .05) - 50, y1 = q(ys, .95) + 50;
+  // With geometry the view fits the map's platforms; without it, the 5th-95th percentile of entities (one far outlier must not squash the rest).
+  const xs = G.length ? G.flatMap(f => [f.x1, f.x2]) : P.map(p => p.x), ys = G.length ? G.flatMap(f => [f.y1, f.y2]) : P.map(p => p.y);
+  const lo = G.length ? 0 : .05, hi = G.length ? 1 : .95;
+  const x0 = q(xs, lo) - 50, x1 = q(xs, hi) + 50, y0 = q(ys, lo) - 50, y1 = q(ys, hi) + 50;
   const sc = Math.min((r.width - 20) / Math.max(x1 - x0, 1), (r.height - 20) / Math.max(y1 - y0, 1));
   const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const X = x => cl(10 + (x - x0) * sc, 6, r.width - 6), Y = y => cl(10 + (y - y0) * sc, 6, r.height - 6);   // MapleStory y grows downward, like the screen
+  ctx.strokeStyle = css('--line'); ctx.lineWidth = 2;
+  for (const f of G) { ctx.beginPath(); ctx.moveTo(X(f.x1), Y(f.y1)); ctx.lineTo(X(f.x2), Y(f.y2)); ctx.stroke(); }
+  ctx.strokeStyle = css('--dim'); ctx.lineWidth = 1;
+  for (const l of (geo && geo.ladders) || []) { if (l.x != null) { ctx.beginPath(); ctx.moveTo(X(l.x), Y(l.y1)); ctx.lineTo(X(l.x), Y(l.y2)); ctx.stroke(); } }
   ctx.font = '11px system-ui'; ctx.textBaseline = 'middle';
   for (const p of P) {
     ctx.fillStyle = css('--' + p.k); ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), p.k === 'drop' ? 3 : 5, 0, 7); ctx.fill();
@@ -83,6 +97,7 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 function render(s) {
   snap = s;
   document.getElementById('map').textContent = 'map: ' + (s.map ?? '-');
+  if (s.map != null) { const box = document.getElementById('mapid'); if (document.activeElement !== box) box.value = s.map; loadGeo(String(s.map)); }
   document.getElementById('counts').textContent = s.events + ' events';
   const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
   list('me', [
@@ -98,6 +113,8 @@ function render(s) {
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + id + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));
   draw();
 }
+const qmap = new URLSearchParams(location.search).get('map');
+if (qmap) { document.getElementById('mapid').value = qmap; loadGeo(qmap); }
 const hexs = t => esc(t);
 function renderPackets(rows) {
   const hide = document.getElementById('hide').checked;
