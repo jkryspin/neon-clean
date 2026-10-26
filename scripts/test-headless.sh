@@ -14,4 +14,5 @@ for c in neon-protocol neon-world neon-view neon-cmd neon-stream; do
   fi
 done
 if python3 -I neon-calib/tools/test_tools.py >/dev/null 2>&1; then echo "ok    neon-calib tools"; else echo "FAIL  neon-calib tools"; fail=1; fi
+if scripts/test-backoff.sh; then echo "ok    backoff script"; else fail=1; fi
 exit $fail

@@ -6,7 +6,7 @@
 # --pid            drive this game process (several clients: one session per client); default: the first one found
 # --instance       HWID instance ID for this bot (used for HWID spoofing when relaunching)
 # --supervise      restart the pipeline if it crashes (not when it stops on purpose: stop button, plan finished,
-#                  target level, panic key), relaunch the game first if it is not running, at most 5 restarts/hour.
+#                  target level, panic key), relaunch the game first if it is not running, backing off 1 min, 5 min, 15 min, then 1 h between attempts, at most 6 in 24 h (scripts/lib-backoff.sh).
 # The process-group id is written to run/<session>.pid so the web UI (or you) can stop it with
 #   kill -TERM -- -$(cat run/main.pid)
 # Everything runs niced; the game is only read, never written.
@@ -54,12 +54,14 @@ relaunch_game() {
 
 export DISPLAY=${DISPLAY:-:0}
 export XAUTHORITY=${XAUTHORITY:-$(ls /run/user/"$(id -u)"/.mutter-Xwaylandauth.* 2>/dev/null | head -1)}
+[ -f "$ROOT/scripts/lib-backoff.sh" ] && . "$ROOT/scripts/lib-backoff.sh"
 STREAM=$ROOT/neon-stream/target/release/neon-stream
 LOADER=$ROOT/neon-loader/target/release/neon-loader
 [ -x "$STREAM" ] && [ -x "$LOADER" ] || { echo "build first: cargo build --release in neon-stream and neon-loader"; exit 2; }
 
-restarts=()
+restarts=(); streak=0
 while :; do
+  started=$(date +%s)
   PID=$(game_pid) || PID=""
   if [ -z "$PID" ]; then
     if [ "$SUPERVISE" = 1 ]; then
@@ -76,7 +78,10 @@ while :; do
   [ "$code" = 0 ] && { echo "$(date +%T) loader finished normally"; exit 0; }
   [ "$SUPERVISE" = 1 ] || exit "$code"
   now=$(date +%s); restarts=("${restarts[@]}" "$now")
-  recent=(); for t in "${restarts[@]}"; do [ $((now - t)) -lt 3600 ] && recent=("${recent[@]}" "$t"); done; restarts=("${recent[@]}")
-  if [ "${#restarts[@]}" -gt 5 ]; then echo "$(date +%T) more than 5 restarts in an hour: giving up"; exit 4; fi
-  echo "$(date +%T) loader exited with $code: restarting in 5 s"; sleep 5
+  recent=(); for t in "${restarts[@]}"; do [ $((now - t)) -lt 86400 ] && recent=("${recent[@]}" "$t"); done; restarts=("${recent[@]}")
+  if too_many_restarts "${restarts[@]}"; then echo "$(date +%T) more than 6 restarts in 24 h: giving up, a human should look"; exit 4; fi
+  # a run that lasted over an hour was healthy: the failure streak starts again
+  [ $((now - started)) -gt 3600 ] && streak=0
+  streak=$((streak + 1)); d=$(restart_delay "$streak")
+  echo "$(date +%T) loader exited with $code: restarting in $d s (attempt $streak)"; sleep "$d"
 done
