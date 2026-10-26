@@ -70,6 +70,20 @@ pub fn decrypt(aes: &Aes256, body: &[u8], iv: &[u8; 4]) -> Vec<u8> {
     out
 }
 
+/// Build one client->server frame from a plaintext packet and the IV in force for it (offline: it only returns bytes; nothing here
+/// opens a connection). `[a BE][c BE][AES-256-OFB body]` with `a = ((iv[2] << 8) | iv[3]) ^ 0xdf00` and `c = a ^ swap16(len)`.
+/// After sending, the caller advances the IV with `shuffle_iv`.
+#[allow(dead_code)]
+pub fn encode_frame(aes: &Aes256, plain: &[u8], iv: &[u8; 4]) -> Vec<u8> {
+    let a = (u16::from(iv[2]) << 8 | u16::from(iv[3])) ^ 0xdf00;
+    let c = a ^ (plain.len() as u16).swap_bytes();
+    let mut out = Vec::with_capacity(4 + plain.len());
+    out.extend(a.to_be_bytes());
+    out.extend(c.to_be_bytes());
+    out.extend(decrypt(aes, plain, iv)); // OFB: the same call encrypts and decrypts
+    out
+}
+
 /// Splits the client->server byte stream into (header `a`, body) frames, finding its own alignment mid-stream.
 #[derive(Default)]
 pub struct SendFramer {
@@ -309,6 +323,37 @@ mod tests {
                 let _ = sc.frame(a, &body);
             }
         }
+    }
+
+    #[test]
+    fn encoding_reproduces_real_client_frames_byte_for_byte() {
+        let aes = Aes256::new(&KEY);
+        for sm in fixture()["samples"].as_array().unwrap() {
+            let iv: [u8; 4] = hex(sm["iv"].as_str().unwrap()).try_into().unwrap();
+            let plain = hex(sm["plain"].as_str().unwrap());
+            assert_eq!(encode_frame(&aes, &plain, &iv), hex(sm["raw"].as_str().unwrap()), "frame {}", sm["index"]);
+        }
+    }
+
+    #[test]
+    fn what_is_encoded_is_framed_and_decrypted_back_by_the_passive_side() {
+        let aes = Aes256::new(&KEY);
+        let mut iv: [u8; 4] = hex(fixture()["iv0"].as_str().unwrap()).try_into().unwrap();
+        let mut stream = vec![];
+        let mut plains = vec![];
+        for i in 0..20u8 {
+            let plain: Vec<u8> = (0..(2 + usize::from(i) % 5)).map(|k| i.wrapping_mul(13).wrapping_add(k as u8)).collect();
+            stream.extend(encode_frame(&aes, &plain, &iv));
+            plains.push(plain);
+            shuffle_iv(&mut iv);
+        }
+        let mut fr = SendFramer::default();
+        let mut sc = SendCipher::default();
+        let mut got = vec![];
+        for (a, body) in fr.push(&stream) {
+            got.extend(sc.frame(a, &body));
+        }
+        assert_eq!(got, plains);
     }
 }
 

@@ -68,13 +68,15 @@
    "index": 0,
    "iv": "3c953026",
    "body": "e990dc62",
-   "plain": "c5000001"
+   "plain": "c5000001",
+   "raw": "ef26eb26e990dc62"
   },
   {
    "index": 16,
    "iv": "0cc4bfba",
    "body": "dfd4",
-   "plain": "8687"
+   "plain": "8687",
+   "raw": "60ba62badfd4"
   }
  ]
 }
