@@ -59,7 +59,7 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 
 ## Status (2026-10-26, end of the first mapping day)
 
-Registry: **140 incoming opcodes** (19 with a name; 20 verified entries, 7 decoded, 20 structure, 104 observed only) and **29 outgoing opcodes** (7 with a name, the rest structure or observed).
+Registry (2026-10-26 evening): **137 incoming opcodes** (25 with a name, 15 verified) and **31 outgoing entries** (8 with a name; outgoing entries are the client's internal numbering, see `docs/network-protocol.md` for the per-connection wire numbering). Four incoming opcodes that the old heuristic decoder had invented were removed; the receive and send ciphers are now exact.
 
 Named incoming: Chat, DropRemove, DropSpawnItem, DropSpawnMeso, ExpMessage, InventoryChange, LoginInventory, MapEnter, MobControl, MobHit, MobKill, MobMove, MobSpawn, NpcMove, PartyCreated, PartyJoined, PartyLeft, PetMove, PetSpawn, PickupMessage, PlayerAttack, PlayerMove, PlayerSpawn, QuestMessage, QuestRecordMessage, StatUpdate.
 Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRequest, PartyLeaveRequest, PickupDrop, UiAction.
