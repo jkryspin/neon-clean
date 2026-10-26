@@ -18,8 +18,6 @@ Nexon approved up to 5 bot instances on MapleStory Classic World for price data 
 **Date:** September 3, 2026  
 **From:** Kevin Song, Game Operations Manager, Nexon Korea
 
-**Verify:** https://nexon.com/maplestory/classic/bot-authorization
-
 See `docs/authorization.md` for the full email thread.
 
 ## Current Status (2026-10-24)
