@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Neon View</title>
 <style>
-  :root { --bg:#0e1116; --panel:#171b22; --fg:#d7dde6; --dim:#8892a0; --player:#5bc0ff; --mob:#ff7b72; --drop:#e3b341; --me:#3fb950; --line:#2a303a; }
-  @media (prefers-color-scheme: light) { :root { --bg:#f4f6f9; --panel:#fff; --fg:#1b2330; --dim:#5b6676; --player:#0b6cb8; --mob:#c2362d; --drop:#a87000; --me:#1a7f37; --line:#d5dbe3; } }
+  :root { --bg:#0e1116; --panel:#171b22; --fg:#d7dde6; --dim:#8892a0; --player:#5bc0ff; --mob:#ff7b72; --drop:#e3b341; --me:#3fb950; --npc:#bc8cff; --line:#2a303a; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f4f6f9; --panel:#fff; --fg:#1b2330; --dim:#5b6676; --player:#0b6cb8; --mob:#c2362d; --drop:#a87000; --me:#1a7f37; --npc:#8250df; --line:#d5dbe3; } }
   body { margin:0; background:var(--bg); color:var(--fg); font:14px system-ui, sans-serif; }
   header { display:flex; gap:16px; align-items:baseline; padding:10px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   header b { font-size:16px; } .dim { color:var(--dim); }
@@ -92,6 +92,7 @@ function pts(s) {
   const out = [];
   for (const [id, p] of Object.entries(s.players)) if (p.x != null) out.push({k:'player', x:p.x, y:p.y, label:p.name || id});
   for (const [id, m] of Object.entries(s.mobs)) out.push({k:'mob', x:m.x, y:m.y, label:m.template != null ? (mobNames[String(m.template)] || '#' + m.template) : '?'});
+  for (const [id, n] of Object.entries(s.npcs || {})) out.push({k:'npc', x:n.x, y:n.y, label:'NPC ' + id});
   for (const [id, d] of Object.entries(s.drops)) out.push({k:'drop', x:d.x, y:d.y, label:''});
   if (s.me && s.me.x != null) out.push({k:'me', x:s.me.x, y:s.me.y, label:'me'});
   return out;

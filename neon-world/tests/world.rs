@@ -305,3 +305,24 @@ fn movement_ends_are_consistent_with_the_fragment_velocity() {
     let Some(Event::MobMove { x, .. }) = event_from_packet(&r, &fx("0x3dc")) else { panic!() };
     assert_eq!(i64::from(x), prev);
 }
+
+#[test]
+fn npc_walks_become_npc_positions_and_a_map_change_clears_them() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("../../neon-protocol/tests/fixtures/combat_packets.json")).unwrap();
+    let p = plain(c["0x456_npc2"]["plain"].as_str().unwrap()); // a real two-fragment NPC move, Amherst
+    let d = r.decode(neon_protocol::Dir::In, &p).unwrap();
+    let (oid, start_x, start_y) = (d.get("oid").unwrap().as_i64().unwrap(), d.get("x").unwrap().as_i64().unwrap(), d.get("y").unwrap().as_i64().unwrap());
+    assert!((100..200).contains(&oid), "NPC object ids are small: {oid}");
+    // Independent check: Amherst's own map file puts NPCs at (1790,154), (547,274) and (103,274); this one starts near one of them.
+    let npcs = [(1790i64, 154i64), (547, 274), (103, 274)];
+    assert!(npcs.iter().any(|(x, y)| (x - start_x).abs() < 120 && *y == start_y), "start ({start_x},{start_y}) is not near any NPC of the map");
+    let Some(Event::NpcMove { oid: o, x, y }) = event_from_packet(&r, &p) else { panic!("0x0456 must become an NpcMove") };
+    assert_eq!(i64::from(o), oid);
+    assert_eq!(i64::from(y), start_y, "NPCs walk along their platform");
+    let mut w = World::new();
+    w.apply(&Event::NpcMove { oid: o, x, y }, 5);
+    assert_eq!(w.snapshot().npcs[&o].x, x);
+    w.apply(&Event::MapEnter { map: 1020 }, 6);
+    assert!(w.snapshot().npcs.is_empty());
+}

@@ -105,9 +105,9 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0270` | 8 | 0.0 | 11 |  | observed |
 | `0x0279` | 12 | 0.1 | 7-22 |  | observed |
 | `0x0281` | 109 | 0.6 | 12-58 | PetSpawn | decoded: Pet spawn (name only); not mobs |
-| `0x0282` | 5515 | 28.2 | 45-327 | PetMove | decoded: Pet move (name only) |
+| `0x0282` | 5515 | 28.2 | 45-327 | PetMove | decoded: Pet move: the forms that do not fit the fragment layout above (name only) |
 | `0x0283` | 3 | 0.0 | 17 |  | observed |
-| `0x029d` | 25221 | 129.0 | 41-665 | PlayerMove | verified: Another player moved |
+| `0x029d` | 25221 | 129.0 | 41-665 | PlayerMove | verified: Another player moved: the forms that do not fit the 21-byte fragment layout above (lengths 43, 64, 66, 92, 113 ...): only the start position is decoded |
 | `0x02a8` | 6521 | 33.4 | 63-207 | PlayerAttack | structure: Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (n = 0..4 targets). char_id@2 is a known player in 100% of packets; each target record starts with the mob oid (known mob in 94% of first records) and has, at +8, probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). n = 0 is a swing at nothing (36 seen in a mob-less town). Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. Unexplained: @6 (varies: 0x11, 0x12, 0x0e, 0x17...), a repeated pair c5 01 00 00 5f 08 00 00 at @17/@25 that looks like an (x, y) |
 | `0x02a9` | 1122 | 5.7 | 63-111 |  | structure: Same header as 0x02a8 and the same target records (mob oid at @63 in 91% of the 87-byte packets): a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111; the 97-byte form (63 + 34) does not fit the 24-byte records and stays unexplained. Pairs with 0x044d in 52% of the 87-byte packets (69/131) |
 | `0x02aa` | 415 | 2.1 | 63-97 |  | structure: Same header and target records as 0x02a8 (mob oid at @63 in 96% of the 87-byte packets): a third attack variant (kind not known). Lengths seen 63, 87, 97 (97 does not fit the records). Pairs with 0x044d in 39% (37/94) |
@@ -131,7 +131,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x03c9` | 2286 | 11.7 | 313-317 | MobSpawn | verified: A mob appears (also sent for mobs already on the map when we enter it) |
 | `0x03d4` | 2192 | 11.2 | 16 | MobKill | verified: A mob was removed (killed) |
 | `0x03d5` | 180 | 0.9 | 7-313 | MobRespawn | verified: A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering) plus our OWN character id at @308 in 26 of 26 packets (0x03c9 does not carry it): consistent with the classic spawn-and-control packet, i.e. this client becomes the mob's controller (interpretation, not verified). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding) |
-| `0x03dc` | 40302 | 206.1 | 62-356 | MobMove | verified: Mob movement; x,y is where the move starts (later fragments are not decoded) |
+| `0x03dc` | 40302 | 206.1 | 62-356 | MobMove | verified: Mob movement: the forms that do not fit the 21-byte fragment layout above (lengths 113, 134, 155 ...): only the start position is decoded |
 | `0x03e7` | 8991 | 46.0 | 28 |  | structure: 28 bytes, about 85 per minute while mobs are around: mob oid@2 is a known mob in 112 of 112 packets (20 distinct mobs). Meaning unknown (2026-10-26). |
 | `0x03e9` | 2 | 0.0 | 40 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x03f3` | 314 | 1.6 | 11 |  | structure: 11 bytes: u32 mob oid @2 and a state byte @6 (0x00 sent for a mob that was just killed, 0x0f for a mob that just spawned: same oid as the 0x03d4 / 0x03d5 right next to it). 44 seen, 16 of 16 own-kill windows. Meaning unknown |
@@ -141,7 +141,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0452` | 18 | 0.1 | 67 |  | observed |
 | `0x0453` | 4 | 0.0 | 6 |  | observed |
 | `0x0454` | 1 | 0.0 | 68 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x0456` | 4274 | 21.9 | 12-152 |  | structure: Busiest opcode in a town (1295 packets, 4 min): sizes 12, or 26+21n (n=1..5; 47 is most common). u32@2 is NOT a counter: only 3 values seen (138,139,140), a group/type tag. The 21-byte records start with a flag byte (0) then a u32 id; ids within a packet run in sequence (0x009a0710, 0x009a0718, 0x009a071c) and each record has small signed values (e.g. -15, -87) and a 0x50 or 0x24 constant. Not player or mob ids. Meaning unknown (2026-10-26, jib01 in Amherst) |
+| `0x0456` | 4274 | 21.9 | 12-152 |  | structure: (NPC movement is described by the entry above; this is the remaining 12-byte form) Busiest opcode in a town (1295 packets, 4 min): sizes 12, or 26+21n (n=1..5; 47 is most common). u32@2 is NOT a counter: only 3 values seen (138,139,140), a group/type tag. The 21-byte records start with a flag byte (0) then a u32 id; ids within a packet run in sequence (0x009a0710, 0x009a0718, 0x009a071c) and each record has small signed values (e.g. -15, -87) and a 0x50 or 0x24 constant. Not player or mob ids. Meaning unknown (2026-10-26, jib01 in Amherst) |
 | `0x045f` | 1 | 0.0 | 965 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0471` | 171 | 0.9 | 107-123 | DropSpawn | verified: A drop of ours appeared (sent twice: flag byte 1 then 0; dedupe by oid). Only our own kills' drops are sent to us |
 | `0x0472` | 3785 | 19.4 | 7-15 | DropRemove | verified: A drop is gone: reason u8@6 (2 picked up, 5 pet loot, 0 expired), picker char id u32@7 |

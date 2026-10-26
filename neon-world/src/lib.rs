@@ -17,6 +17,8 @@ pub enum Event {
     MobKill { oid: u32 },
     PlayerSpawn { char_id: u32, name: String },
     PlayerMove { char_id: u32, x: i32, y: i32 },
+    /// An NPC walked (object id, end of its last fragment).
+    NpcMove { oid: u32, x: i32, y: i32 },
     DropSpawn { oid: u32, owner: u32, x: i32, y: i32 },
     DropRemove { oid: u32 },
     /// We entered a map (set-field).
@@ -46,6 +48,13 @@ pub struct Player {
     pub name: Option<String>,
     pub x: Option<i32>,
     pub y: Option<i32>,
+    pub last_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct Npc {
+    pub x: i32,
+    pub y: i32,
     pub last_ms: u64,
 }
 
@@ -103,6 +112,8 @@ pub struct Snapshot {
     pub mobs: BTreeMap<u32, Mob>,
     pub players: BTreeMap<u32, Player>,
     pub drops: BTreeMap<u32, Drop>,
+    /// NPCs that have walked since we entered the map (standing NPCs are not announced by anything we decode yet).
+    pub npcs: BTreeMap<u32, Npc>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -173,6 +184,9 @@ impl World {
                 p.y = Some(*y);
                 p.last_ms = now_ms;
             }
+            Event::NpcMove { oid, x, y } => {
+                s.npcs.insert(*oid, Npc { x: *x, y: *y, last_ms: now_ms });
+            }
             Event::DropSpawn { oid, owner, x, y } => {
                 s.drops.insert(*oid, Drop { owner: *owner, x: *x, y: *y, last_ms: now_ms });
             }
@@ -184,6 +198,7 @@ impl World {
                 s.mobs.clear();
                 s.players.clear();
                 s.drops.clear();
+                s.npcs.clear();
                 s.map = Some(*map);
             }
             Event::StatMask { .. } => {}
@@ -318,6 +333,10 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
         "PlayerMove" => {
             let (x, y) = end_position(&d)?;
             Event::PlayerMove { char_id: int(&d, "char_id")? as u32, x, y }
+        }
+        "NpcMove" => {
+            let (x, y) = end_position(&d)?;
+            Event::NpcMove { oid: int(&d, "oid")? as u32, x, y }
         }
         "DropSpawn" => Event::DropSpawn { oid: int(&d, "oid")? as u32, owner: int(&d, "owner")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
         "DropRemove" => Event::DropRemove { oid: int(&d, "oid")? as u32 },

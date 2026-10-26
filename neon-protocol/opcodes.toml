@@ -235,8 +235,38 @@ summary = "Chat / megaphone text"
 [[opcode]]
 id = 0x0456
 dir = "in"
+name = "NpcMove"
+status = "verified"
+summary = "An NPC walked: the NPC's object id @2 (small: 138, 139, 140 in Amherst), start x @16 / y @18, fragment count @24, then n 21-byte movement fragments (same layout as PlayerMove) and 1 trailing byte; length = 26 + 21n. Evidence (2026-10-26, Amherst, 1092 packets): the start positions cluster within ~50 px of the map file's NPC 17 (1790, 154) and NPC 18 (547, 274) with exactly their y values, and the id takes one value per moving NPC. The other form of this opcode is 12 bytes (an NPC action without a move, meaning unknown)"
+len_min = 47
+field = [
+  { name = "oid", ty = "u32", off = 2, min = 1, max = 100000 },
+  { name = "x", ty = "i16", off = 16, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 18, min = -20000, max = 20000 },
+  { name = "count", ty = "u8", off = 24 },
+]
+
+[opcode.records]
+name = "move"
+start = 25
+stride = 21
+tail = 1
+count_at = 24
+field = [
+  { name = "x", ty = "i16", off = 2, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 4, min = -20000, max = 20000 },
+  { name = "vx", ty = "i16", off = 6 },
+  { name = "vy", ty = "i16", off = 8 },
+  { name = "foothold", ty = "i16", off = 10 },
+  { name = "stance", ty = "u8", off = 18 },
+  { name = "duration", ty = "u16", off = 19 },
+]
+
+[[opcode]]
+id = 0x0456
+dir = "in"
 status = "structure"
-summary = "Busiest opcode in a town (1295 packets, 4 min): sizes 12, or 26+21n (n=1..5; 47 is most common). u32@2 is NOT a counter: only 3 values seen (138,139,140), a group/type tag. The 21-byte records start with a flag byte (0) then a u32 id; ids within a packet run in sequence (0x009a0710, 0x009a0718, 0x009a071c) and each record has small signed values (e.g. -15, -87) and a 0x50 or 0x24 constant. Not player or mob ids. Meaning unknown (2026-10-26, jib01 in Amherst)"
+summary = "(NPC movement is described by the entry above; this is the remaining 12-byte form) Busiest opcode in a town (1295 packets, 4 min): sizes 12, or 26+21n (n=1..5; 47 is most common). u32@2 is NOT a counter: only 3 values seen (138,139,140), a group/type tag. The 21-byte records start with a flag byte (0) then a u32 id; ids within a packet run in sequence (0x009a0710, 0x009a0718, 0x009a071c) and each record has small signed values (e.g. -15, -87) and a 0x50 or 0x24 constant. Not player or mob ids. Meaning unknown (2026-10-26, jib01 in Amherst)"
 
 [[opcode]]
 id = 0x004f
