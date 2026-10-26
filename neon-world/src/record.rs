@@ -61,6 +61,8 @@ impl Record {
 pub struct Session {
     pub records: Vec<Record>,
     pub bad_lines: usize,
+    /// Unix ms of time zero when the records carried absolute times (so wall-clock marks can be placed on the timeline).
+    pub origin_unix_ms: Option<u64>,
 }
 
 impl Session {
@@ -80,6 +82,7 @@ impl Session {
         if let Some(t0) = s.records.iter().map(|r| r.t_ms).min() {
             // legacy logs carry unix ms; relative sessions already start near 0: subtract only when it is clearly absolute
             if t0 > 1_000_000_000_000 {
+                s.origin_unix_ms = Some(t0);
                 for r in &mut s.records {
                     r.t_ms -= t0;
                 }

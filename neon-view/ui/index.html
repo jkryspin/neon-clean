@@ -40,7 +40,7 @@
   <select id="tp-session" title="load a saved session"><option value="">session...</option></select>
   <button id="tp-play" style="min-width:64px">Play</button>
   <select id="tp-speed"><option>0.5</option><option selected>1</option><option>2</option><option>5</option><option>10</option><option>50</option></select><span class="dim">x</span>
-  <input id="tp-seek" type="range" min="0" max="1" value="0" style="flex:1;min-width:160px">
+  <span style="flex:1;min-width:160px;position:relative"><input id="tp-seek" type="range" min="0" max="1" value="0" style="width:100%"><span id="tp-marks"></span></span>
   <span id="tp-time" class="dim">0.0 / 0.0 s</span><span class="dim" id="tp-n"></span>
 </div>
 <main>
@@ -153,7 +153,7 @@ function render(s) {
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + (d.item != null ? 'item ' + d.item : d.mesos != null ? d.mesos + ' mesos' : id) + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));
   draw();
 }
-function loadMarks() { fetch('marks').then(r => r.ok ? r.json() : []).then(rows => { document.getElementById('marks').textContent = rows.length ? rows.length + ' marks, last: ' + rows[rows.length - 1].label : ''; }); }
+function loadMarks() { fetch('marks').then(r => r.ok ? r.json() : []).then(rows => { markRows = rows; document.getElementById('marks').textContent = rows.length ? rows.length + ' marks, last: ' + rows[rows.length - 1].label : ''; }); }
 document.getElementById('mark-btn').onclick = () => {
   const box = document.getElementById('mark'); const v = box.value.trim(); if (!v) return;
   fetch('mark?label=' + encodeURIComponent(v), { method: 'POST' }).then(r => r.ok ? (box.value = '', loadMarks()) : r.text().then(t => alert(t)));
@@ -161,6 +161,15 @@ document.getElementById('mark-btn').onclick = () => {
 document.getElementById('mark').onkeydown = e => { if (e.key === 'Enter') document.getElementById('mark-btn').click(); };
 loadMarks();
 let seeking = false;
+let markRows = [];
+function drawMarks(s) {
+  const box = document.getElementById('tp-marks');
+  if (!box) return;
+  if (!s.origin_unix_ms || !s.duration_ms) { box.innerHTML = ''; return; }
+  box.innerHTML = markRows.map(m => ({ m, at: m.t - s.origin_unix_ms })).filter(x => x.at >= 0 && x.at <= s.duration_ms)
+    .map(x => '<span title="' + x.m.label.replace(/"/g, '') + '" data-ms="' + x.at + '" style="position:absolute;top:-4px;height:8px;width:3px;background:var(--accent,#e8a33d);cursor:pointer;left:' + (100 * x.at / s.duration_ms) + '%"></span>').join('');
+  box.querySelectorAll('span').forEach(e => e.onclick = () => post('replay/seek?ms=' + e.dataset.ms).then(pollInspector));
+}
 const post = path => fetch(path, { method: 'POST' }).then(r => r.ok ? r.json() : null).then(s => { if (s) renderTransport(s); });
 let sessionsLoaded = false;
 function loadSessionList() {
@@ -181,6 +190,7 @@ function renderTransport(s) {
   t.style.display = 'flex'; loadSessionList();
   const seek = document.getElementById('tp-seek');
   seek.max = s.duration_ms;
+  drawMarks(s);
   if (!seeking) seek.value = s.pos_ms;
   document.getElementById('tp-play').textContent = s.playing ? 'Pause' : 'Play';
   document.getElementById('tp-time').textContent = (s.pos_ms / 1000).toFixed(1) + ' / ' + (s.duration_ms / 1000).toFixed(1) + ' s';

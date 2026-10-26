@@ -179,12 +179,13 @@ impl App {
             None if self.sessions_dir.is_some() && !self.live => r#"{"mode":"browser"}"#.to_string(),
             None => r#"{"mode":"live"}"#.to_string(),
             Some(r) => format!(
-                "{{\"mode\":\"replay\",\"duration_ms\":{},\"pos_ms\":{},\"playing\":{},\"speed\":{},\"records\":{}}}",
+                "{{\"mode\":\"replay\",\"duration_ms\":{},\"pos_ms\":{},\"playing\":{},\"speed\":{},\"records\":{},\"origin_unix_ms\":{}}}",
                 r.session.duration_ms(),
                 r.pos_ms(),
                 r.playing,
                 r.speed,
-                r.session.records.len()
+                r.session.records.len(),
+                r.session.origin_unix_ms.map_or("null".to_string(), |v| v.to_string())
             ),
         }
     }

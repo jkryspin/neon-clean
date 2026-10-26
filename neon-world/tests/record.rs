@@ -45,7 +45,7 @@ fn jsonl_roundtrip_keeps_direction_time_and_bytes() {
     for r in &recs {
         assert_eq!(Record::parse_line(&r.to_line()).as_ref(), Some(r));
     }
-    let s = Session { records: recs.clone(), bad_lines: 0 };
+    let s = Session { records: recs.clone(), bad_lines: 0, ..Default::default() };
     let back = Session::from_lines(s.to_text().lines().map(String::from));
     assert_eq!(back.records, recs);
     assert_eq!(back.duration_ms(), 1500);
@@ -132,11 +132,11 @@ fn outgoing_records_replay_without_touching_the_world() {
     let n_in = recs.len();
     // an outgoing packet that means nothing to the world (an undecoded opcode)
     recs.push(Record { t_ms: 100, dir: Dir::Out, plain: vec![0x07, 0x04, 1, 2, 3] });
-    let s = Session::from_lines(Session { records: recs, bad_lines: 0 }.to_text().lines().map(String::from)); // sorted, as every loaded session is
+    let s = Session::from_lines(Session { records: recs, bad_lines: 0, ..Default::default() }.to_text().lines().map(String::from)); // sorted, as every loaded session is
     let mut a = WorldSink::new();
     Replayer::new(s.clone()).seek(&mut a, u64::MAX);
     let mut b = WorldSink::new();
-    let only_in = Session { records: s.records.iter().filter(|r| r.dir == Dir::In).cloned().collect(), bad_lines: 0 };
+    let only_in = Session { records: s.records.iter().filter(|r| r.dir == Dir::In).cloned().collect(), bad_lines: 0, ..Default::default() };
     assert_eq!(only_in.records.len(), n_in);
     Replayer::new(only_in).seek(&mut b, u64::MAX);
     assert_eq!(a.w.snapshot(), b.w.snapshot());
@@ -250,4 +250,13 @@ fn the_server_acknowledges_each_mob_move_we_report_with_the_same_numbers() {
         acked += hit.is_some() as usize;
     }
     assert!(acked >= 4, "only {acked} of 5 mob moves were acknowledged with the same (oid, id)");
+}
+
+#[test]
+fn absolute_times_keep_their_origin_so_wall_clock_marks_can_be_placed_and_relative_ones_have_none() {
+    let abs = Session::from_lines(vec!["1793048301.750 op 004f len 3: 4f 00 01".to_string(), "1793048300.500 op 0028 len 2: 28 00".to_string()]);
+    assert_eq!(abs.origin_unix_ms, Some(1_793_048_300_500), "the earliest record, even when it is not the first line");
+    assert_eq!(abs.duration_ms(), 1250);
+    let rel = Session::from_lines(vec![r#"{"t":10,"d":"in","hex":"2800"}"#.to_string()]);
+    assert_eq!(rel.origin_unix_ms, None);
 }
