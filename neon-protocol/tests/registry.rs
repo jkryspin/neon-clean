@@ -121,8 +121,9 @@ fn evidence_rule_every_verified_opcode_with_a_fixture_decodes() {
     // Every verified incoming opcode that has a real packet in the fixtures must decode from it.
     let r = Registry::builtin().unwrap();
     let f = fixtures();
+    let combat: serde_json::Value = serde_json::from_str(include_str!("fixtures/combat_packets.json")).unwrap();
     let mut have = std::collections::HashSet::new();
-    for v in f.as_object().unwrap().values() {
+    for v in f.as_object().unwrap().values().chain(combat.as_object().unwrap().values()) {
         let p = plain(v["plain"].as_str().unwrap());
         have.insert(u16::from_le_bytes([p[0], p[1]]));
     }
@@ -160,4 +161,24 @@ field = [{ name = "a", ty = "u32", off = 2, min = 5, max = 1 }, { name = "b", ty
 "#;
     let e = Registry::parse(bad).unwrap_err().to_string();
     assert!(e.contains("min 5 > max 1") && e.contains("charset but is not str16"), "{e}");
+}
+
+#[test]
+fn real_combat_packets_decode_with_the_registered_layouts() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("fixtures/combat_packets.json")).unwrap();
+    let get = |k: &str| plain(c[k]["plain"].as_str().unwrap());
+    let spawn = r.decode(Dir::In, &get("0x3d5")).expect("0x03d5 decodes");
+    assert_eq!(spawn.name.as_deref(), Some("MobRespawn"));
+    assert!(spawn.get("template").unwrap().as_i64().unwrap() >= 2);
+    // MobSpawn and MobRespawn share one layout: the same bytes under 0x03c9 give the same fields.
+    let mut as_spawn = get("0x3d5");
+    as_spawn[0..2].copy_from_slice(&0x03c9u16.to_le_bytes());
+    let old = r.decode(Dir::In, &as_spawn).unwrap();
+    assert_eq!(old.fields, spawn.fields);
+    let dead = r.decode(Dir::In, &get("0x3f3_dead")).unwrap();
+    let live = r.decode(Dir::In, &get("0x3f3_spawn")).unwrap();
+    assert_eq!(dead.get("state").unwrap().as_i64(), Some(0));
+    assert_eq!(live.get("state").unwrap().as_i64(), Some(15));
+    assert!(r.decode(Dir::In, &get("0xd2")).is_some());
 }

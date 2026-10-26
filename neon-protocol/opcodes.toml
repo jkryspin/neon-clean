@@ -46,11 +46,16 @@ field = [{ name = "oid", ty = "u32", off = 2 }]
 [[opcode]]
 id = 0x044d
 dir = "in"
-name = "MobDamaged"
+name = "MobHit"
 status = "structure"
-summary = "Mob damaged: oid u32@2, attacker char id u32@6, damage u32@10 (layout from docs, not yet tested; unused)"
+summary = "A character hit a mob (sent for every player's hits on the map, not only ours). oid@2 is a mob (233 of 245 ids were mobs seen spawning or moving); attacker@6 is a character id (matches the players on the map; our own id 334426 appears for our own hits); u32@10 is NOT the damage: always a multiple of 100 (100, 200, 300, 400 in 257 packets; our own plain attacks are always 100). 2026-10-26, shurelia2 grinding Perion Street Corner"
 len_min = 14
 len_max = 14
+field = [
+  { name = "mob_oid", ty = "u32", off = 2 },
+  { name = "attacker", ty = "u32", off = 6 },
+  { name = "factor", ty = "u32", off = 10, min = 100, max = 400 },
+]
 
 [[opcode]]
 id = 0x022d
@@ -114,7 +119,7 @@ id = 0x008b
 dir = "in"
 name = "StatusMessage"
 status = "decoded"
-summary = "Pickup message (type 0: item or mesos), quest progress (type 1); decoded in neon-stream"
+summary = "Status message, mode byte @2: 0 item pickup (id u32@5, qty u32@9), 1 quest progress, 3 EXP gained (flag @3, amount u32@4: equals the EXP counter delta in 26 of 26 consecutive kills), 0x0d quest-record text (u32 id @3, u16 length @7, text like date=20261026;count=39, count +1 per kill)"
 
 [[opcode]]
 id = 0x0072
@@ -550,12 +555,6 @@ status = "observed"
 len_min = 1450
 len_max = 1450
 
-[[opcode]]
-id = 0x00d2
-dir = "in"
-status = "observed"
-len_min = 7
-len_max = 7
 
 [[opcode]]
 id = 0x00e5
@@ -970,12 +969,6 @@ status = "observed"
 len_min = 18
 len_max = 18
 
-[[opcode]]
-id = 0x03d5
-dir = "in"
-status = "observed"
-len_min = 7
-len_max = 313
 
 [[opcode]]
 id = 0x03e7
@@ -991,12 +984,6 @@ status = "observed"
 len_min = 40
 len_max = 40
 
-[[opcode]]
-id = 0x03f3
-dir = "in"
-status = "observed"
-len_min = 11
-len_max = 11
 
 [[opcode]]
 id = 0x0415
@@ -1165,3 +1152,37 @@ status = "observed"
 id = 0x032b
 dir = "out"
 status = "observed"
+
+[[opcode]]
+id = 0x03d5
+dir = "in"
+name = "MobRespawn"
+status = "verified"
+summary = "A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding)"
+len_min = 210
+field = [
+  { name = "oid", ty = "u32", off = 3 },
+  { name = "template", ty = "u32", off = 8, min = 1, max = 1000000 },
+  { name = "x", ty = "i16", off = 206, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 208, min = -20000, max = 20000 },
+]
+
+[[opcode]]
+id = 0x03f3
+dir = "in"
+status = "structure"
+summary = "11 bytes: u32 mob oid @2 and a state byte @6 (0x00 sent for a mob that was just killed, 0x0f for a mob that just spawned: same oid as the 0x03d4 / 0x03d5 right next to it). 44 seen, 16 of 16 own-kill windows. Meaning unknown"
+len_min = 11
+len_max = 11
+field = [
+  { name = "mob_oid", ty = "u32", off = 2 },
+  { name = "state", ty = "u8", off = 6 },
+]
+
+[[opcode]]
+id = 0x00d2
+dir = "in"
+status = "structure"
+summary = "7 bytes: op, fd, two varying bytes, 75, ff. Exactly one per own kill (14 of 16 kill windows, 15 packets in 193 s). Meaning unknown"
+len_min = 7
+len_max = 7

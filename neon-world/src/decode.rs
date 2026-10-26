@@ -170,3 +170,13 @@ pub fn parse_inventory(p: &[u8]) -> Option<(u8, u16, Option<u32>, Option<u32>)> 
         _ => None,
     }
 }
+
+/// `0x008b` mode 3: experience gained. Flag @3, amount u32@4. Verified: the amount equals the growth of the EXP counter
+/// (`0x007e`) in 26 of 26 consecutive kills.
+pub fn parse_exp_gain(p: &[u8]) -> Option<u32> {
+    if p.len() >= 8 && p[2] == 3 {
+        let n = u32le(p, 4)?;
+        return (1..=1_000_000_000).contains(&n).then_some(n);
+    }
+    None
+}

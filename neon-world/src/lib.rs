@@ -29,6 +29,8 @@ pub enum Event {
     Stats(decode::StatUpdate),
     Party(decode::PartyMsg),
     Pickup { item: u32, qty: u32 },
+    /// An EXP gain message (our own kill, or a party share).
+    ExpGain { amount: u32 },
     /// One inventory slot: `item` known for a new stack, `qty` None when removed.
     Inventory { tab: u8, slot: u16, item: Option<u32>, qty: Option<u32> },
 }
@@ -87,6 +89,9 @@ pub struct Snapshot {
     /// Inventory slots we have heard about: "tab:slot" -> (item if known, quantity).
     pub inventory: BTreeMap<String, (Option<u32>, Option<u32>)>,
     pub map: Option<u32>,
+    /// EXP messages seen and their sum since the view started (one message per kill of ours).
+    pub exp_messages: u64,
+    pub exp_gained: u64,
     pub events: u64,
     pub now_ms: u64,
     pub mobs: BTreeMap<u32, Mob>,
@@ -164,6 +169,10 @@ impl World {
                     s.party_id = None;
                 }
             }
+            Event::ExpGain { amount } => {
+                s.exp_messages += 1;
+                s.exp_gained += u64::from(*amount);
+            }
             Event::Pickup { item, qty } => {
                 s.pickups.push((*item, *qty));
                 if s.pickups.len() > 50 {
@@ -234,7 +243,11 @@ pub fn event_from_packet(reg: &Registry, plain: &[u8]) -> Option<Event> {
         match u16::from_le_bytes([plain[0], plain[1]]) {
             0x007e => return decode::parse_stats(plain).map(Event::Stats).or_else(|| event_from_registry(reg, plain)),
             0x00a7 => return decode::parse_party(plain).map(Event::Party),
-            0x008b => return decode::parse_pickup(plain).map(|(item, qty)| Event::Pickup { item, qty }),
+            0x008b => {
+                return decode::parse_pickup(plain)
+                    .map(|(item, qty)| Event::Pickup { item, qty })
+                    .or_else(|| decode::parse_exp_gain(plain).map(|amount| Event::ExpGain { amount }))
+            }
             0x0072 => return decode::parse_inventory(plain).map(|(tab, slot, item, qty)| Event::Inventory { tab, slot, item, qty }),
             _ => {}
         }
@@ -246,7 +259,7 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
     let d = reg.decode(Dir::In, plain)?;
     let name = d.name.as_deref()?;
     Some(match name {
-        "MobSpawn" => Event::MobSpawn { oid: int(&d, "oid")? as u32, template: int(&d, "template")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
+        "MobSpawn" | "MobRespawn" => Event::MobSpawn { oid: int(&d, "oid")? as u32, template: int(&d, "template")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
         "MobMove" => Event::MobMove { oid: int(&d, "oid")? as u32, x: int(&d, "x")? as i32, y: int(&d, "y")? as i32 },
         "MobKill" => Event::MobKill { oid: int(&d, "oid")? as u32 },
         "PlayerSpawn" => {

@@ -107,6 +107,7 @@ function render(s) {
     '<span>HP</span><span>' + (m.hp ?? '?') + (m.max_hp ? ' / ' + m.max_hp + ' ' + pct(m.hp, m.max_hp) : '') + '</span>',
     '<span>MP</span><span>' + (m.mp ?? '?') + (m.max_mp ? ' / ' + m.max_mp + ' ' + pct(m.mp, m.max_mp) : '') + '</span>',
     '<span>EXP</span><span>' + (m.exp ?? '?') + '</span>',
+    '<span>EXP gained</span><span>' + s.exp_gained + ' in ' + s.exp_messages + ' kills</span>',
     '<span>Meso</span><span>' + (m.meso ?? '?') + '</span>',
     '<span>Last pickup</span><span>' + (s.pickups.length ? s.pickups[s.pickups.length - 1][0] + ' x' + s.pickups[s.pickups.length - 1][1] : '-') + '</span>']);
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));

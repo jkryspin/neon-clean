@@ -51,7 +51,7 @@ fn real_packets_become_the_expected_events() {
 #[test]
 fn unused_and_malformed_packets_are_ignored() {
     let r = Registry::builtin().unwrap();
-    assert_eq!(event_from_packet(&r, &fx("0x44d")), None, "structure-only opcode");
+    assert_eq!(event_from_packet(&r, &fx("0x44d")), None, "MobHit is structure only: no world event");
     assert_eq!(event_from_packet(&r, &[0x01]), None);
     assert_eq!(event_from_packet(&r, &fx("0x3c9")[..100]), None, "truncated mob spawn");
 }
@@ -162,7 +162,8 @@ fn view_server_serves_page_state_and_404_over_a_real_socket() {
     assert_eq!(pj[1]["status"], "verified");
     assert!(pj[1]["fields"].as_array().unwrap().iter().any(|f| f[0] == "template" && f[1] == "6"));
     assert_eq!(pj[0]["status"], "structure", "0x044d is registered as structure only");
-    assert_eq!(pj[0]["fields"].as_array().unwrap().len(), 0);
+    assert_eq!(pj[0]["name"], "MobHit");
+    assert!(pj[0]["fields"].as_array().unwrap().iter().any(|f| f[0] == "factor" && f[1] == "100"), "the real fixture has factor 100");
     let oc = get("/opcodes");
     let oj: serde_json::Value = serde_json::from_str(oc.split("\r\n\r\n").nth(1).unwrap()).unwrap();
     assert_eq!(oj.as_array().unwrap().len(), 2);
@@ -304,4 +305,42 @@ fn estimated_max_hp_from_memory_never_overrides_the_exact_packet_value() {
     assert_eq!(w.snapshot().me.max_hp, Some(162), "exact packet value kept");
     assert_eq!(w.snapshot().me.max_mp, Some(50), "no packet value for MP yet: the estimate fills in");
     assert_eq!(w.snapshot().me.hp, Some(100));
+}
+
+#[test]
+fn exp_messages_match_the_exp_counter_in_a_real_session() {
+    // 18 lines from shurelia2 grinding Perion Street Corner: exp-only stat updates (0x007e) and EXP messages (0x008b mode 3).
+    let r = Registry::builtin().unwrap();
+    let lines: Vec<String> = include_str!("fixtures/exp_session.log").lines().map(String::from).collect();
+    let mut counter: Vec<u32> = Vec::new();
+    let mut amounts: Vec<u32> = Vec::new();
+    for l in &lines {
+        let (_, p) = parse_log_line(l).unwrap();
+        match event_from_packet(&r, &p) {
+            Some(Event::Stats(u)) => counter.push(u.exp.unwrap()),
+            Some(Event::ExpGain { amount }) => amounts.push(amount),
+            other => panic!("unexpected {other:?} for {l}"),
+        }
+    }
+    assert!(counter.len() >= 8 && counter.len().abs_diff(amounts.len()) <= 1, "{} counters, {} messages", counter.len(), amounts.len());
+    // every message equals the growth of the counter at the kill it belongs to
+    let deltas: Vec<u32> = counter.windows(2).map(|w| w[1] - w[0]).collect();
+    assert!(!deltas.is_empty());
+    for d in &deltas {
+        assert!(amounts.contains(d), "counter grew by {d} but no message said so: {amounts:?}");
+    }
+    let (w, st) = replay(&r, lines);
+    assert_eq!(st.events as usize, counter.len() + amounts.len());
+    assert_eq!(w.snapshot().exp_messages as usize, amounts.len());
+    assert_eq!(w.snapshot().exp_gained, amounts.iter().map(|a| u64::from(*a)).sum::<u64>());
+    assert_eq!(w.snapshot().me.exp, counter.last().copied());
+}
+
+#[test]
+fn a_respawn_packet_adds_a_mob_with_its_template() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("../../neon-protocol/tests/fixtures/combat_packets.json")).unwrap();
+    let p = plain(c["0x3d5"]["plain"].as_str().unwrap());
+    let Some(Event::MobSpawn { template, .. }) = event_from_packet(&r, &p) else { panic!("0x03d5 must become a MobSpawn event") };
+    assert!(template >= 2);
 }

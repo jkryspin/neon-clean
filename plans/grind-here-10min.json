@@ -1,0 +1,9 @@
+{
+  "name": "grind the current map for 10 minutes (capture session)",
+  "_about": "Grind-only: no quests, no shops, no job advancement. Used to produce real combat traffic for the packet view (2026-10-26). Perion Street Corner.",
+  "safe_map": 10004000,
+  "resupply": [],
+  "steps": [
+    { "kind": "grind", "map": 10004040, "minutes": 10, "safe_map": 10004000, "resupply": [] }
+  ]
+}
