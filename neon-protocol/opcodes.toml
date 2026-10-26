@@ -1134,6 +1134,18 @@ field = [
 ]
 
 [[opcode]]
+id = 0x02e0
+dir = "in"
+status = "structure"
+summary = "16 bytes: sub-kind byte @2 (0x0c), a quest id u32 @3 (1012), an NPC id u32 @7 (0x12), zeros, a final 01. Arrives 0.16-0.18 s after our quest accept, twice (jib01 and jib02, two connections), together with a 0x008b state message and a 0x008b text containing qid=1012. Only the accept was observed, so the other sub-kinds and the meaning of the last bytes are unknown (2026-10-26)"
+len_min = 16
+len_max = 16
+field = [
+  { name = "quest_id", ty = "u32", off = 3 },
+  { name = "npc_id", ty = "u32", off = 7 },
+]
+
+[[opcode]]
 id = 0x0452
 dir = "in"
 status = "observed"
