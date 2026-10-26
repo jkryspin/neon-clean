@@ -37,9 +37,11 @@ STRUCT = {
 }
 import tomllib
 REG = {}
+REG_ALL = []
 try:
     for o in tomllib.load(open("neon-protocol/opcodes.toml", "rb"))["opcode"]:
-        REG[(o["dir"], o["id"])] = o
+        REG.setdefault((o["dir"], o["id"]), o)  # the first entry of an opcode is its primary description
+        REG_ALL.append(o)
 except OSError:
     pass
 paths = sys.argv[1:] or sorted(glob.glob("run/opcodes/*.json"))
@@ -115,13 +117,22 @@ NOTE = {
     "0x0090": "text log lines, bulk",
     "0x0077": "bulk, ~1460 bytes",
 }
-for k in sorted(ops):
-    v = ops[k]
-    lens = ", ".join(f"{l}x{n}" if n > 1 else l for l, n in sorted(v["next_send_wire_lens"].items(), key=lambda t: int(t[0])))
-    ro = REG.get(("out", int(k, 16)), {})
-    note = ro.get("summary") or NOTE.get(k, "")
-    out.append(f"| `{k}` | {v['count']} | {lens[:70]}{'...' if len(lens) > 70 else ''} | {note} |")
-out += ["", f"Total: {len(ops)} distinct outgoing opcodes, {sum(v['count'] for v in ops.values())} packets in one short capture; "
-        "rarer actions (chat, NPC, shop, skills, party) have not been triggered yet and are absent.", ""]
+# outgoing rows: every opcode in the counts file or described in the registry (the registry also holds opcodes read in later captures)
+out_ids = sorted(set(int(k, 16) for k in ops) | set(i for (d, i) in REG if d == "out"))
+for i in out_ids:
+    k = f"0x{i:04x}"
+    v = ops.get(k)
+    ro = [o for (d, oi), o in REG.items() if d == "out" and oi == i]
+    group = [o for o in REG_ALL if o["dir"] == "out" and o["id"] == i]
+    names = ", ".join(sorted({o["name"] for o in group if o.get("name")}))
+    note = (group[0].get("summary") if group else None) or NOTE.get(k, "")
+    if v:
+        lens = ", ".join(f"{l}x{n}" if n > 1 else l for l, n in sorted(v["next_send_wire_lens"].items(), key=lambda t: int(t[0])))
+        seen = f"{v['count']}"
+    else:
+        lens, seen = "(see summary)", "later capture"
+    st = group[0].get("status", "observed") if group else "observed"
+    out.append(f"| `{k}` | {seen} | {lens[:70]}{'...' if len(lens) > 70 else ''} | {names + ' (' + st + '): ' if names else ''}{note} |")
+out += ["", f"Total: {len(out_ids)} distinct outgoing opcodes ({len(ops)} in the first counts capture, the rest from later aligned captures; see docs/mapping-workflow.md).", ""]
 open("docs/opcodes.md", "w").write("\n".join(out))
-print(f"wrote docs/opcodes.md: {len(agg)} incoming, {len(ops)} outgoing opcodes")
+print(f"wrote docs/opcodes.md: {len(agg)} incoming, {len(out_ids)} outgoing opcodes")

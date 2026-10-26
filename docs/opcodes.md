@@ -41,7 +41,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0081` | 16 | 0.1 | 3 |  | observed |
 | `0x0082` | 16 | 0.1 | 2 |  | observed |
 | `0x0085` | 29 | 0.1 | 6 |  | observed |
-| `0x008b` | 252 | 1.3 | 6-50 | QuestRecordMessage | verified: A quest-record text (mode 0x0d): quest id u32@3 and a length-prefixed text such as date=20261026;count=39, whose count rose by one per kill (2026-10-26) |
+| `0x008b` | 252 | 1.3 | 6-50 | PickupMessage | decoded: Item picked up (mode 0, sub-mode byte @4 = 0): item id and quantity. A meso pickup (sub-mode 1, amount u32@6) does not fit these bounds and is not decoded here |
 | `0x008d` | 2 | 0.0 | 11 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x008e` | 5 | 0.0 | 7037-7364 |  | observed |
 | `0x0090` | 8 | 0.0 | 2 |  | observed |
@@ -51,7 +51,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0097` | 1 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0098` | 1 | 0.0 | 19 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x009a` | 1 | 0.0 | 14 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x00a7` | 40 | 0.2 | 2-738 | PartyJoined | verified: A member joined (mode 0x13): the joiner's name (u16 length @3), then the party id and the member list (scanned) |
+| `0x00a7` | 40 | 0.2 | 2-738 | PartyLeft | verified: A member left, or we left (mode 0x10): the character id. In the real capture it is our own id (334426) when we left |
 | `0x00a9` | 3 | 0.0 | 7 |  | observed |
 | `0x00ab` | 4 | 0.0 | 8-42 |  | observed |
 | `0x00ae` | 880 | 4.5 | 4-527 | Chat | decoded: Chat / megaphone text |
@@ -87,7 +87,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0194` | 1 | 0.0 | 36 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x019f` | 1 | 0.0 | 15 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x01a5` | 1 | 0.0 | 25 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x01a9` | 16 | 0.1 | 103-3184 | LoginInventory | decoded: The whole Use/Set-up/Etc inventory at login (over 1000 bytes); decoded in neon-stream |
+| `0x01a9` | 16 | 0.1 | 103-3184 | MapEnter | decoded: Set-field (we entered a map): map id u32@36. Only seen as 41..1000 bytes |
 | `0x01ae` | 1 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x01f1` | 1 | 0.0 | 1342 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x01f4` | 16 | 0.1 | 5 |  | observed |
@@ -105,9 +105,9 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0270` | 8 | 0.0 | 11 |  | observed |
 | `0x0279` | 12 | 0.1 | 7-22 |  | observed |
 | `0x0281` | 109 | 0.6 | 12-58 | PetSpawn | decoded: Pet spawn (name only); not mobs |
-| `0x0282` | 5515 | 28.2 | 45-327 | PetMove | decoded: Pet move: the forms that do not fit the fragment layout above (name only) |
+| `0x0282` | 5515 | 28.2 | 45-327 | PetMove | verified: A pet moved: owner char id @2, four zero bytes @6, start x @14 / y @16 (on a platform in 90% of 722 packets), fragment count @22, then n 21-byte movement fragments (same layout as PlayerMove; 91% of fragment ends on platforms) and 1 trailing byte; length = 24 + 21n. Found by recfind.py (88.7% of 814 packets fit, count byte == n) and then checked against the map geometry (2026-10-26) |
 | `0x0283` | 3 | 0.0 | 17 |  | observed |
-| `0x029d` | 25221 | 129.0 | 41-665 | PlayerMove | verified: Another player moved: the forms that do not fit the 21-byte fragment layout above (lengths 43, 64, 66, 92, 113 ...): only the start position is decoded |
+| `0x029d` | 25221 | 129.0 | 41-665 | PlayerMove | verified: Another player moved: a 19-byte header (char id @2, start x @10 / y @12, fragment count @18), then n 21-byte movement fragments (end position, velocity, foothold, stance, duration), then 1 trailing byte; length = 20 + 21n. In 4132 of 4132 such packets of a real grind the count byte equals n; 96% of the 12887 fragment ends lie within 8 px of a platform of the map (the rest are jumps). The first fragment byte is always 0 (command) and byte 1 of each fragment is unexplained (2026-10-26) |
 | `0x02a8` | 6521 | 33.4 | 63-207 | PlayerAttack | structure: Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (n = 0..4 targets). char_id@2 is a known player in 100% of packets; each target record starts with the mob oid (known mob in 94% of first records) and has, at +8, probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). n = 0 is a swing at nothing (36 seen in a mob-less town). Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. The attacker's position is stored twice as 32-bit pairs, x @17 / y @21 and x2 @25 / y2 @29: within 30 px of that player's last position (from PlayerMove) in 77% of 1483 packets, near 0% at other offsets. Still unexplained: @6 (varies: 0x11, 0x12, 0x0e, 0x17...) and the bytes @10-16, @33-62 |
 | `0x02a9` | 1122 | 5.7 | 63-111 |  | structure: Same header as 0x02a8 and the same target records (mob oid at @63 in 91% of the 87-byte packets): a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111; the 97-byte form (63 + 34) does not fit the 24-byte records and stays unexplained. Pairs with 0x044d in 52% of the 87-byte packets (69/131) |
 | `0x02aa` | 415 | 2.1 | 63-97 |  | structure: Same header and target records as 0x02a8 (mob oid at @63 in 96% of the 87-byte packets): a third attack variant (kind not known). Lengths seen 63, 87, 97 (97 does not fit the records). Pairs with 0x044d in 39% (37/94) |
@@ -131,7 +131,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x03c9` | 2286 | 11.7 | 313-317 | MobSpawn | verified: A mob appears (also sent for mobs already on the map when we enter it) |
 | `0x03d4` | 2192 | 11.2 | 16 | MobKill | verified: A mob was removed (killed) |
 | `0x03d5` | 180 | 0.9 | 7-313 | MobRespawn | verified: A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering) plus our OWN character id at @308 in 26 of 26 packets (0x03c9 does not carry it): consistent with the classic spawn-and-control packet, i.e. this client becomes the mob's controller (interpretation, not verified). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding) |
-| `0x03dc` | 40302 | 206.1 | 62-356 | MobMove | verified: Mob movement: the forms that do not fit the 21-byte fragment layout above (lengths 113, 134, 155 ...): only the start position is decoded |
+| `0x03dc` | 40302 | 206.1 | 62-356 | MobMove | verified: Mob movement: a 39-byte header (mob oid @2, start x @30 / y @32, fragment count @38), then n 21-byte movement fragments (same layout as PlayerMove: end position, velocity, foothold, stance, duration), then 2 trailing bytes; length = 41 + 21n. In 5477 of 5477 such packets of a real grind the count byte equals n and all 12706 fragment ends lie within 8 px of a platform (2026-10-26) |
 | `0x03e7` | 8991 | 46.0 | 28 |  | structure: 28 bytes, about 85 per minute while mobs are around: mob oid@2 is a known mob in 112 of 112 packets (20 distinct mobs). Meaning unknown (2026-10-26). |
 | `0x03e9` | 2 | 0.0 | 40 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x03f3` | 314 | 1.6 | 11 |  | structure: 11 bytes: u32 mob oid @2 and a state byte @6 (0x00 sent for a mob that was just killed, 0x0f for a mob that just spawned: same oid as the 0x03d4 / 0x03d5 right next to it). 44 seen, 16 of 16 own-kill windows. Meaning unknown |
@@ -141,7 +141,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0452` | 18 | 0.1 | 67 |  | observed |
 | `0x0453` | 4 | 0.0 | 6 |  | observed |
 | `0x0454` | 1 | 0.0 | 68 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x0456` | 4274 | 21.9 | 12-152 |  | structure: (NPC movement is described by the entry above; this is the remaining 12-byte form) Busiest opcode in a town (1295 packets, 4 min): sizes 12, or 26+21n (n=1..5; 47 is most common). u32@2 is NOT a counter: only 3 values seen (138,139,140), a group/type tag. The 21-byte records start with a flag byte (0) then a u32 id; ids within a packet run in sequence (0x009a0710, 0x009a0718, 0x009a071c) and each record has small signed values (e.g. -15, -87) and a 0x50 or 0x24 constant. Not player or mob ids. Meaning unknown (2026-10-26, jib01 in Amherst) |
+| `0x0456` | 4274 | 21.9 | 12-152 | NpcMove | verified: An NPC walked: the NPC's object id @2 (small: 138, 139, 140 in Amherst), start x @16 / y @18, fragment count @24, then n 21-byte movement fragments (same layout as PlayerMove) and 1 trailing byte; length = 26 + 21n. Evidence (2026-10-26, Amherst, 1092 packets): the start positions cluster within ~50 px of the map file's NPC 17 (1790, 154) and NPC 18 (547, 274) with exactly their y values, and the id takes one value per moving NPC. The other form of this opcode is 12 bytes (an NPC action without a move, meaning unknown) |
 | `0x045f` | 1 | 0.0 | 965 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0471` | 171 | 0.9 | 107-123 | DropSpawn | verified: A drop of ours appeared (sent twice: flag byte 1 then 0; dedupe by oid). Only our own kills' drops are sent to us |
 | `0x0472` | 3785 | 19.4 | 7-15 | DropRemove | verified: A drop is gone: reason u8@6 (2 picked up, 5 pet loot, 0 expired), picker char id u32@7 |
@@ -162,17 +162,20 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x0090` | 1 | 1460 | text log lines, bulk |
 | `0x009e` | 1 | 51 |  |
 | `0x00d3` | 1 | 41 |  |
-| `0x00db` | 88 | 61x5, 63, 78, 82x17, 84, 103x17, 124x8, 133x4, 138, 145x8, 147, 149x2,... | The forms of MoveSelf that do not fit the fixed 21-byte fragments (movement that includes a jump has fragments of other sizes): only the header is decoded |
+| `0x00db` | 88 | 61x5, 63, 78, 82x17, 84, 103x17, 124x8, 133x4, 138, 145x8, 147, 149x2,... | MoveSelf (structure): Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players |
 | `0x00de` | 1 | 6 | Bare opcode, no fields |
-| `0x00e1` | 20 | 134x5, 228, 236x7, 244x7 | Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this |
+| `0x00e1` | 20 | 134x5, 228, 236x7, 244x7 | Attack (structure): Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this |
 | `0x00e7` | 12 | 164x12 |  |
 | `0x013e` | 1 | 57 |  |
 | `0x013f` | 3 | 55x3 | 27 bytes, seen twice, once as we changed walking direction; unexplained |
 | `0x0155` | 1 | 6 | Bare opcode, no fields |
+| `0x0184` | later capture | (see summary) | PartyCreateRequest, PartyLeaveRequest (structure): We asked to create a party: 70 bytes, byte-identical both times (2 of 2 clicks on the party window's Create button, 2026-10-26, jib01). The server's reply, the incoming 0x00a7 PartyCreated (mode 0x0e), arrived 0.18 s later. Fields unexplained; 0x184 has the same first 10 bytes as the leave request, @10 differs (0x0e here, 0x0c there) |
 | `0x0186` | 1 | 18 |  |
 | `0x0196` | 1 | 7 |  |
 | `0x01ef` | 1 | 164 |  |
-| `0x0228` | 1 | 16 | 12 bytes sent 0.1 s after each party button click: a u16 action code @2 (0x0282 for Create, 0x02ac for Leave, the same value both times) and a millisecond tick u32 @6 (the same clock as MoveSelf). 4 of 4 clicks. Whether other UI actions use it is unknown |
+| `0x0228` | 1 | 16 | UiAction (structure): 12 bytes sent 0.1 s after each party button click: a u16 action code @2 (0x0282 for Create, 0x02ac for Leave, the same value both times) and a millisecond tick u32 @6 (the same clock as MoveSelf). 4 of 4 clicks. Whether other UI actions use it is unknown |
+| `0x0265` | later capture | (see summary) | 74 bytes, seen with 0x0266 about 7 s after the last action while idle; contains what look like random bytes; unexplained |
+| `0x0266` | later capture | (see summary) | 22 bytes, sent together with 0x0265; unexplained |
 | `0x02ab` | 1 | 18 |  |
 | `0x02da` | 1 | 7 |  |
 | `0x02e7` | 1 | 10 |  |
@@ -180,5 +183,6 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x02f0` | 5 | 6x5 | Bare opcode, no fields |
 | `0x02fe` | 340 | 122x66, 143x89, 164x99, 173x5, 185x39, 194x5, 206x13, 215x4, 227x4, 23... | The most frequent outgoing opcode in the bot's runs (340 of ~500 packets), carrying a small incrementing counter. NOT movement (that is 0x00db) and not the basic attack (0x00e1); with the bot holding the attack key it is probably the repeated attack or skill packet, unverified |
 | `0x032b` | 2 | 40x2 |  |
+| `0x0407` | later capture | (see summary) | 20 bytes, seen once after about 14 s of standing still (a heartbeat?); unexplained |
 
-Total: 25 distinct outgoing opcodes, 490 packets in one short capture; rarer actions (chat, NPC, shop, skills, party) have not been triggered yet and are absent.
+Total: 29 distinct outgoing opcodes (25 in the first counts capture, the rest from later aligned captures; see docs/mapping-workflow.md).
