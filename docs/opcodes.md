@@ -162,12 +162,12 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x0090` | 1 | 1460 | text log lines, bulk |
 | `0x009e` | 1 | 51 |  |
 | `0x00d3` | 1 | 41 |  |
-| `0x00db` | 88 | 61x5, 63, 78, 82x17, 84, 103x17, 124x8, 133x4, 138, 145x8, 147, 149x2,... |  |
+| `0x00db` | 88 | 61x5, 63, 78, 82x17, 84, 103x17, 124x8, 133x4, 138, 145x8, 147, 149x2,... | The forms of MoveSelf that do not fit the fixed 21-byte fragments (movement that includes a jump has fragments of other sizes): only the header is decoded |
 | `0x00de` | 1 | 6 | Bare opcode, no fields |
-| `0x00e1` | 20 | 134x5, 228, 236x7, 244x7 |  |
+| `0x00e1` | 20 | 134x5, 228, 236x7, 244x7 | Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this |
 | `0x00e7` | 12 | 164x12 |  |
 | `0x013e` | 1 | 57 |  |
-| `0x013f` | 3 | 55x3 |  |
+| `0x013f` | 3 | 55x3 | 27 bytes, seen twice, once as we changed walking direction; unexplained |
 | `0x0155` | 1 | 6 | Bare opcode, no fields |
 | `0x0186` | 1 | 18 |  |
 | `0x0196` | 1 | 7 |  |
@@ -178,7 +178,7 @@ The payload cipher is not broken; instead the opcode is read from the client's o
 | `0x02e7` | 1 | 10 |  |
 | `0x02ef` | 3 | 18x3 |  |
 | `0x02f0` | 5 | 6x5 | Bare opcode, no fields |
-| `0x02fe` | 340 | 122x66, 143x89, 164x99, 173x5, 185x39, 194x5, 206x13, 215x4, 227x4, 23... | Most frequent outgoing opcode by far; payload carries a small incrementing counter. Probably movement (unverified) |
+| `0x02fe` | 340 | 122x66, 143x89, 164x99, 173x5, 185x39, 194x5, 206x13, 215x4, 227x4, 23... | The most frequent outgoing opcode in the bot's runs (340 of ~500 packets), carrying a small incrementing counter. NOT movement (that is 0x00db) and not the basic attack (0x00e1); with the bot holding the attack key it is probably the repeated attack or skill packet, unverified |
 | `0x032b` | 2 | 40x2 |  |
 
 Total: 25 distinct outgoing opcodes, 490 packets in one short capture; rarer actions (chat, NPC, shop, skills, party) have not been triggered yet and are absent.

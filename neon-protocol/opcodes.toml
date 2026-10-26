@@ -1498,7 +1498,7 @@ id = 0x00e1
 dir = "out"
 name = "Attack"
 status = "structure"
-summary = "Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text "User Melee1" (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this"
+summary = "Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this"
 len_min = 130
 len_max = 130
 
