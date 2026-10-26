@@ -305,3 +305,7 @@ What the first wire captures established (all in `opcodes.toml` summaries or her
 * **A 5-minute exchange**: incoming `0x001d` (22 bytes) is answered within 0.1 s by a 22-byte wire packet (jib01: `0xfc6b`) whose u32@18 equals the `0x001d`'s u32@2 (5 of 5).
 * The 1 s ticks `0x003d`, `0x002c`, `0x006e`, `0x023f` I had registered from the old logs never existed (heuristic mis-decryptions; removed).
 
+### Robustness check (2026-10-26 19:35)
+`neon-stream --net-replay` now prints `recv_exact`, `recv_heuristic`, `recv_chain_breaks`, `send_decrypted`, `send_chain_breaks`. On a fresh 90 s capture of a hunting character (shurella2): 4,953 incoming
+frames, 4,941 decrypted exactly (the other 12 are the frames before the IV is learned), 0 chain breaks, 0 framer resyncs, 3,580 events; on a town capture (jib01, 2 min): 373 incoming (361 exact) and 270 outgoing frames decrypted, 0 breaks.
+

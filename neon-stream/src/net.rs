@@ -662,6 +662,14 @@ impl NetDecoder {
     pub fn resyncs(&self) -> u64 {
         self.flows.values().map(|f| f.fr.resyncs as u64).sum()
     }
+
+    /// (incoming packets decrypted exactly, incoming packets that needed the heuristic, incoming IV chain breaks,
+    /// outgoing packets decrypted, outgoing chain breaks) over the connections seen so far.
+    pub fn cipher_stats(&self) -> (u64, u64, u64, u64, u64) {
+        let i = self.flows.values().fold((0, 0, 0), |a, f| (a.0 + f.rc.exact, a.1 + f.rc.heuristic, a.2 + f.rc.breaks));
+        let o = self.out_flows.values().fold((0, 0), |a, f| (a.0 + f.sc.exact, a.1 + f.sc.breaks));
+        (i.0, i.1, i.2, o.0, o.1)
+    }
 }
 
 /// Local ports of `pid`'s TCP connections to a game server port, from /proc (its socket inodes matched against

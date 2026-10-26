@@ -844,11 +844,16 @@ fn parse_hex_u16(s: &str) -> Result<u16, String> {
 }
 
 fn pump_pcap<R: std::io::Read>(r: R, tx: std::sync::mpsc::Sender<NetMsg>, opts: NetOpts) -> (u64, u64) {
+    pump_pcap_stats(r, tx, opts).0
+}
+
+/// `pump_pcap` plus the decoder's cipher statistics (exact in, heuristic in, in breaks, out decrypted, out breaks).
+fn pump_pcap_stats<R: std::io::Read>(r: R, tx: std::sync::mpsc::Sender<NetMsg>, opts: NetOpts) -> ((u64, u64), (u64, u64, u64, u64, u64)) {
     let mut reader = match net::PcapReader::new(r) {
         Ok(r) => r,
         Err(e) => {
             tracing::error!("network capture: {}", e);
-            return (0, 0);
+            return ((0, 0), (0, 0, 0, 0, 0));
         }
     };
     let mut dec = net::NetDecoder::default();
@@ -895,13 +900,13 @@ fn pump_pcap<R: std::io::Read>(r: R, tx: std::sync::mpsc::Sender<NetMsg>, opts: 
             p.store(dec.packets, std::sync::atomic::Ordering::Relaxed);
         }
         if std::mem::take(&mut dec.new_flow) && tx.send(NetMsg::NewFlow).is_err() {
-            return (dec.packets, dec.resyncs());
+            return ((dec.packets, dec.resyncs()), dec.cipher_stats());
         }
         if !evs.is_empty() && tx.send(NetMsg::Events(evs)).is_err() {
-            return (dec.packets, dec.resyncs());
+            return ((dec.packets, dec.resyncs()), dec.cipher_stats());
         }
     }
-    (dec.packets, dec.resyncs())
+    ((dec.packets, dec.resyncs()), dec.cipher_stats())
 }
 
 fn start_net_live(iface: &str, opts: NetOpts) -> NetCtx {
@@ -934,7 +939,7 @@ fn replay_pcap(path: &std::path::Path) {
         std::process::exit(1);
     });
     let (tx, rx) = std::sync::mpsc::channel();
-    let (packets, resyncs) = pump_pcap(std::io::BufReader::new(f), tx, NetOpts::default());
+    let ((packets, resyncs), cs) = pump_pcap_stats(std::io::BufReader::new(f), tx, NetOpts::default());
     let mut counts: std::collections::BTreeMap<&str, u64> = Default::default();
     let mut tracker = net::NetTracker::default();
     let (mut events, mut flows) = (0u64, 0u32);
@@ -978,7 +983,7 @@ fn replay_pcap(path: &std::path::Path) {
     println!(
         "{}",
         serde_json::json!({
-            "packets_framed": packets, "resyncs": resyncs, "event_counts": counts, "events": events, "connections": flows, "mobs_alive": tracker.mobs.len(),
+            "packets_framed": packets, "resyncs": resyncs, "recv_exact": cs.0, "recv_heuristic": cs.1, "recv_chain_breaks": cs.2, "send_decrypted": cs.3, "send_chain_breaks": cs.4, "event_counts": counts, "events": events, "connections": flows, "mobs_alive": tracker.mobs.len(),
             "mobs_by_template": by, "players": tracker.players.len(), "drops_tracked": tracker.drops.len(), "final_stats": format!("{:?}", tracker.stats), "sample_player_names": names,
         })
     );
