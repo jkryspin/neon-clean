@@ -214,6 +214,9 @@ fn a_real_player_attack_broadcast_decodes() {
     let dmg = u32::from_le_bytes(p[71..75].try_into().unwrap());
     assert!((10_000_000..100_000_000).contains(&mob), "mob oid {mob}");
     assert!((1..10_000).contains(&dmg), "value {dmg}");
+    // the attacker's position is stored twice and both pairs are plausible map coordinates
+    let (ax, ay, bx, by) = (d.get("x").unwrap().as_i64().unwrap(), d.get("y").unwrap().as_i64().unwrap(), d.get("x2").unwrap().as_i64().unwrap(), d.get("y2").unwrap().as_i64().unwrap());
+    assert!((ax - bx).abs() < 400 && (ay - by).abs() < 400, "the two position pairs agree: ({ax},{ay}) vs ({bx},{by})");
     // a swing at nothing is 63 bytes and still decodes
     assert!(r.decode(Dir::In, &p[..63]).is_some());
     assert!(r.decode(Dir::In, &p[..62]).is_none());
@@ -269,10 +272,10 @@ fn records_expand_and_layout_reports_every_explained_byte() {
     let mut p97 = p87.clone();
     p97.extend_from_slice(&[0; 10]);
     assert!(r.decode(Dir::In, &p97).is_none());
-    // layout: opcode (2) + char_id (4) + record fields (4 + 4 each)
+    // layout: opcode (2) + char_id (4) + two position pairs (4 x 4) + record fields (4 + 4 each)
     let spans = r.layout(Dir::In, &p111);
     let bytes: usize = spans.iter().map(|s| s.size).sum();
-    assert_eq!(bytes, 2 + 4 + 2 * (4 + 4));
+    assert_eq!(bytes, 2 + 4 + 16 + 2 * (4 + 4));
     assert!(spans.iter().any(|s| s.name == "target[1].value" && s.off == 63 + 24 + 8));
     // a mode byte counts as explained too
     let exp = plain(c["0x8b_exp"]["plain"].as_str().unwrap());
