@@ -337,3 +337,9 @@ so the per-connection map pipeline works on a fresh connection without hand work
 A fresh 60 s capture of jib02's in-game connection (port 8577): 204 incoming frames, 192 exact (12 before the IV was learned), 0 chain breaks, 20 client frames decrypted, 0 breaks. So the same two rules hold on three different accounts and connections
 (jib01, shurella2, jib02). The in-game packets of jib02 are on the same connection as its hello and bulk table; the first 12 frames of any capture started mid-stream use the old heuristic, a capture that starts before the hello can in principle decode them exactly.
 
+### First server round trip seen on the wire: quest accept (2026-10-26 19:50, jib01, one observation)
+Accepting Pio's quest "Collecting Recycled Goods" (NPC dialog -> quest link -> ACCEPT) produced, within 0.2 s of the click:
+* client->server, wire opcode `0xcc5e` on this connection, 19 bytes: `5e cc | 01 | f4 03 00 00 | 12 00 00 00 | 8d 01 | 12 01 | 00 00 00 00`: an action byte (1 = start), the quest id `0x03f4 = 1012` as u32, the NPC id `0x12` as u32, then our position x = 397, y = 274 (matches the memory reader), then four zero bytes.
+* server->client `0x008b` (10 bytes) `8b 00 01 f4 03 00 00 01 00 00` (quest 1012, state 1) and another `0x008b` (17 bytes, kind 0x0d) that carries the text `qid=1012`, and `0x02e0` (16 bytes) `e0 02 0c f4 03 00 00 12 00 00 00 ...` with the quest id at @3 and the NPC id at @7.
+Only one accept was done (repeating needs abandoning the quest, which I did not do), so this is a single observation, but the quest id appears in all three replies and in the request, which chance does not explain. Opening and ending the NPC dialog before accepting sent nothing (5/5, above).
+
