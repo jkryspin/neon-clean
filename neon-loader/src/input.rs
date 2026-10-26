@@ -1,7 +1,35 @@
 //! Input control for Wine/MapleStory via X11
 
+use std::collections::VecDeque;
 use std::process::Command;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tracing::{debug, info};
+
+/// At most `max` key presses/holds and clicks in any sliding second ("no packet spamming", docs/authorization.md).
+/// Releases are never delayed: a key must always be able to come up.
+pub struct RateCap {
+    max: usize,
+    window: Duration,
+    times: VecDeque<Instant>,
+}
+
+impl RateCap {
+    pub fn new(max: usize) -> Self {
+        RateCap { max, window: Duration::from_secs(1), times: VecDeque::new() }
+    }
+
+    /// How long to wait before an event at `now` is allowed; the event is recorded as happening after that wait.
+    pub fn reserve(&mut self, now: Instant) -> Duration {
+        while self.times.front().map_or(false, |t| now.saturating_duration_since(*t) >= self.window) {
+            self.times.pop_front();
+        }
+        let at = if self.times.len() >= self.max { self.times[self.times.len() - self.max] + self.window } else { now };
+        let at = at.max(now);
+        self.times.push_back(at);
+        at - now
+    }
+}
 
 pub struct InputController {
     xkeys: Option<crate::xkeys::XKeys>,
@@ -10,9 +38,18 @@ pub struct InputController {
     window_size: (i32, i32),
     display: String,
     xauthority: String,
+    cap: Mutex<RateCap>,
 }
 
 impl InputController {
+    fn throttle(&self) {
+        let wait = self.cap.lock().map(|mut c| c.reserve(Instant::now())).unwrap_or_default();
+        if !wait.is_zero() {
+            debug!("input rate cap: waiting {:?}", wait);
+            std::thread::sleep(wait);
+        }
+    }
+
     pub fn new() -> Result<Self, String> {
         let display = std::env::var("DISPLAY").unwrap_or_else(|_| ":0".to_string());
         let xauthority = std::env::var("XAUTHORITY")
@@ -39,6 +76,7 @@ impl InputController {
             window_size: (1280, 720),
             display,
             xauthority,
+            cap: Mutex::new(RateCap::new(30)),
         })
     }
 
@@ -190,6 +228,7 @@ impl InputController {
 
     /// Press and release a key
     pub fn press_key(&self, key: &str) -> Result<(), String> {
+        self.throttle();
         debug!("Pressing key: {}", key);
         let status = Command::new("xdotool")
             .arg("key")
@@ -231,6 +270,7 @@ impl InputController {
 
     /// Press and hold a key
     pub fn key_down(&self, key: &str) -> Result<(), String> {
+        self.throttle();
         debug!("Key down: {}", key);
         if let Some(x) = self.xkeys.as_ref().filter(|x| x.has(key)) {
             return x.send(key, true);
@@ -358,5 +398,37 @@ impl InputController {
 
     pub fn get_window_size(&self) -> (i32, i32) {
         self.window_size
+    }
+}
+
+#[cfg(test)]
+mod rate_tests {
+    use super::*;
+
+    #[test]
+    fn the_31st_event_within_a_second_waits_for_the_first_to_leave_the_window() {
+        let mut c = RateCap::new(30);
+        let t0 = Instant::now();
+        for i in 0..30 {
+            assert_eq!(c.reserve(t0 + Duration::from_millis(i)), Duration::ZERO, "event {i}");
+        }
+        let w = c.reserve(t0 + Duration::from_millis(30));
+        assert_eq!(w, Duration::from_millis(970), "waits until t0 + 1 s");
+    }
+
+    #[test]
+    fn a_burst_is_spread_out_and_a_quiet_second_resets_it() {
+        let mut c = RateCap::new(5);
+        let t0 = Instant::now();
+        // never more than 5 reserved slots inside any 1 s span
+        let mut c = RateCap::new(5);
+        let mut slots = vec![];
+        for _ in 0..40 {
+            slots.push(c.reserve(t0));
+        }
+        for w in slots.windows(6) {
+            assert!(w[5] - w[0] >= Duration::from_secs(1), "6 events inside a second: {w:?}");
+        }
+        assert_eq!(c.reserve(t0 + Duration::from_secs(60)), Duration::ZERO, "a long pause clears the history");
     }
 }
