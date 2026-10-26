@@ -1,4 +1,5 @@
 use neon_protocol::Registry;
+use neon_world::decode::{PartyMsg, StatUpdate};
 use neon_world::*;
 
 fn plain(hex: &str) -> Vec<u8> {
@@ -36,7 +37,15 @@ fn real_packets_become_the_expected_events() {
     assert_eq!(event_from_packet(&r, &fx("0x29d")), Some(Event::PlayerMove { char_id: 562142, x: -185, y: 274 }));
     assert_eq!(event_from_packet(&r, &fx("0x471")), Some(Event::DropSpawn { oid: 1342746, owner: 334426, x: 1677, y: 215 }));
     assert_eq!(event_from_packet(&r, &fx("0x472")), Some(Event::DropRemove { oid: 1342613 }));
-    assert_eq!(event_from_packet(&r, &fx("0x7e_hp")), Some(Event::StatMask { mask: 1024 }));
+    assert_eq!(
+        event_from_packet(&r, &fx("0x7e_hp")),
+        Some(Event::Stats(StatUpdate { hp: Some(141), ..Default::default() })),
+        "real HP update: the value is read, not just the mask"
+    );
+    assert_eq!(
+        event_from_packet(&r, &fx("0x7e_exp")),
+        Some(Event::Stats(StatUpdate { exp: Some(59), ..Default::default() }))
+    );
 }
 
 #[test]
@@ -172,4 +181,71 @@ fn view_server_serves_page_state_and_404_over_a_real_socket() {
     let n = s.read(&mut buf).unwrap();
     all.push_str(&String::from_utf8_lossy(&buf[..n]));
     assert!(all.contains("\"map\":2020"), "stream did not pick up the new map: {all}");
+}
+
+fn hex(s: &str) -> Vec<u8> {
+    s.split_whitespace().map(|b| u8::from_str_radix(b, 16).unwrap()).collect()
+}
+
+fn party() -> serde_json::Value {
+    serde_json::from_str(include_str!("../../neon-stream/tests/fixtures/party_packets.json")).unwrap()
+}
+
+#[test]
+fn real_captured_stat_and_pickup_packets() {
+    // From neon-stream's live captures (KryJib01 on Maple Island, 2026-10-25).
+    let r = Registry::builtin().unwrap();
+    let ev = |h: &str| event_from_packet(&r, &hex(h));
+    assert_eq!(ev("7e 00 01 00 01 00 00 04 00 2b 02 00 00 00 00 00 00 00 00"), Some(Event::Stats(StatUpdate { meso: Some(555), ..Default::default() })));
+    assert_eq!(ev("7e 00 00 00 01 00 00 01 00 a5 01 00 00 00 00 00 00 00 00"), Some(Event::Stats(StatUpdate { exp: Some(421), ..Default::default() })));
+    assert_eq!(ev("8b 00 00 00 00 04 09 3d 00 01 00 00 00 00"), Some(Event::Pickup { item: 4000004, qty: 1 }));
+    assert_eq!(ev("8b 00 00 00 01 00 0b 00 00 00 00 00 00 00 00 00"), None, "a meso pickup message is not an item");
+    // JOB: read, but 101 is no job.
+    let mut j = hex("7e 00 00 00 01 20 80 00 00 64 00 01 00 00 00");
+    assert_eq!(event_from_packet(&r, &j), Some(Event::Stats(StatUpdate { job: Some(100), ..Default::default() })));
+    j[9] = 0x65;
+    assert_ne!(event_from_packet(&r, &j), Some(Event::Stats(StatUpdate { job: Some(101), ..Default::default() })));
+    assert!(decode::is_job(100) && decode::is_job(132) && !decode::is_job(101) && !decode::is_job(600));
+}
+
+#[test]
+fn real_party_packets_build_and_clear_the_party() {
+    let r = Registry::builtin().unwrap();
+    let f = party();
+    let create = event_from_packet(&r, &hex(&f["create586"].as_str().unwrap().chars().collect::<Vec<_>>().chunks(2).map(|c| c.iter().collect::<String>()).collect::<Vec<_>>().join(" "))).unwrap();
+    let Event::Party(PartyMsg::List { members, .. }) = &create else { panic!("{create:?}") };
+    assert_eq!(members.len(), 1);
+    assert_eq!(members[0].name, "shurelia2");
+    assert_eq!(members[0].level, 10 /* from the 2026-10-26 capture: Swordsman 10 */);
+    let mut w = World::new();
+    w.apply(&create, 0);
+    assert_eq!(w.snapshot().party.len(), 1);
+    let plain = |k: &str| -> Vec<u8> { let s = f[k].as_str().unwrap(); (0..s.len() / 2).map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap()).collect() };
+    let join = event_from_packet(&r, &plain("join1267")).unwrap();
+    w.apply(&join, 1);
+    assert_eq!(w.snapshot().party.len(), 2);
+    assert!(w.snapshot().party.iter().any(|m| m.name == "KryJib01"));
+    let left = event_from_packet(&r, &plain("leave8")).unwrap();
+    assert!(matches!(left, Event::Party(PartyMsg::Left { .. })));
+    w.apply(&left, 2);
+    assert!(w.snapshot().party.is_empty() && w.snapshot().party_id.is_none(), "one member left over is no party");
+}
+
+#[test]
+fn me_pickups_and_inventory_accumulate() {
+    let mut w = World::new();
+    w.apply(&Event::Stats(StatUpdate { hp: Some(100), max_hp: Some(120), ..Default::default() }), 0);
+    w.apply(&Event::Stats(StatUpdate { hp: Some(90), exp: Some(5), ..Default::default() }), 1);
+    let me = &w.snapshot().me;
+    assert_eq!((me.hp, me.max_hp, me.exp), (Some(90), Some(120), Some(5)), "partial updates merge");
+    for i in 0..60 {
+        w.apply(&Event::Pickup { item: 4000000 + i, qty: 1 }, 2);
+    }
+    assert_eq!(w.snapshot().pickups.len(), 50);
+    assert_eq!(w.snapshot().pickups.last(), Some(&(4000059, 1)));
+    w.apply(&Event::Inventory { tab: 2, slot: 3, item: Some(2000000), qty: Some(5) }, 3);
+    w.apply(&Event::Inventory { tab: 2, slot: 3, item: None, qty: Some(4) }, 4);
+    assert_eq!(w.snapshot().inventory["2:3"], (Some(2000000), Some(4)), "quantity update keeps the known item");
+    w.apply(&Event::Inventory { tab: 2, slot: 3, item: None, qty: None }, 5);
+    assert!(w.snapshot().inventory.is_empty());
 }

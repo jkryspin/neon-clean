@@ -35,6 +35,8 @@
 <main>
   <canvas id="c" width="900" height="420"></canvas>
   <aside>
+    <h2>Me</h2><ul id="me"></ul>
+    <h2>Party</h2><ul id="party"></ul>
     <h2>Players</h2><ul id="players"></ul>
     <h2>Mobs</h2><ul id="mobs"></ul>
     <h2>Drops</h2><ul id="drops"></ul>
@@ -82,6 +84,15 @@ function render(s) {
   snap = s;
   document.getElementById('map').textContent = 'map: ' + (s.map ?? '-');
   document.getElementById('counts').textContent = s.events + ' events';
+  const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
+  list('me', [
+    '<span>Level</span><span>' + (m.level ?? '?') + (m.job != null ? ' (job ' + m.job + ')' : '') + '</span>',
+    '<span>HP</span><span>' + (m.hp ?? '?') + (m.max_hp ? ' / ' + m.max_hp + ' ' + pct(m.hp, m.max_hp) : '') + '</span>',
+    '<span>MP</span><span>' + (m.mp ?? '?') + (m.max_mp ? ' / ' + m.max_mp + ' ' + pct(m.mp, m.max_mp) : '') + '</span>',
+    '<span>EXP</span><span>' + (m.exp ?? '?') + '</span>',
+    '<span>Meso</span><span>' + (m.meso ?? '?') + '</span>',
+    '<span>Last pickup</span><span>' + (s.pickups.length ? s.pickups[s.pickups.length - 1][0] + ' x' + s.pickups[s.pickups.length - 1][1] : '-') + '</span>']);
+  list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
   list('players', Object.entries(s.players).map(([id, p]) => '<span><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
   list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + (m.template != null ? 'template ' + m.template : 'unknown') + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + id + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));

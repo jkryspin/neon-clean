@@ -4,6 +4,7 @@
 //! into state; [`World::snapshot`] is what the view API serves. A packet log can be replayed offline with
 //! [`replay`], so the model is testable without a live client.
 
+pub mod decode;
 pub mod inspector;
 pub mod view;
 
@@ -24,6 +25,12 @@ pub enum Event {
     MapEnter { map: u32 },
     /// Own stat update; only the mask is read by the registry (values depend on the mask).
     StatMask { mask: u32 },
+    /// Own stat update with decoded values (what changed).
+    Stats(decode::StatUpdate),
+    Party(decode::PartyMsg),
+    Pickup { item: u32, qty: u32 },
+    /// One inventory slot: `item` known for a new stack, `qty` None when removed.
+    Inventory { tab: u8, slot: u16, item: Option<u32>, qty: Option<u32> },
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -50,8 +57,30 @@ pub struct Drop {
     pub last_ms: u64,
 }
 
+/// Our own character, as far as stat updates have told us.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+pub struct Me {
+    pub hp: Option<u32>,
+    pub max_hp: Option<u32>,
+    pub mp: Option<u32>,
+    pub max_mp: Option<u32>,
+    pub exp: Option<u32>,
+    pub level: Option<u32>,
+    pub ap: Option<u32>,
+    pub sp: Option<u32>,
+    pub job: Option<u32>,
+    pub meso: Option<u64>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
 pub struct Snapshot {
+    pub me: Me,
+    pub party_id: Option<u32>,
+    pub party: Vec<decode::PartyMember>,
+    /// Most recent pickups, newest last (item id, quantity).
+    pub pickups: Vec<(u32, u32)>,
+    /// Inventory slots we have heard about: "tab:slot" -> (item if known, quantity).
+    pub inventory: BTreeMap<String, (Option<u32>, Option<u32>)>,
     pub map: Option<u32>,
     pub events: u64,
     pub now_ms: u64,
@@ -113,6 +142,41 @@ impl World {
                 s.map = Some(*map);
             }
             Event::StatMask { .. } => {}
+            Event::Stats(u) => {
+                macro_rules! set { ($f:ident) => { if u.$f.is_some() { s.me.$f = u.$f; } }; }
+                set!(hp); set!(max_hp); set!(mp); set!(max_mp); set!(exp); set!(level); set!(ap); set!(sp); set!(job); set!(meso);
+            }
+            Event::Party(decode::PartyMsg::List { id, members }) => {
+                s.party_id = Some(*id);
+                s.party = members.clone();
+            }
+            Event::Party(decode::PartyMsg::Left { char_id }) => {
+                // Someone left; if it was one of the members drop them, and an emptied party is gone. (When *we* leave,
+                // the server sends our own id: the list shrinks the same way, and a lone member's departure disbands it.)
+                s.party.retain(|m| m.char_id != *char_id);
+                if s.party.len() <= 1 {
+                    s.party.clear();
+                    s.party_id = None;
+                }
+            }
+            Event::Pickup { item, qty } => {
+                s.pickups.push((*item, *qty));
+                if s.pickups.len() > 50 {
+                    s.pickups.remove(0);
+                }
+            }
+            Event::Inventory { tab, slot, item, qty } => {
+                let key = format!("{tab}:{slot}");
+                match qty {
+                    None => {
+                        s.inventory.remove(&key);
+                    }
+                    Some(_) => {
+                        let known = item.or_else(|| s.inventory.get(&key).and_then(|e| e.0));
+                        s.inventory.insert(key, (known, *qty));
+                    }
+                }
+            }
         }
     }
 
@@ -137,6 +201,19 @@ pub fn event_from_packet(reg: &Registry, plain: &[u8]) -> Option<Event> {
         let map = u32::from_le_bytes(plain[36..40].try_into().ok()?);
         return (1..=999_999_999).contains(&map).then_some(Event::MapEnter { map });
     }
+    if plain.len() >= 2 {
+        match u16::from_le_bytes([plain[0], plain[1]]) {
+            0x007e => return decode::parse_stats(plain).map(Event::Stats).or_else(|| event_from_registry(reg, plain)),
+            0x00a7 => return decode::parse_party(plain).map(Event::Party),
+            0x008b => return decode::parse_pickup(plain).map(|(item, qty)| Event::Pickup { item, qty }),
+            0x0072 => return decode::parse_inventory(plain).map(|(tab, slot, item, qty)| Event::Inventory { tab, slot, item, qty }),
+            _ => {}
+        }
+    }
+    event_from_registry(reg, plain)
+}
+
+fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
     let d = reg.decode(Dir::In, plain)?;
     let name = d.name.as_deref()?;
     Some(match name {
