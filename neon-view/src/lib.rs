@@ -24,11 +24,13 @@ impl Shared {
     pub fn feed(&mut self, reg: &Registry, dir: Dir, plain: &[u8], t_ms: u64) {
         self.packets.record(reg, dir, plain, t_ms);
         self.explorer.record(dir, plain);
-        if dir == Dir::In {
-            if let Some(e) = event_from_packet(reg, plain) {
-                self.explorer.learn(&e);
-                self.world.apply(&e, t_ms);
-            }
+        let event = match dir {
+            Dir::In => event_from_packet(reg, plain),
+            Dir::Out => neon_world::event_from_out_packet(reg, plain),
+        };
+        if let Some(e) = event {
+            self.explorer.learn(&e);
+            self.world.apply(&e, t_ms);
         }
     }
 

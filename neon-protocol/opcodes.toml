@@ -300,11 +300,6 @@ summary = "48 bytes, mostly zeros with two u64-looking values near the end; abou
 len_min = 48
 len_max = 48
 
-[[opcode]]
-id = 0x02fe
-dir = "out"
-status = "structure"
-summary = "Most frequent outgoing opcode by far; payload carries a small incrementing counter. Probably movement (unverified)"
 
 [[opcode]]
 id = 0x00de
@@ -1193,15 +1188,7 @@ id = 0x00d3
 dir = "out"
 status = "observed"
 
-[[opcode]]
-id = 0x00db
-dir = "out"
-status = "observed"
 
-[[opcode]]
-id = 0x00e1
-dir = "out"
-status = "observed"
 
 [[opcode]]
 id = 0x00e7
@@ -1213,10 +1200,6 @@ id = 0x013e
 dir = "out"
 status = "observed"
 
-[[opcode]]
-id = 0x013f
-dir = "out"
-status = "observed"
 
 [[opcode]]
 id = 0x0186
@@ -1472,3 +1455,85 @@ field = [
   { name = "mob_oid", ty = "u32", off = 0 },
   { name = "value", ty = "u32", off = 8, min = 0, max = 10000000 },
 ]
+
+# ---- outgoing (client -> server): plaintext read from the client's packet object (docs/network-protocol.md) -----------------
+[[opcode]]
+id = 0x00db
+dir = "out"
+name = "MoveSelf"
+status = "structure"
+summary = "Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players"
+len_min = 57
+field = [
+  { name = "tick", ty = "u32", off = 7 },
+  { name = "x", ty = "i16", off = 16, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 18, min = -20000, max = 20000 },
+  { name = "count", ty = "u8", off = 24 },
+]
+
+[opcode.records]
+name = "move"
+start = 26
+stride = 21
+tail = 10
+count_at = 24
+field = []
+
+[[opcode]]
+id = 0x00db
+dir = "out"
+name = "MoveSelf"
+status = "structure"
+summary = "The forms of MoveSelf that do not fit the fixed 21-byte fragments (movement that includes a jump has fragments of other sizes): only the header is decoded"
+len_min = 57
+field = [
+  { name = "tick", ty = "u32", off = 7 },
+  { name = "x", ty = "i16", off = 16, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 18, min = -20000, max = 20000 },
+  { name = "count", ty = "u8", off = 24 },
+]
+
+[[opcode]]
+id = 0x00e1
+dir = "out"
+name = "Attack"
+status = "structure"
+summary = "Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text "User Melee1" (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this"
+len_min = 130
+len_max = 130
+
+[[opcode]]
+id = 0x013f
+dir = "out"
+status = "structure"
+summary = "27 bytes, seen twice, once as we changed walking direction; unexplained"
+len_min = 27
+len_max = 27
+
+[[opcode]]
+id = 0x0407
+dir = "out"
+status = "structure"
+summary = "20 bytes, seen once after about 14 s of standing still (a heartbeat?); unexplained"
+len_min = 20
+len_max = 20
+
+[[opcode]]
+id = 0x0265
+dir = "out"
+status = "structure"
+summary = "74 bytes, seen with 0x0266 about 7 s after the last action while idle; contains what look like random bytes; unexplained"
+
+[[opcode]]
+id = 0x0266
+dir = "out"
+status = "structure"
+summary = "22 bytes, sent together with 0x0265; unexplained"
+len_min = 22
+len_max = 22
+
+[[opcode]]
+id = 0x02fe
+dir = "out"
+status = "structure"
+summary = "The most frequent outgoing opcode in the bot's runs (340 of ~500 packets), carrying a small incrementing counter. NOT movement (that is 0x00db) and not the basic attack (0x00e1); with the bot holding the attack key it is probably the repeated attack or skill packet, unverified"

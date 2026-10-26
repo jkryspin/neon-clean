@@ -17,6 +17,8 @@ pub enum Event {
     MobKill { oid: u32 },
     PlayerSpawn { char_id: u32, name: String },
     PlayerMove { char_id: u32, x: i32, y: i32 },
+    /// Our own movement, read from the packet we send (the server never echoes it to us).
+    SelfMove { x: i32, y: i32, tick: u32 },
     /// An NPC walked (object id, end of its last fragment).
     NpcMove { oid: u32, x: i32, y: i32 },
     DropSpawn { oid: u32, owner: u32, x: i32, y: i32 },
@@ -184,6 +186,10 @@ impl World {
                 p.y = Some(*y);
                 p.last_ms = now_ms;
             }
+            Event::SelfMove { x, y, .. } => {
+                s.me.x = Some(*x);
+                s.me.y = Some(*y);
+            }
             Event::NpcMove { oid, x, y } => {
                 s.npcs.insert(*oid, Npc { x: *x, y: *y, last_ms: now_ms });
             }
@@ -314,6 +320,16 @@ pub fn event_from_packet(reg: &Registry, plain: &[u8]) -> Option<Event> {
         }
     }
     event_from_registry(reg, plain)
+}
+
+/// The world-relevant meaning of a packet *we sent*. Today only our own movement: it is the only way to know where we are
+/// without reading the client's memory.
+pub fn event_from_out_packet(reg: &Registry, plain: &[u8]) -> Option<Event> {
+    let d = reg.decode(Dir::Out, plain)?;
+    match d.name.as_deref()? {
+        "MoveSelf" => Some(Event::SelfMove { x: int(&d, "x")? as i32, y: int(&d, "y")? as i32, tick: int(&d, "tick")? as u32 }),
+        _ => None,
+    }
 }
 
 fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {

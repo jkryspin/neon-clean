@@ -22,10 +22,12 @@ impl Sink for WorldSink {
     }
     fn feed(&mut self, rec: &Record) {
         self.fed.push((rec.t_ms, rec.dir));
-        if rec.dir == Dir::In {
-            if let Some(e) = event_from_packet(&self.reg, &rec.plain) {
-                self.w.apply(&e, rec.t_ms);
-            }
+        let e = match rec.dir {
+            Dir::In => event_from_packet(&self.reg, &rec.plain),
+            Dir::Out => event_from_out_packet(&self.reg, &rec.plain),
+        };
+        if let Some(e) = e {
+            self.w.apply(&e, rec.t_ms);
         }
     }
 }
@@ -128,7 +130,8 @@ fn speed_pause_and_end_of_session() {
 fn outgoing_records_replay_without_touching_the_world() {
     let mut recs = session().records;
     let n_in = recs.len();
-    recs.push(Record { t_ms: 100, dir: Dir::Out, plain: vec![0xfe, 0x02, 1, 2, 3] });
+    // an outgoing packet that means nothing to the world (an undecoded opcode)
+    recs.push(Record { t_ms: 100, dir: Dir::Out, plain: vec![0x07, 0x04, 1, 2, 3] });
     let s = Session::from_lines(Session { records: recs, bad_lines: 0 }.to_text().lines().map(String::from)); // sorted, as every loaded session is
     let mut a = WorldSink::new();
     Replayer::new(s.clone()).seek(&mut a, u64::MAX);
@@ -138,4 +141,40 @@ fn outgoing_records_replay_without_touching_the_world() {
     Replayer::new(only_in).seek(&mut b, u64::MAX);
     assert_eq!(a.w.snapshot(), b.w.snapshot());
     assert_eq!(a.fed.len(), b.fed.len() + 1, "the out record was delivered to the sink");
+}
+
+#[test]
+fn our_own_position_comes_from_the_packets_we_send() {
+    // A real walk (jib01 in Amherst, 2026-10-26): right for 2 s, left for 2 s, a jump, another jump while walking, then standing.
+    // 17 outgoing 0x00db movement packets; no incoming packet is involved.
+    let s = Session::from_lines(include_str!("fixtures/out_walk.jsonl").lines().map(String::from));
+    assert_eq!(s.records.len(), 17);
+    assert!(s.records.iter().all(|r| r.dir == Dir::Out));
+    let mut sink = WorldSink::new();
+    let mut r = Replayer::new(s.clone());
+    // the walk right: x grows (415 at the start, the turning point 721 in the packet at 2.6 s)
+    r.seek(&mut sink, 0);
+    let x0 = sink.w.snapshot().me.x.unwrap();
+    r.seek(&mut sink, 2600);
+    let peak = sink.w.snapshot().me.x.unwrap();
+    assert!(peak > x0 + 250, "walked right: {x0} -> {peak}");
+    // the walk left: x shrinks again after the turning point (packets arrive every ~0.5 s, so allow for that)
+    r.seek(&mut sink, 4600);
+    let x_left = sink.w.snapshot().me.x.unwrap();
+    assert!(x_left < peak - 250, "walked left: {peak} -> {x_left}");
+    // the jump: y goes above the ground (smaller y) at some point, never below it
+    let mut min_y = i32::MAX;
+    let mut max_y = i32::MIN;
+    for t in (0..s.duration_ms()).step_by(100) {
+        r.seek(&mut sink, t);
+        if let Some(y) = sink.w.snapshot().me.y {
+            min_y = min_y.min(y);
+            max_y = max_y.max(y);
+        }
+    }
+    assert!(min_y < 250 && max_y <= 274, "jump arc {min_y}..{max_y} on a ground at y = 274");
+    // the end: exactly where the independent memory reader put the character a moment later
+    r.seek(&mut sink, u64::MAX);
+    let me = &sink.w.snapshot().me;
+    assert_eq!((me.x, me.y), (Some(598), Some(274)));
 }

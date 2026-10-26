@@ -383,3 +383,34 @@ fn a_real_pet_move_decodes_into_fragments() {
     let owner = d.get("char_id").unwrap().as_i64().unwrap();
     assert!((100_000..10_000_000).contains(&owner));
 }
+
+#[test]
+fn real_outgoing_packets_decode_and_the_movement_fragments_fit() {
+    let r = Registry::builtin().unwrap();
+    let o: serde_json::Value = serde_json::from_str(include_str!("fixtures/out_packets.json")).unwrap();
+    let get = |k: &str| plain(o[k]["plain"].as_str().unwrap());
+    for (k, n) in [("0xdb_n1", 1), ("0xdb_n2", 2), ("0xdb_n4", 4)] {
+        let p = get(k);
+        assert_eq!(p.len(), 26 + 21 * n + 10, "{k}");
+        let d = r.decode(Dir::Out, &p).unwrap();
+        assert_eq!(d.name.as_deref(), Some("MoveSelf"));
+        assert_eq!(d.get("count").unwrap().as_i64(), Some(n as i64));
+        // our own position: the walk happened on Amherst's ground (y = 274) or in a jump above it
+        let y = d.get("y").unwrap().as_i64().unwrap();
+        assert!((150..=274).contains(&y), "{k}: y {y}");
+        assert!((0..2000).contains(&d.get("x").unwrap().as_i64().unwrap()));
+    }
+    // the layout matched the 21-byte fragments (no field of the records is named, but the layout covers the whole packet)
+    let spans = r.layout(Dir::Out, &get("0xdb_n2"));
+    assert!(spans.iter().any(|s| s.name == "count"));
+    // a packet with a jump in it has fragments of another size: the fixed layout does not fit, the header-only variant does
+    let m = get("0xdb_mixed");
+    assert_eq!(m.len(), 150);
+    let d = r.decode(Dir::Out, &m).unwrap();
+    assert_eq!(d.get("count").unwrap().as_i64(), Some(6));
+    // outgoing attack
+    let a = r.decode(Dir::Out, &get("0xe1_attack")).unwrap();
+    assert_eq!(a.name.as_deref(), Some("Attack"));
+    // direction matters: 0x00db is not an incoming opcode we describe
+    assert!(r.decode(Dir::In, &get("0xdb_n2")).is_none());
+}

@@ -55,3 +55,4 @@ neon-calib/seen-max*.json
 
 # Local secrets: never commit
 nexon-credentials.json
+*.nsr
