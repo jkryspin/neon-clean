@@ -205,3 +205,26 @@ fn reconnect_attempts_per_day_are_capped() {
     assert!(matches!(p.decide(10_000), Reconnect::GiveUp(r) if r.contains("6 login attempts")));
     assert_eq!(p.decide(24 * 3600 * 1000 + 10_000), Reconnect::Try, "the window slides after a day");
 }
+
+#[test]
+fn sunday_morning_kst_is_a_maintenance_window() {
+    // 2026-10-25 is a Sunday. 05:59 KST = 2026-10-24 20:59 UTC; 06:00 KST = 21:00 UTC; 08:00 KST = 23:00 UTC.
+    let w = vec![(6u8, 6 * 60, 8 * 60)];
+    let utc = |y: u64, mo: u64, d: u64, h: u64, mi: u64| -> u64 {
+        // days from 1970-01-01 to y-mo-d (civil date algorithm)
+        let (y2, m2) = if mo <= 2 { (y - 1, mo + 12) } else { (y, mo) };
+        let days = 365 * y2 + y2 / 4 - y2 / 100 + y2 / 400 + (153 * (m2 - 3) + 2) / 5 + d - 719_469;
+        ((days * 24 + h) * 60 + mi) * 60 * 1000
+    };
+    assert!(!in_maintenance(&w, utc(2026, 10, 24, 20, 59)), "05:59 KST Sunday: not yet");
+    assert!(in_maintenance(&w, utc(2026, 10, 24, 21, 0)), "06:00 KST Sunday");
+    assert!(in_maintenance(&w, utc(2026, 10, 24, 22, 59)), "07:59 KST Sunday");
+    assert!(!in_maintenance(&w, utc(2026, 10, 24, 23, 0)), "08:00 KST Sunday: over");
+    assert!(!in_maintenance(&w, utc(2026, 10, 25, 21, 0)), "the same hour on Monday is not maintenance");
+    // the gate applies it only when it knows the wall clock, and blocks (not waits)
+    let cfg = GateConfig { start_unix_ms: Some(utc(2026, 10, 24, 20, 59)), ..GateConfig::default() };
+    let mut g = SafetyGate::new(cfg, 0, 1);
+    assert_eq!(g.check(0), Verdict::Allow);
+    assert!(matches!(g.check(90_000), Verdict::Blocked(r) if r.contains("maintenance")));
+    assert_eq!(SafetyGate::new(GateConfig::default(), 0, 1).check(90_000), Verdict::Allow, "no wall clock, no maintenance rule");
+}

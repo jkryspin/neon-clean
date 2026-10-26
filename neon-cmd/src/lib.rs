@@ -92,12 +92,17 @@ pub struct GateConfig {
     pub break_len_s: (u64, u64),
     /// The session ends (no more commands) after this long.
     pub max_session_ms: u64,
+    /// Unix milliseconds of the gate's time zero, so wall-clock rules (maintenance) can be applied. None: no wall-clock rules.
+    pub start_unix_ms: Option<u64>,
+    /// Weekly maintenance in KST (UTC+9): (weekday 0 = Monday .. 6 = Sunday, from minute of day, to minute of day).
+    /// docs/authorization.md: Sunday 06:00-08:00 KST, bots pause.
+    pub maintenance_kst: Vec<(u8, u32, u32)>,
 }
 
 impl Default for GateConfig {
     fn default() -> Self {
         // From docs/authorization.md: +-25% timing, breaks every 45-90 min, 6 h session maximum, no packet spamming.
-        GateConfig { min_gap_ms: 120, jitter: 0.25, max_per_minute: 240, break_every_min: (45, 90), break_len_s: (30, 180), max_session_ms: 6 * 3600 * 1000 }
+        GateConfig { min_gap_ms: 120, jitter: 0.25, max_per_minute: 240, break_every_min: (45, 90), break_len_s: (30, 180), max_session_ms: 6 * 3600 * 1000, start_unix_ms: None, maintenance_kst: vec![(6, 6 * 60, 8 * 60)] }
     }
 }
 
@@ -145,6 +150,11 @@ impl SafetyGate {
         }
         if let Some(r) = self.pauses.iter().next() {
             return Verdict::Blocked(format!("paused: {r}"));
+        }
+        if let Some(start) = self.cfg.start_unix_ms {
+            if in_maintenance(&self.cfg.maintenance_kst, start + now_ms) {
+                return Verdict::Blocked("server maintenance window (KST)".into());
+            }
         }
         if let Some(until) = self.break_until {
             if now_ms < until {
@@ -405,4 +415,13 @@ impl ReconnectPolicy {
         self.consecutive_failures = 0;
         self.last_failure_ms = None;
     }
+}
+
+/// Is this unix time (ms) inside a weekly maintenance window given in KST?
+pub fn in_maintenance(windows: &[(u8, u32, u32)], unix_ms: u64) -> bool {
+    let kst_s = unix_ms / 1000 + 9 * 3600;
+    let days = kst_s / 86_400;
+    let weekday = ((days + 3) % 7) as u8; // 1970-01-01 was a Thursday (3 when Monday = 0)
+    let minute = ((kst_s % 86_400) / 60) as u32;
+    windows.iter().any(|(d, from, to)| *d == weekday && minute >= *from && minute < *to)
 }

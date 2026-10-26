@@ -64,3 +64,8 @@ packet inspector (opcode, registry name, status, decoded fields, bytes; "hide ve
 * The mapping method, tools and evidence rules are in `docs/mapping-workflow.md`.
 * Outgoing opcodes can be captured with exact plaintext (short, opt-in attach) and replayed like incoming ones; our own position is now
   derived from the packets we send.
+
+* `neon-cmd`'s `SafetyGate` now also holds the authorization's **Sunday 06:00-08:00 KST maintenance** pause (needs the wall-clock anchor
+  `start_unix_ms`; tested at the window edges). The live loader (`neon-loader`) already has ±25% jitter, idle breaks, a 5 h cap and
+  5% mistakes (`neon-core/src/anti_detect.rs`), but no maintenance window or peak-hour rule: use plan time windows for those until
+  the loader is moved onto the command layer.
