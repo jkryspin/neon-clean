@@ -218,3 +218,18 @@ offline with `objdump -D -b binary -mi386:x86-64 --adjust-vma=...`:
   and `actlab` found no reproducible opcode for an NPC dialog, which fits that.
 * Next step if exact incoming decryption is wanted: find the reader of the `this+0x70` accumulation buffer (it needs no
   debugger: dump code from `/proc/PID/mem` and disassemble offline), then port the algorithm.
+
+### Receive path, one level further (2026-10-26 18:30; same method: `/proc/PID/mem` reads, `objdump`, no attach)
+
+* The function after the accumulation append is `0x141663cd0` (called at `0x141663685`). It loops over the accumulation buffer (`this+0x70`)
+  and feeds it to the **packet framer** object at `this+0xb0` through `0x14075c780(framer, buf, &out_state, flag)`.
+* `0x14075c780` is a plain framing state machine, not the cipher. Framer fields: `+8` state (0 = need header, 1 = header read,
+  2 = packet complete), `+0x18` bytes collected, `+0x1c` first header u16, `+0x20` body length, `+0x24` adjust. It reads a 4-byte header
+  (u16 `a`, u16 `b`; with the flag set the length is `a ^ b`, matching the header rule already used), and a header length at or above
+  `0xff00` means an extended header (8 bytes, 32-bit length). It copies the body with `0x14075d9e0` (a buffer-grow + `memcpy`), and when the
+  body is complete (`state 2`) the finished packet buffer is moved out with `0x14075ba10` (move + length bookkeeping). Nothing in these three
+  functions transforms the bytes.
+* So the decryption happens after the framer returns state 2: in whatever consumes the finished packet object (the handler
+  `0x1416636a0` and the dispatch behind it). That consumer is the next thing to read; the block constant K and the first 1456-byte
+  block structure are produced there, not in the framer.
+
