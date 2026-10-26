@@ -315,3 +315,10 @@ up to 3,000, for any 4-byte window of the hello as IV). They are additive with `
 (`14 09 09 09 | ...` is `0b 00 00 00` + 9: length 11). The client->server side of that capture follows the in-game header rule from its first packet, and decrypts exactly (AES-256-OFB): its first
 frames use opcode `0x0070` as a login-phase wrapper (a GUID-shaped string appears in the ninth frame; it is a login token, so it is not recorded anywhere in the repo).
 
+### A second connection start, from a relaunch of jib02 (2026-10-26 19:45)
+Hello of this connection: send IV `d1 26 32 e1`, receive IV `12 9a db 06` (the first, older capture: `2d ef c2 e1` / `09 27 cf 40`).
+* **Client->server decrypts exactly from its very first packet** with the in-game rule (header `a ^ 0xdf00` chain, AES-256-OFB): 67 frames, 0 header mismatches. The first frames are the login-phase `0x0070` wrapper (sub-ids 2, 1, 0x0d ...), a `0x007d`, ...
+* **Server->client after the hello is not in-game framing.** After six zero bytes the stream is `plain + K` with `K = recv iv[0] = 0x12` for thousands of bytes (decoded: `0b 00 00 00 | 01 00 00 00 17 00 00 00 96 00 00 00 03 00 "All" 02 00 00 00 85 02 00 00 ...`, a table of
+  numbers with the text `All`: a bulk data table, not packets), and later high-entropy bytes that I could not frame. In-game framed packets (`a ^ 0xfffe`) were not found in the first 31 KB; the game packets of this account are on a connection I did not isolate.
+* **Wire opcode numbers differ again.** The 2-byte keepalive of this connection is `0x51f8` (three of them in a row); the older capture's was `0x3fd2`; jib01's live one is `0x8786`, shurella2's `0xf5e8`. Four connections, four numbers. For jib01 the keepalive, move and attack numbers (`0x8786`, `0x5f28`, `0x25d8` against internal `0x02f0`, `0x00db`, `0x00e1`) differ from their internal numbers by no common xor or offset, so the numbering is a per-opcode scramble (a table or a seeded generator), not a shift. Its seed is not obviously the hello IVs (two connections is too few to tell).
+
