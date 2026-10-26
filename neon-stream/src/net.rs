@@ -638,6 +638,9 @@ struct Flow {
     re: Reassembler,
     fr: Framer,
     rc: crate::recv::RecvCipher,
+    /// Bytes of the start of the stream, held until the hello's IV chain locates the first ordinary frame (see `recv::second_frame`).
+    pre: Vec<u8>,
+    started: bool,
 }
 
 /// Server->client segments in, game events out.
@@ -752,6 +755,31 @@ impl NetDecoder {
         let (bytes, restarted) = flow.re.push(seg.seq, &seg.payload);
         if restarted {
             flow.fr.reset();
+            flow.pre.clear();
+            flow.started = true; // mid-stream restart: the IV is learned from headers
+        }
+        let mut bytes = bytes;
+        if !flow.started {
+            // the start of a connection: the hello gives the receive IV and, one shuffle later, the second frame
+            flow.pre.extend_from_slice(&bytes);
+            if flow.pre.first() == Some(&0x13) && flow.pre.get(1) == Some(&0) {
+                match crate::recv::second_frame(&flow.pre) {
+                    Some((p, iv1)) => {
+                        flow.rc = crate::recv::RecvCipher::at(iv1);
+                        bytes = flow.pre.split_off(p);
+                        flow.pre.clear();
+                        flow.started = true;
+                    }
+                    None if flow.pre.len() < 12_000 => return vec![],
+                    None => {
+                        bytes = std::mem::take(&mut flow.pre);
+                        flow.started = true;
+                    }
+                }
+            } else {
+                bytes = std::mem::take(&mut flow.pre);
+                flow.started = true;
+            }
         }
         let mut events = vec![];
         for (a, body) in flow.fr.push_frames(&bytes) {

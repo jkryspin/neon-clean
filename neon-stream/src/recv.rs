@@ -52,6 +52,40 @@ pub fn find_iv(headers: &[u16]) -> Option<[u8; 4]> {
     found
 }
 
+/// Where a connection's first ordinary frame starts, given the server hello at the start of its stream.
+///
+/// The hello is `13 00` + 19 bytes (receive IV at bytes 15..19 of the stream). After it comes one special frame (its 4 header bytes are
+/// zero, its body runs to the next header) which uses up one shuffle; the second frame's header therefore satisfies
+/// `a == ((iv1[3] << 8) | iv1[2]) ^ 0xfffe` with `iv1 = shuffle(receive IV)`. Returns that offset and `iv1`, once the stream holds enough bytes
+/// to see it followed by a second consistent header. `None`: not a hello stream, or not enough bytes yet.
+pub fn second_frame(stream: &[u8]) -> Option<(usize, [u8; 4])> {
+    if stream.len() < 40 || stream[0] != 0x13 || stream[1] != 0 {
+        return None;
+    }
+    let mut iv: [u8; 4] = stream[15..19].try_into().ok()?;
+    shuffle_iv(&mut iv);
+    let want = (u16::from(iv[3]) << 8 | u16::from(iv[2])) ^ 0xfffe;
+    let mut iv2 = iv;
+    shuffle_iv(&mut iv2);
+    let want2 = (u16::from(iv2[3]) << 8 | u16::from(iv2[2])) ^ 0xfffe;
+    for p in 27..stream.len().saturating_sub(8).min(9000) {
+        let a = u16::from_le_bytes([stream[p], stream[p + 1]]);
+        if a != want {
+            continue;
+        }
+        let c = u16::from_le_bytes([stream[p + 2], stream[p + 3]]);
+        let len = (a ^ c) as usize;
+        if !(2..=8000).contains(&len) || p + 4 + len + 2 > stream.len() {
+            continue;
+        }
+        let q = p + 4 + len;
+        if u16::from_le_bytes([stream[q], stream[q + 1]]) == want2 {
+            return Some((p, iv));
+        }
+    }
+    None
+}
+
 /// Undo the per-packet constant on a whole body (chunking does not matter: the constant is the same in every chunk).
 pub fn decrypt(body: &[u8], iv: &[u8; 4]) -> Vec<u8> {
     body.iter().map(|b| b.wrapping_sub(iv[0])).collect()
@@ -70,6 +104,11 @@ pub struct RecvCipher {
 }
 
 impl RecvCipher {
+    /// A cipher whose IV is already known (the connection start was seen: see `second_frame`).
+    pub fn at(iv: [u8; 4]) -> RecvCipher {
+        RecvCipher { iv: Some(iv), ..Default::default() }
+    }
+
     #[cfg(test)]
     pub fn is_synced(&self) -> bool {
         self.iv.is_some()
@@ -197,6 +236,18 @@ mod tests {
             let _ = rc.frame((x >> 20) as u16, &body);
         }
         assert!(rc.exact + rc.heuristic > 0);
+    }
+
+    #[test]
+    fn the_second_frame_of_a_real_stream_start_is_found_from_the_hello() {
+        let f: serde_json::Value = serde_json::from_str(include_str!("../tests/fixtures/stream_start.json")).unwrap();
+        let hex = |s: &str| -> Vec<u8> { (0..s.len() / 2).map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap()).collect() };
+        let s = hex(f["hex"].as_str().unwrap());
+        let (p, iv) = second_frame(&s).expect("found");
+        assert_eq!(p as u64, f["second_frame_at"].as_u64().unwrap());
+        assert!(header_matches(u16::from_le_bytes([s[p], s[p + 1]]), &iv), "its header matches the shuffled hello IV");
+        assert_eq!(second_frame(&s[..100]), None, "too little data: no answer");
+        assert_eq!(second_frame(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]), None, "not a hello");
     }
 }
 
