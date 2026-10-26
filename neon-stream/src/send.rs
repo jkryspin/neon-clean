@@ -269,4 +269,45 @@ mod tests {
         assert_eq!(got.len(), 20, "everything, including the first twelve, comes out once");
         assert_eq!(got, plains);
     }
+
+    #[test]
+    fn garbage_and_truncated_streams_never_panic_the_send_side() {
+        // xorshift bytes in odd-sized chunks, then a real-looking stream cut short in every possible place
+        let mut x: u64 = 0x9e3779b97f4a7c15;
+        let mut next = || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+        let mut fr = SendFramer::default();
+        let mut sc = SendCipher::default();
+        for _ in 0..400 {
+            let n = (next() % 700) as usize;
+            let chunk: Vec<u8> = (0..n).map(|_| next() as u8).collect();
+            for (a, body) in fr.push(&chunk) {
+                let _ = sc.frame(a, &body);
+            }
+        }
+        let aes = Aes256::new(&KEY);
+        let mut iv: [u8; 4] = hex(fixture()["iv0"].as_str().unwrap()).try_into().unwrap();
+        let mut stream = vec![];
+        for (i, &a) in headers().iter().enumerate().take(30) {
+            let plain: Vec<u8> = (0..(2 + i % 9)).map(|k| (i + k) as u8).collect();
+            let ct = decrypt(&aes, &plain, &iv);
+            let c = ((plain.len() as u16).swap_bytes()) ^ a;
+            stream.extend(a.to_be_bytes());
+            stream.extend(c.to_be_bytes());
+            stream.extend(&ct);
+            shuffle_iv(&mut iv);
+        }
+        for cut in 0..stream.len() {
+            let mut fr = SendFramer::default();
+            let mut sc = SendCipher::default();
+            for (a, body) in fr.push(&stream[..cut]) {
+                let _ = sc.frame(a, &body);
+            }
+        }
+    }
 }
+

@@ -183,4 +183,19 @@ mod tests {
     fn hex(s: &str) -> Vec<u8> {
         (0..s.len() / 2).map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap()).collect()
     }
+
+    #[test]
+    fn garbage_headers_never_panic_the_receive_side() {
+        let mut x: u64 = 0x2545f4914f6cdd1d;
+        let mut rc = RecvCipher::default();
+        for _ in 0..3000 {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            let body: Vec<u8> = (0..(x % 40) as usize).map(|k| (x >> (k % 8)) as u8).collect();
+            let _ = rc.frame((x >> 20) as u16, &body);
+        }
+        assert!(rc.exact + rc.heuristic > 0);
+    }
 }
+

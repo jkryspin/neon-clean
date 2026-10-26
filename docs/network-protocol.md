@@ -309,3 +309,9 @@ What the first wire captures established (all in `opcodes.toml` summaries or her
 `neon-stream --net-replay` now prints `recv_exact`, `recv_heuristic`, `recv_chain_breaks`, `send_decrypted`, `send_chain_breaks`. On a fresh 90 s capture of a hunting character (shurella2): 4,953 incoming
 frames, 4,941 decrypted exactly (the other 12 are the frames before the IV is learned), 0 chain breaks, 0 framer resyncs, 3,580 events; on a town capture (jib01, 2 min): 373 incoming (361 exact) and 270 outgoing frames decrypted, 0 breaks.
 
+### Pre-game stage (login) is framed differently (noted 2026-10-26)
+In `neon-calib/captures/connection_start.pcap` the bytes after the 21-byte hello do not follow the in-game framing (no 4-byte header whose first half satisfies `a ^ 0xfffe == iv[3]<<8|iv[2]` at any offset
+up to 3,000, for any 4-byte window of the hello as IV). They are additive with `K = 0x09 = iv[0]` of the hello's receive IV and look like `[u32 length][body]`
+(`14 09 09 09 | ...` is `0b 00 00 00` + 9: length 11). The client->server side of that capture follows the in-game header rule from its first packet, and decrypts exactly (AES-256-OFB): its first
+frames use opcode `0x0070` as a login-phase wrapper (a GUID-shaped string appears in the ninth frame; it is a login token, so it is not recorded anywhere in the repo).
+
