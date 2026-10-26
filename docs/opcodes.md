@@ -112,13 +112,13 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x02a9` | 1122 | 5.7 | 63-111 |  | structure: Same header as 0x02a8 and the same target records (mob oid at @63 in 91% of the 87-byte packets): a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111; the 97-byte form (63 + 34) does not fit the 24-byte records and stays unexplained. Pairs with 0x044d in 52% of the 87-byte packets (69/131) |
 | `0x02aa` | 415 | 2.1 | 63-97 |  | structure: Same header and target records as 0x02a8 (mob oid at @63 in 96% of the 87-byte packets): a third attack variant (kind not known). Lengths seen 63, 87, 97 (97 does not fit the records). Pairs with 0x044d in 39% (37/94) |
 | `0x02af` | 2105 | 10.8 | 164 |  | structure: 164 bytes, 420 seen from 35 players about 247 mobs. char_id@2 is a known player (100%); the same mob oid appears at @63 and @67 (420 of 420 equal; known mob in 94%); and u32@130 equals the template id of that mob in 358 of 358 checkable packets (found by autocorr.py). So it is an event of a player about one mob that also names the mob's type. It pairs with a 0x044d hit of the same (player, mob) within 1 s in only 14% of packets, so it is not simply the hit; which event it is, is unknown (2026-10-26) |
-| `0x02b0` | 5 | 0.0 | 15 |  | observed |
-| `0x02b7` | 25 | 0.1 | 15 |  | observed |
+| `0x02b0` | 5 | 0.0 | 15 |  | structure: u32@2 is a known player id in 8 of 8 packets of the 15-byte form (idscan, pooled captures 2026-10-26). |
+| `0x02b7` | 25 | 0.1 | 15 |  | structure: u32@2 is a known player id in 13 of 13 packets of the 15-byte form (idscan, pooled captures 2026-10-26). |
 | `0x02b8` | 11 | 0.1 | 366-421 |  | observed |
 | `0x02b9` | 56 | 0.3 | 7-19 |  | structure: 19 bytes: char id@2 is a known player in 12 of 12 packets. About a player; meaning unknown (2026-10-26). |
-| `0x02ba` | 10 | 0.1 | 156-157 |  | observed |
+| `0x02ba` | 10 | 0.1 | 156-157 |  | structure: u32@2 is a known player id in 9 of 9 packets of the 157-byte form (idscan, pooled captures 2026-10-26). |
 | `0x02bb` | 190 | 1.0 | 131 |  | structure: 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26). |
-| `0x02bd` | 33 | 0.2 | 22 |  | observed |
+| `0x02bd` | 33 | 0.2 | 22 |  | structure: u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26). |
 | `0x02db` | 200 | 1.0 | 7 |  | structure: 7 bytes: op + 5 bytes (10 0a 00 00 00 seen) |
 | `0x031f` | 1 | 0.0 | 25 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0340` | 5 | 0.0 | 10 |  | observed |
@@ -145,7 +145,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x045f` | 1 | 0.0 | 965 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0471` | 171 | 0.9 | 107-123 | DropSpawnItem | verified: An item dropped (sent twice: flag byte @3 = 1 then 0; dedupe by oid). Only drops of our own kills are sent to us. @8 = 0 marks an item (123 bytes), item id u32@21: the six item ids in the pickup messages of a real grind (4000001, 4000005, 2060000, 4000002, 4010000, 4010001) are exactly the ids found here, with matching counts (2026-10-26) |
 | `0x0472` | 3785 | 19.4 | 7-15 | DropRemove | verified: A drop is gone: reason u8@6 (2 picked up, 5 pet loot, 0 expired), picker char id u32@7 |
-| `0x047b` | 51 | 0.3 | 22 |  | observed |
+| `0x047b` | 51 | 0.3 | 22 |  | structure: u32@18 is a known player id in 94 of 94 packets of the 22-byte form (idscan, pooled captures 2026-10-26). |
 | `0x0487` | 60 | 0.3 | 19 |  | observed |
 | `0x048f` | 3 | 0.0 | 13 |  | observed |
 

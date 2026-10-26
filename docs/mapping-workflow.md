@@ -28,6 +28,8 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 | Explorer (in the page, `/explore`, `/todo`) | Which bytes vary, which are constant, which hold known ids, what is still unexplained? | ranked `PlayerMove` first, so movement became the next job |
 | `neon-calib/tools/recfind.py` | Is it `header + count byte + n fixed records`? (the count byte is a checksum chance cannot satisfy) | rediscovered MobMove/PlayerMove, found PetMove and NpcMove |
 | `neon-calib/tools/idscan.py` | Which fields hold ids of mobs / players / drops we already know? | attack broadcasts: player at `@2`, mob at `@63` |
+| `scripts/registry-refs.py LOG` | Write what `idscan` found into the registry (fields `char_id` / `mob_oid` on still-unexplored entries; never touches verified ones) | `0x02b0`, `0x02b7`, `0x02ba`, `0x02bd`, `0x047b` reference players |
+| `neon-protocol/examples/validate.rs` | Does this registry file pass validation? `cargo run --example validate -- path` | catches a script writing an out-of-bounds field |
 | `neon-calib/tools/poscorr.py` | Does a field hold the position of the entity the packet refers to? | attacker position pairs in `0x02a8` (77% within 30 px) |
 | `neon-calib/tools/actlab.py` | Which opcodes does one isolated action produce (baseline + repeats)? | party create/leave |
 | Map geometry (`neon-calib/maps/<id>.json`) | Do decoded positions lie on real platforms / at real NPC positions? | spawns 383/384, NPC moves vs the NPC list |

@@ -975,16 +975,20 @@ field = [
 [[opcode]]
 id = 0x02b0
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "u32@2 is a known player id in 8 of 8 packets of the 15-byte form (idscan, pooled captures 2026-10-26)."
 len_min = 15
 len_max = 15
+field = [{ name = "char_id", ty = "u32", off = 2 }]
 
 [[opcode]]
 id = 0x02b7
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "u32@2 is a known player id in 13 of 13 packets of the 15-byte form (idscan, pooled captures 2026-10-26)."
 len_min = 15
 len_max = 15
+field = [{ name = "char_id", ty = "u32", off = 2 }]
 
 [[opcode]]
 id = 0x02b8
@@ -1007,9 +1011,11 @@ field = [
 [[opcode]]
 id = 0x02ba
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "u32@2 is a known player id in 9 of 9 packets of the 157-byte form (idscan, pooled captures 2026-10-26)."
 len_min = 156
 len_max = 157
+field = [{ name = "char_id", ty = "u32", off = 2 }]
 
 [[opcode]]
 id = 0x02bb
@@ -1025,9 +1031,11 @@ field = [
 [[opcode]]
 id = 0x02bd
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26)."
 len_min = 22
 len_max = 22
+field = [{ name = "char_id", ty = "u32", off = 2 }]
 
 [[opcode]]
 id = 0x031f
@@ -1158,9 +1166,11 @@ len_max = 965
 [[opcode]]
 id = 0x047b
 dir = "in"
-status = "observed"
+status = "structure"
+summary = "u32@18 is a known player id in 94 of 94 packets of the 22-byte form (idscan, pooled captures 2026-10-26)."
 len_min = 22
 len_max = 22
+field = [{ name = "char_id", ty = "u32", off = 18 }]
 
 [[opcode]]
 id = 0x0487
