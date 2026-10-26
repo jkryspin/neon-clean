@@ -1439,7 +1439,7 @@ field = [
 id = 0x02a9
 dir = "in"
 status = "structure"
-summary = "Same header as 0x02a8 and the same target records (mob oid at @63 in 91% of the 87-byte packets): a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111; the 97-byte form (63 + 34) does not fit the 24-byte records and stays unexplained. Pairs with 0x044d in 52% of the 87-byte packets (69/131)"
+summary = "Target record +8 is damage like in 0x02a8 (same test: summed over attacks on killed mobs it is 0.7-1.6x the spawn HP in 56% of 344 kills, median 1.18; +4 and +12 give 0%, 2026-10-26). Same header as 0x02a8 and the same target records (mob oid at @63 in 91% of the 87-byte packets): a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111; the 97-byte form (63 + 34) does not fit the 24-byte records and stays unexplained. Pairs with 0x044d in 52% of the 87-byte packets (69/131)"
 len_min = 63
 field = [
   { name = "char_id", ty = "u32", off = 2 },
@@ -1456,14 +1456,14 @@ start = 63
 stride = 24
 field = [
   { name = "mob_oid", ty = "u32", off = 0 },
-  { name = "value", ty = "u32", off = 8, min = 0, max = 10000000 },
+  { name = "damage", ty = "u32", off = 8, min = 0, max = 10000000 },
 ]
 
 [[opcode]]
 id = 0x02aa
 dir = "in"
 status = "structure"
-summary = "Same header and target records as 0x02a8 (mob oid at @63 in 96% of the 87-byte packets): a third attack variant (kind not known). Lengths seen 63, 87, 97 (97 does not fit the records). Pairs with 0x044d in 39% (37/94)"
+summary = "Target record +8 is damage like in 0x02a8 (same test: summed over attacks on killed mobs it is 0.7-1.6x the spawn HP in 49% of 247 kills, median 1.53 (skills hit several times, so sums run higher); +4 and +12 give 0%, 2026-10-26). Same header and target records as 0x02a8 (mob oid at @63 in 96% of the 87-byte packets): a third attack variant (kind not known). Lengths seen 63, 87, 97 (97 does not fit the records). Pairs with 0x044d in 39% (37/94)"
 len_min = 63
 field = [
   { name = "char_id", ty = "u32", off = 2 },
@@ -1480,7 +1480,7 @@ start = 63
 stride = 24
 field = [
   { name = "mob_oid", ty = "u32", off = 0 },
-  { name = "value", ty = "u32", off = 8, min = 0, max = 10000000 },
+  { name = "damage", ty = "u32", off = 8, min = 0, max = 10000000 },
 ]
 
 # ---- outgoing (client -> server): plaintext read from the client's packet object (docs/network-protocol.md) -----------------
