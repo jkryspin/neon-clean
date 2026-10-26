@@ -41,7 +41,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0081` | 16 | 0.1 | 3 |  | observed |
 | `0x0082` | 16 | 0.1 | 2 |  | observed |
 | `0x0085` | 29 | 0.1 | 6 |  | observed |
-| `0x008b` | 252 | 1.3 | 6-50 | StatusMessage | decoded: Status message, mode byte @2: 0 item pickup (id u32@5, qty u32@9), 1 quest progress, 3 EXP gained (flag @3, amount u32@4: equals the EXP counter delta in 26 of 26 consecutive kills), 0x0d quest-record text (u32 id @3, u16 length @7, text like date=20261026;count=39, count +1 per kill) |
+| `0x008b` | 252 | 1.3 | 6-50 | QuestRecordMessage | verified: A quest-record text (mode 0x0d): quest id u32@3 and a length-prefixed text such as date=20261026;count=39, whose count rose by one per kill (2026-10-26) |
 | `0x008d` | 2 | 0.0 | 11 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x008e` | 5 | 0.0 | 7037-7364 |  | observed |
 | `0x0090` | 8 | 0.0 | 2 |  | observed |
@@ -51,7 +51,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0097` | 1 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0098` | 1 | 0.0 | 19 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x009a` | 1 | 0.0 | 14 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x00a7` | 40 | 0.2 | 2-738 | PartyUpdate | decoded: Party create (mode 0x0e), member joined (0x13), member left (0x10); decoded in neon-stream |
+| `0x00a7` | 40 | 0.2 | 2-738 | PartyJoined | verified: A member joined (mode 0x13): the joiner's name (u16 length @3), then the party id and the member list (scanned) |
 | `0x00a9` | 3 | 0.0 | 7 |  | observed |
 | `0x00ab` | 4 | 0.0 | 8-42 |  | observed |
 | `0x00ae` | 880 | 4.5 | 4-527 | Chat | decoded: Chat / megaphone text |
@@ -87,7 +87,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0194` | 1 | 0.0 | 36 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x019f` | 1 | 0.0 | 15 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x01a5` | 1 | 0.0 | 25 |  | observed, rare (<=2 sightings: may be decode noise) |
-| `0x01a9` | 16 | 0.1 | 103-3184 | InventoryAll | decoded: The whole Use/Set-up/Etc inventory at login; decoded in neon-stream |
+| `0x01a9` | 16 | 0.1 | 103-3184 | LoginInventory | decoded: The whole Use/Set-up/Etc inventory at login (over 1000 bytes); decoded in neon-stream |
 | `0x01ae` | 1 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x01f1` | 1 | 0.0 | 1342 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x01f4` | 16 | 0.1 | 5 |  | observed |
@@ -108,9 +108,9 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0282` | 5515 | 28.2 | 45-327 | PetMove | decoded: Pet move (name only) |
 | `0x0283` | 3 | 0.0 | 17 |  | observed |
 | `0x029d` | 25221 | 129.0 | 41-665 | PlayerMove | verified: Another player moved |
-| `0x02a8` | 6521 | 33.4 | 63-207 | PlayerAttack | structure: Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (63, 87, 111, 135, 159 seen: n = 0..4 targets): a 63-byte header whose char_id@2 is a known player in 100% of packets, then n 24-byte target records starting at @63, each beginning with the mob oid (known mob in 94% of the first records) and, at +8, probably the damage (u32; medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). With no target (n = 0) it is a swing at nothing: 36 of them seen in a mob-less town. Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. 2026-10-26 |
-| `0x02a9` | 1122 | 5.7 | 63-111 |  | structure: Same header as 0x02a8 (char_id@2 100%) and mob oid at @63 in 91% of the 87-byte packets: a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111. Pairs with 0x044d in 52% of the 87-byte packets (69/131). |
-| `0x02aa` | 415 | 2.1 | 63-97 |  | structure: Same header as 0x02a8 and mob oid at @63 in 96% of the 87-byte packets: a third attack variant (kind not known). Lengths seen 63, 87, 97. Pairs with 0x044d in 39% (37/94). |
+| `0x02a8` | 6521 | 33.4 | 63-207 | PlayerAttack | structure: Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (n = 0..4 targets). char_id@2 is a known player in 100% of packets; each target record starts with the mob oid (known mob in 94% of first records) and has, at +8, probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). n = 0 is a swing at nothing (36 seen in a mob-less town). Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. Unexplained: @6 (varies: 0x11, 0x12, 0x0e, 0x17...), a repeated pair c5 01 00 00 5f 08 00 00 at @17/@25 that looks like an (x, y) |
+| `0x02a9` | 1122 | 5.7 | 63-111 |  | structure: Same header as 0x02a8 and the same target records (mob oid at @63 in 91% of the 87-byte packets): a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111; the 97-byte form (63 + 34) does not fit the 24-byte records and stays unexplained. Pairs with 0x044d in 52% of the 87-byte packets (69/131) |
+| `0x02aa` | 415 | 2.1 | 63-97 |  | structure: Same header and target records as 0x02a8 (mob oid at @63 in 96% of the 87-byte packets): a third attack variant (kind not known). Lengths seen 63, 87, 97 (97 does not fit the records). Pairs with 0x044d in 39% (37/94) |
 | `0x02af` | 2105 | 10.8 | 164 |  | structure: 164 bytes: char_id@2 is a known player in 100% of 420 packets and u32@63 a known mob in 94%, like the attack broadcasts, but it pairs with 0x044d in only 6%: probably a different attack kind (two targets?). Unverified. |
 | `0x02b0` | 5 | 0.0 | 15 |  | observed |
 | `0x02b7` | 25 | 0.1 | 15 |  | observed |

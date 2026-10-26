@@ -56,10 +56,31 @@ pub struct Field {
     pub charset: Option<String>,
 }
 
+/// A variant is chosen when the byte at `off` equals `eq` (the packet is long enough to have it).
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct Cond {
+    pub off: usize,
+    pub eq: u8,
+}
+
+/// A repeated record: `count = (len - start) / stride` records, field offsets relative to each record's start.
+/// A packet whose tail is not a whole number of records does not match.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Records {
+    pub name: String,
+    pub start: usize,
+    pub stride: usize,
+    #[serde(default)]
+    pub field: Vec<Field>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Opcode {
     pub id: u16,
     pub dir: Dir,
+    /// Several entries may share an opcode: the first whose `when` holds and whose size fits is used.
+    pub when: Option<Cond>,
+    pub records: Option<Records>,
     pub name: Option<String>,
     pub status: Status,
     pub summary: Option<String>,
@@ -130,7 +151,23 @@ struct File {
 
 #[derive(Debug, Clone)]
 pub struct Registry {
-    ops: BTreeMap<(Dir, u16), Opcode>,
+    ops: BTreeMap<(Dir, u16), Vec<Opcode>>,
+}
+
+/// A byte range of a packet that the registry explains, with the field's name.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Span {
+    pub off: usize,
+    pub size: usize,
+    pub name: String,
+}
+
+fn field_size(f: &Field) -> usize {
+    match f.ty {
+        Ty::U8 => 1,
+        Ty::U16 | Ty::I16 | Ty::Str16 => 2,
+        Ty::U32 | Ty::I32 => 4,
+    }
 }
 
 impl Registry {
@@ -141,14 +178,27 @@ impl Registry {
 
     pub fn parse(text: &str) -> Result<Self, Error> {
         let file: File = toml::from_str(text).map_err(|e| Error::Parse(e.to_string()))?;
-        let mut ops = BTreeMap::new();
+        let mut ops: BTreeMap<(Dir, u16), Vec<Opcode>> = BTreeMap::new();
         let mut problems = Vec::new();
         for op in file.opcode {
             problems.extend(validate(&op));
-            let key = (op.dir, op.id);
-            if ops.insert(key, op).is_some() {
-                problems.push(format!("duplicate {:?} {:#06x}", key.0, key.1));
+            let group = ops.entry((op.dir, op.id)).or_default();
+            let key = op.when.map(|c| (c.off, c.eq));
+            let range = |o: &Opcode| (o.len_min.unwrap_or(0), o.len_max.unwrap_or(usize::MAX));
+            let overlaps = |o: &Opcode| {
+                let (a0, a1) = range(o);
+                let (b0, b1) = range(&op);
+                a0 <= b1 && b0 <= a1
+            };
+            if group.iter().any(|o| o.when.map(|c| (c.off, c.eq)) == key && overlaps(o)) {
+                problems.push(format!(
+                    "duplicate {:?} {:#06x}{}",
+                    op.dir,
+                    op.id,
+                    key.map_or(String::new(), |(o, e)| format!(" (when byte {o} == {e})"))
+                ));
             }
+            group.push(op);
         }
         if problems.is_empty() {
             Ok(Self { ops })
@@ -157,16 +207,44 @@ impl Registry {
         }
     }
 
+    /// The first entry for an opcode (its primary description), whatever the packet looks like.
     pub fn get(&self, dir: Dir, id: u16) -> Option<&Opcode> {
-        self.ops.get(&(dir, id))
+        self.ops.get(&(dir, id)).and_then(|g| g.first())
+    }
+
+    /// Every entry for an opcode (several when it has variants).
+    pub fn variants(&self, dir: Dir, id: u16) -> &[Opcode] {
+        self.ops.get(&(dir, id)).map_or(&[], |g| g.as_slice())
+    }
+
+    /// Entries whose condition holds and whose size fits, in file order (groups are tiny: a Vec is fine).
+    fn candidates(&self, dir: Dir, plain: &[u8]) -> Vec<&Opcode> {
+        if plain.len() < 2 {
+            return Vec::new();
+        }
+        self.variants(dir, u16::from_le_bytes([plain[0], plain[1]]))
+            .iter()
+            .filter(|op| {
+                op.when.map_or(true, |c| plain.get(c.off) == Some(&c.eq))
+                    && op.len_min.map_or(true, |m| plain.len() >= m)
+                    && op.len_max.map_or(true, |m| plain.len() <= m)
+                    && op.records.as_ref().map_or(true, |r| plain.len() >= r.start && (plain.len() - r.start) % r.stride == 0)
+            })
+            .collect()
+    }
+
+    /// The entry that describes this particular packet: the first candidate whose fields also decode (bounds hold).
+    pub fn select(&self, dir: Dir, plain: &[u8]) -> Option<&Opcode> {
+        self.candidates(dir, plain).into_iter().find(|op| Self::decode_with(op, dir, plain).is_some())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Opcode> {
-        self.ops.values()
+        self.ops.values().flatten()
     }
 
+    /// Number of entries (an opcode with variants counts once per variant).
     pub fn len(&self) -> usize {
-        self.ops.len()
+        self.ops.values().map(|g| g.len()).sum()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -174,20 +252,18 @@ impl Registry {
     }
 
     pub fn count(&self, dir: Dir, status: Status) -> usize {
-        self.ops.values().filter(|o| o.dir == dir && o.status == status).count()
+        self.iter().filter(|o| o.dir == dir && o.status == status).count()
     }
 
-    /// Decode a plaintext packet (starting with its 2-byte little-endian opcode) with the registered fields.
-    /// Returns None when the opcode is unknown or the packet violates its size bounds or a field runs past the end.
+    /// Decode a plaintext packet (starting with its 2-byte little-endian opcode) with the registered fields of the
+    /// variant that fits it. Repeated records come out as `name[i].field`. Returns None when the opcode is unknown,
+    /// no variant fits, or a field runs past the end or is out of its bounds.
     pub fn decode(&self, dir: Dir, plain: &[u8]) -> Option<Decoded> {
-        if plain.len() < 2 {
-            return None;
-        }
+        self.candidates(dir, plain).into_iter().find_map(|op| Self::decode_with(op, dir, plain))
+    }
+
+    fn decode_with(op: &Opcode, dir: Dir, plain: &[u8]) -> Option<Decoded> {
         let id = u16::from_le_bytes([plain[0], plain[1]]);
-        let op = self.get(dir, id)?;
-        if op.len_min.map_or(false, |m| plain.len() < m) || op.len_max.map_or(false, |m| plain.len() > m) {
-            return None;
-        }
         let mut fields = Vec::with_capacity(op.field.len());
         for f in &op.field {
             let v = read(plain, f)?;
@@ -196,23 +272,60 @@ impl Registry {
             }
             fields.push((f.name.clone(), v));
         }
+        if let Some(r) = &op.records {
+            let n = (plain.len() - r.start) / r.stride;
+            for i in 0..n {
+                for f in &r.field {
+                    let abs = Field { off: r.start + i * r.stride + f.off, ..f.clone() };
+                    let v = read(plain, &abs)?;
+                    if !in_bounds(&v, &abs) {
+                        return None;
+                    }
+                    fields.push((format!("{}[{i}].{}", r.name, f.name), v));
+                }
+            }
+        }
         Some(Decoded { dir, id, name: op.name.clone(), fields })
+    }
+
+    /// Which bytes of this packet the registry explains (the opcode itself, fields, record fields).
+    pub fn layout(&self, dir: Dir, plain: &[u8]) -> Vec<Span> {
+        let mut out = Vec::new();
+        let Some(op) = self.select(dir, plain) else { return out };
+        out.push(Span { off: 0, size: 2.min(plain.len()), name: "opcode".into() });
+        if let Some(c) = op.when {
+            out.push(Span { off: c.off, size: 1, name: "mode".into() });
+        }
+        for f in &op.field {
+            out.push(Span { off: f.off, size: field_size(f), name: f.name.clone() });
+        }
+        if let Some(r) = &op.records {
+            for i in 0..(plain.len() - r.start) / r.stride {
+                for f in &r.field {
+                    out.push(Span { off: r.start + i * r.stride + f.off, size: field_size(f), name: format!("{}[{i}].{}", r.name, f.name) });
+                }
+            }
+        }
+        out.retain(|s| s.off < plain.len());
+        out
     }
 
     /// A Markdown table of the registry (names, status, summaries); counts come from the caller's logs.
     pub fn markdown(&self, dir: Dir) -> String {
         let mut s = String::from("| Opcode | Name | Status | Size | Summary |\n|---|---|---|---|---|\n");
-        for o in self.ops.values().filter(|o| o.dir == dir) {
+        for o in self.iter().filter(|o| o.dir == dir) {
             let size = match (o.len_min, o.len_max) {
                 (Some(a), Some(b)) if a == b => a.to_string(),
                 (Some(a), Some(b)) => format!("{a}-{b}"),
                 (Some(a), None) => format!("{a}+"),
                 _ => String::new(),
             };
+            let cond = o.when.map_or(String::new(), |c| format!(" (byte {} = {})", c.off, c.eq));
             s += &format!(
-                "| `{:#06x}` | {} | {:?} | {} | {} |\n",
+                "| `{:#06x}` | {}{} | {:?} | {} | {} |\n",
                 o.id,
                 o.name.as_deref().unwrap_or(""),
+                cond,
                 o.status,
                 size,
                 o.summary.as_deref().unwrap_or("")
@@ -269,6 +382,24 @@ fn validate(op: &Opcode) -> Vec<String> {
     }
     if op.name.is_some() && op.status == Status::Observed {
         out.push(format!("{tag}: an observed-only opcode must not carry a name"));
+    }
+    if let (Some(c), Some(min)) = (op.when, op.len_min) {
+        if c.off >= min {
+            out.push(format!("{tag}: when byte {} is beyond len_min {min}", c.off));
+        }
+    }
+    if let Some(r) = &op.records {
+        if r.stride == 0 {
+            out.push(format!("{tag}: records {} has stride 0", r.name));
+        }
+        if r.start < 2 {
+            out.push(format!("{tag}: records {} start {} overlaps the opcode", r.name, r.start));
+        }
+        for f in &r.field {
+            if f.off + field_size(f) > r.stride {
+                out.push(format!("{tag}: record field {} ends beyond the stride {}", f.name, r.stride));
+            }
+        }
     }
     let mut seen = HashSet::new();
     for f in &op.field {

@@ -114,12 +114,6 @@ summary = "Own stat update: a bitmask of stats, values follow in ascending bit o
 len_min = 11
 field = [{ name = "mask", ty = "u32", off = 5 }]
 
-[[opcode]]
-id = 0x008b
-dir = "in"
-name = "StatusMessage"
-status = "decoded"
-summary = "Status message, mode byte @2: 0 item pickup (id u32@5, qty u32@9), 1 quest progress, 3 EXP gained (flag @3, amount u32@4: equals the EXP counter delta in 26 of 26 consecutive kills), 0x0d quest-record text (u32 id @3, u16 length @7, text like date=20261026;count=39, count +1 per kill)"
 
 [[opcode]]
 id = 0x0072
@@ -128,19 +122,6 @@ name = "InventoryChange"
 status = "decoded"
 summary = "One inventory slot changed; decoded in neon-stream"
 
-[[opcode]]
-id = 0x01a9
-dir = "in"
-name = "InventoryAll"
-status = "decoded"
-summary = "The whole Use/Set-up/Etc inventory at login; decoded in neon-stream"
-
-[[opcode]]
-id = 0x00a7
-dir = "in"
-name = "PartyUpdate"
-status = "decoded"
-summary = "Party create (mode 0x0e), member joined (0x13), member left (0x10); decoded in neon-stream"
 
 [[opcode]]
 id = 0x0281
@@ -844,30 +825,8 @@ status = "observed"
 len_min = 17
 len_max = 17
 
-[[opcode]]
-id = 0x02a8
-dir = "in"
-name = "PlayerAttack"
-status = "structure"
-summary = "Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (63, 87, 111, 135, 159 seen: n = 0..4 targets): a 63-byte header whose char_id@2 is a known player in 100% of packets, then n 24-byte target records starting at @63, each beginning with the mob oid (known mob in 94% of the first records) and, at +8, probably the damage (u32; medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). With no target (n = 0) it is a swing at nothing: 36 of them seen in a mob-less town. Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. 2026-10-26"
-len_min = 63
-field = [{ name = "char_id", ty = "u32", off = 2 }]
 
-[[opcode]]
-id = 0x02a9
-dir = "in"
-status = "structure"
-summary = "Same header as 0x02a8 (char_id@2 100%) and mob oid at @63 in 91% of the 87-byte packets: a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111. Pairs with 0x044d in 52% of the 87-byte packets (69/131)."
-len_min = 63
-field = [{ name = "char_id", ty = "u32", off = 2 }]
 
-[[opcode]]
-id = 0x02aa
-dir = "in"
-status = "structure"
-summary = "Same header as 0x02a8 and mob oid at @63 in 96% of the 87-byte packets: a third attack variant (kind not known). Lengths seen 63, 87, 97. Pairs with 0x044d in 39% (37/94)."
-len_min = 63
-field = [{ name = "char_id", ty = "u32", off = 2 }]
 
 [[opcode]]
 id = 0x02af
@@ -1220,3 +1179,160 @@ status = "structure"
 summary = "7 bytes: op, fd, two varying bytes, 75, ff. Exactly one per own kill (14 of 16 kill windows, 15 packets in 193 s). Meaning unknown"
 len_min = 7
 len_max = 7
+
+# ---- 0x008b: status message; the mode byte at @2 selects the layout ---------------------------------------------------
+[[opcode]]
+id = 0x008b
+dir = "in"
+when = { off = 2, eq = 0 }
+name = "PickupMessage"
+status = "decoded"
+summary = "Item picked up (mode 0, sub-mode byte @4 = 0): item id and quantity. A meso pickup (sub-mode 1, amount u32@6) does not fit these bounds and is not decoded here"
+len_min = 13
+field = [
+  { name = "item", ty = "u32", off = 5, min = 1000000, max = 10000000 },
+  { name = "qty", ty = "u32", off = 9, min = 1, max = 10000 },
+]
+
+[[opcode]]
+id = 0x008b
+dir = "in"
+when = { off = 2, eq = 1 }
+name = "QuestMessage"
+status = "decoded"
+summary = "Quest progress (mode 1): quest id u32@3, status u8@7 (1 in progress with kill-count text, 2 completed)"
+len_min = 8
+field = [
+  { name = "quest_id", ty = "u32", off = 3, min = 1, max = 999999 },
+  { name = "status", ty = "u8", off = 7, max = 2 },
+]
+
+[[opcode]]
+id = 0x008b
+dir = "in"
+when = { off = 2, eq = 3 }
+name = "ExpMessage"
+status = "verified"
+summary = "Experience gained (mode 3): flag @3, amount u32@4. The amount equals the growth of the EXP counter (0x007e) in 26 of 26 consecutive kills (2026-10-26)"
+len_min = 8
+field = [
+  { name = "flag", ty = "u8", off = 3 },
+  { name = "amount", ty = "u32", off = 4, min = 1, max = 1000000000 },
+]
+
+[[opcode]]
+id = 0x008b
+dir = "in"
+when = { off = 2, eq = 13 }
+name = "QuestRecordMessage"
+status = "verified"
+summary = "A quest-record text (mode 0x0d): quest id u32@3 and a length-prefixed text such as date=20261026;count=39, whose count rose by one per kill (2026-10-26)"
+len_min = 9
+field = [
+  { name = "quest_id", ty = "u32", off = 3, min = 1, max = 99999999 },
+  { name = "text", ty = "str16", off = 7, min = 1, max = 200 },
+]
+
+# ---- 0x00a7: party; the mode byte at @2 selects the layout (member lists are scanned by neon-world::decode) --------------
+[[opcode]]
+id = 0x00a7
+dir = "in"
+when = { off = 2, eq = 16 }
+name = "PartyLeft"
+status = "verified"
+summary = "A member left, or we left (mode 0x10): the character id. In the real capture it is our own id (334426) when we left"
+len_min = 8
+len_max = 8
+field = [{ name = "char_id", ty = "u32", off = 3, min = 1, max = 99999999 }]
+
+[[opcode]]
+id = 0x00a7
+dir = "in"
+when = { off = 2, eq = 14 }
+name = "PartyCreated"
+status = "verified"
+summary = "Party created (mode 0x0e): party id u32@3, then the member list (scanned, see neon-world decode::parse_party_members)"
+len_min = 100
+field = [{ name = "party_id", ty = "u32", off = 3 }]
+
+[[opcode]]
+id = 0x00a7
+dir = "in"
+when = { off = 2, eq = 19 }
+name = "PartyJoined"
+status = "verified"
+summary = "A member joined (mode 0x13): the joiner's name (u16 length @3), then the party id and the member list (scanned)"
+len_min = 100
+field = [{ name = "joiner", ty = "str16", off = 3, min = 3, max = 13, charset = "ident" }]
+
+# ---- 0x01a9: two different packets share this opcode; the length tells them apart --------------------------------------
+[[opcode]]
+id = 0x01a9
+dir = "in"
+name = "MapEnter"
+status = "decoded"
+summary = "Set-field (we entered a map): map id u32@36. Only seen as 41..1000 bytes"
+len_min = 41
+len_max = 1000
+field = [{ name = "map", ty = "u32", off = 36, min = 1, max = 999999999 }]
+
+[[opcode]]
+id = 0x01a9
+dir = "in"
+name = "LoginInventory"
+status = "decoded"
+summary = "The whole Use/Set-up/Etc inventory at login (over 1000 bytes); decoded in neon-stream"
+len_min = 1001
+
+# ---- attack broadcasts: 63-byte header + n target records of 24 bytes ----------------------------------------------------
+[[opcode]]
+id = 0x02a8
+dir = "in"
+name = "PlayerAttack"
+status = "structure"
+summary = "Another player's attack, as the server broadcasts it (our own attacks are not echoed back). Length is exactly 63 + 24n (n = 0..4 targets). char_id@2 is a known player in 100% of packets; each target record starts with the mob oid (known mob in 94% of first records) and has, at +8, probably the damage (medians 31-66, max 131 across 17 low-level attackers; not checked against the screen). n = 0 is a swing at nothing (36 seen in a mob-less town). Pairs with a 0x044d of the same (player, mob) within 0.6 s in 28% of 1-target packets (381/1325) against 0 of 1325 at chance. Unexplained: @6 (varies: 0x11, 0x12, 0x0e, 0x17...), a repeated pair c5 01 00 00 5f 08 00 00 at @17/@25 that looks like an (x, y)"
+len_min = 63
+field = [{ name = "char_id", ty = "u32", off = 2 }]
+
+[opcode.records]
+name = "target"
+start = 63
+stride = 24
+field = [
+  { name = "mob_oid", ty = "u32", off = 0 },
+  { name = "value", ty = "u32", off = 8, min = 0, max = 10000000 },
+]
+
+[[opcode]]
+id = 0x02a9
+dir = "in"
+status = "structure"
+summary = "Same header as 0x02a8 and the same target records (mob oid at @63 in 91% of the 87-byte packets): a second attack variant (weapon or skill kind not known). Lengths seen 63, 87, 97, 111; the 97-byte form (63 + 34) does not fit the 24-byte records and stays unexplained. Pairs with 0x044d in 52% of the 87-byte packets (69/131)"
+len_min = 63
+field = [{ name = "char_id", ty = "u32", off = 2 }]
+
+[opcode.records]
+name = "target"
+start = 63
+stride = 24
+field = [
+  { name = "mob_oid", ty = "u32", off = 0 },
+  { name = "value", ty = "u32", off = 8, min = 0, max = 10000000 },
+]
+
+[[opcode]]
+id = 0x02aa
+dir = "in"
+status = "structure"
+summary = "Same header and target records as 0x02a8 (mob oid at @63 in 96% of the 87-byte packets): a third attack variant (kind not known). Lengths seen 63, 87, 97 (97 does not fit the records). Pairs with 0x044d in 39% (37/94)"
+len_min = 63
+field = [{ name = "char_id", ty = "u32", off = 2 }]
+
+[opcode.records]
+name = "target"
+start = 63
+stride = 24
+field = [
+  { name = "mob_oid", ty = "u32", off = 0 },
+  { name = "value", ty = "u32", off = 8, min = 0, max = 10000000 },
+]

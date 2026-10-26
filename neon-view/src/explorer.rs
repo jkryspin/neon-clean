@@ -4,7 +4,7 @@
 //! vary, does a 4-byte field here hold the id of a mob / player / drop we already know, and does the registry already
 //! explain it. Nothing here names anything: it shows evidence, a person (or a test) decides what it means.
 
-use neon_protocol::{Dir, Registry, Ty};
+use neon_protocol::{Dir, Registry};
 use neon_world::Event;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashSet, VecDeque};
@@ -94,14 +94,6 @@ fn dir_str(d: Dir) -> &'static str {
     }
 }
 
-fn ty_size(t: Ty) -> usize {
-    match t {
-        Ty::U8 => 1,
-        Ty::U16 | Ty::I16 | Ty::Str16 => 2,
-        Ty::U32 | Ty::I32 => 4,
-    }
-}
-
 impl Explorer {
     pub fn record(&mut self, dir: Dir, plain: &[u8]) {
         if plain.len() < 2 {
@@ -142,18 +134,18 @@ impl Explorer {
         let (&dominant_len, _) = e.lens.iter().max_by_key(|(_, c)| **c)?;
         let used: Vec<&Vec<u8>> = e.samples.iter().filter(|s| s.len() == dominant_len.min(MAX_ANALYSED) && true).collect();
         let n = dominant_len.min(MAX_ANALYSED);
-        let info = reg.get(dir, id);
-        // registry coverage per byte
+        // the entry (variant) that describes the most recent packet of the dominant length, and the bytes it explains
+        let probe = used.last().map(|v| v.as_slice()).unwrap_or(&[]);
+        let info = reg.select(dir, probe).or_else(|| reg.get(dir, id));
         let mut cover: Vec<Option<String>> = vec![None; n];
-        for b in 0..2.min(n) {
-            cover[b] = Some("opcode".to_string());
-        }
-        if let Some(o) = info {
-            for f in &o.field {
-                for b in f.off..(f.off + ty_size(f.ty)).min(n) {
-                    cover[b] = Some(f.name.clone());
-                }
+        for span in reg.layout(dir, probe) {
+            for b in span.off..(span.off + span.size).min(n) {
+                cover[b] = Some(span.name.clone());
             }
+        }
+        if cover.len() >= 2 && cover[0].is_none() {
+            cover[0] = Some("opcode".into());
+            cover[1] = Some("opcode".into());
         }
         let mut offsets: Vec<OffsetInfo> = Vec::with_capacity(n);
         for off in 0..n {

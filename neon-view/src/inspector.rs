@@ -65,7 +65,7 @@ impl Inspector {
         st.1 = st.1.min(plain.len());
         st.2 = st.2.max(plain.len());
         let decoded: Option<Decoded> = reg.decode(dir, plain);
-        let info = reg.get(dir, id);
+        let info = reg.select(dir, plain).or_else(|| reg.get(dir, id));
         let hex: String = plain.iter().take(HEX_BYTES).map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ");
         self.ring.push_back(Entry {
             t_ms,
