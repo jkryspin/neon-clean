@@ -42,6 +42,8 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 
 **Negative result (2026-10-26, jib01, Amherst):** opening and closing the inventory, equipment, stats, skills and quest windows (`i e s k q`), 4 repeats each with random 5-17 s gaps, produced no opcode that repeated in 3 of 4 repeats in either direction. These windows are client-only; they are not on the wire. Remaining candidates need a server round trip: shop/NPC dialog, trade, party invite, skill use, buff, item use, chat channels.
 
+**Negative result 2:** after walking jib01 next to the Amherst mailbox, 4 clicks on it (random 6-15 s gaps) opened no window and produced no repeating opcode (candidates appeared in at most 1 of 4 windows and were ordinary town traffic). Walking by held arrow key (`xdotool keydown Left`, 3.2 s) works on the test account.
+
 ## Evidence rules (what gets a name)
 
 1. A **name** needs an independent check, not a plausible story: a known value from another source (memory reader, map file, EXP counter),
