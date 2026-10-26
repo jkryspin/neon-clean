@@ -475,9 +475,12 @@ fn wire_packets_are_translated_to_the_internal_opcode_and_decode_as_the_same_ent
     // real client->server packets read from the wire (docs/network-protocol.md); their opcodes are 0x8786, 0x25d8, 0x5f28
     let r = Registry::builtin().unwrap();
     let f: serde_json::Value = serde_json::from_str(include_str!("fixtures/wire_packets.json")).unwrap();
-    for (key, name) in [("keepalive", "KeepAlive"), ("attack", "Attack"), ("move", "MoveSelf")] {
+    for (key, name) in [("keepalive", "KeepAlive"), ("attack", "Attack"), ("move", "MoveSelf"), ("npc", "NpcMoveReport")] {
         let wire = plain(f[key]["plain"].as_str().unwrap());
-        assert!(r.decode(Dir::Out, &wire).is_none(), "{key}: the wire opcode is not an internal opcode");
+        if key != "npc" {
+            // (the NPC report is a wire-only entry: its id is the wire number itself)
+            assert!(r.decode(Dir::Out, &wire).is_none(), "{key}: the wire opcode is not an internal opcode");
+        }
         let internal = r.wire_to_internal(&wire).unwrap_or_else(|| panic!("{key}: wire opcode unmapped"));
         assert_eq!(&internal[2..], &wire[2..], "only the opcode changes");
         let d = r.decode(Dir::Out, &internal).unwrap_or_else(|| panic!("{key}: does not decode"));

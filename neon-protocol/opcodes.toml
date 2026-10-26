@@ -1580,6 +1580,18 @@ field = [
 ]
 
 [[opcode]]
+id = 0x7cec
+dir = "out"
+name = "NpcMoveReport"
+status = "structure"
+wire_opcode = 0x7cec
+summary = "WIRE-ONLY ENTRY (id is the wire number; the client's internal number is not known). The client reports the movement of an NPC it was told about: about 2.8 per second standing in Amherst, 85% of all client->server packets. Evidence: u32@2 is an NPC id, and the number of reports per id equals the number of incoming NpcMove 0x0456 packets for that id (ids 138/139/140: 1188/1158/227 reports against 1188/1157/228 incoming, totals 2573 and 2573 in one 11-minute capture of jib01). Lengths 12 (header only), 48, 69, 90, 111, 132, 153 (48 + 21n: movement fragments like PlayerMove's, coordinate pairs in the body) and 57. Fields after @6 unexplained (2026-10-26)"
+len_min = 12
+field = [
+  { name = "npc_id", ty = "u32", off = 2, min = 1, max = 100000 },
+]
+
+[[opcode]]
 id = 0x032b
 dir = "out"
 name = "PickupDrop"
