@@ -10,6 +10,7 @@ const HEX_BYTES: usize = 64;
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Entry {
     pub t_ms: u64,
+    pub dir: String,
     pub op: String,
     pub len: usize,
     pub name: Option<String>,
@@ -22,6 +23,7 @@ pub struct Entry {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct OpStat {
+    pub dir: String,
     pub op: String,
     pub name: Option<String>,
     pub status: String,
@@ -33,8 +35,15 @@ pub struct OpStat {
 #[derive(Debug, Default)]
 pub struct Inspector {
     ring: VecDeque<Entry>,
-    stats: BTreeMap<u16, (u64, usize, usize)>,
+    stats: BTreeMap<(Dir, u16), (u64, usize, usize)>,
     pub total: u64,
+}
+
+fn dir_str(d: Dir) -> &'static str {
+    match d {
+        Dir::In => "in",
+        Dir::Out => "out",
+    }
 }
 
 fn show(v: &Value) -> String {
@@ -45,21 +54,22 @@ fn show(v: &Value) -> String {
 }
 
 impl Inspector {
-    pub fn record(&mut self, reg: &Registry, plain: &[u8], t_ms: u64) {
+    pub fn record(&mut self, reg: &Registry, dir: Dir, plain: &[u8], t_ms: u64) {
         if plain.len() < 2 {
             return;
         }
         let id = u16::from_le_bytes([plain[0], plain[1]]);
         self.total += 1;
-        let st = self.stats.entry(id).or_insert((0, usize::MAX, 0));
+        let st = self.stats.entry((dir, id)).or_insert((0, usize::MAX, 0));
         st.0 += 1;
         st.1 = st.1.min(plain.len());
         st.2 = st.2.max(plain.len());
-        let decoded: Option<Decoded> = reg.decode(Dir::In, plain);
-        let info = reg.get(Dir::In, id);
+        let decoded: Option<Decoded> = reg.decode(dir, plain);
+        let info = reg.get(dir, id);
         let hex: String = plain.iter().take(HEX_BYTES).map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ");
         self.ring.push_back(Entry {
             t_ms,
+            dir: dir_str(dir).to_string(),
             op: format!("{id:#06x}"),
             len: plain.len(),
             name: info.and_then(|o| o.name.clone()),
@@ -80,9 +90,10 @@ impl Inspector {
         let mut v: Vec<OpStat> = self
             .stats
             .iter()
-            .map(|(id, (count, lo, hi))| {
-                let info = reg.get(Dir::In, *id);
+            .map(|((dir, id), (count, lo, hi))| {
+                let info = reg.get(*dir, *id);
                 OpStat {
+                    dir: dir_str(*dir).to_string(),
                     op: format!("{id:#06x}"),
                     name: info.and_then(|o| o.name.clone()),
                     status: info.map(|o| format!("{:?}", o.status).to_lowercase()).unwrap_or_else(|| "unregistered".into()),

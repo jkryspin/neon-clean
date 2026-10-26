@@ -1,4 +1,4 @@
-use neon_protocol::Registry;
+use neon_protocol::{Dir, Registry};
 use neon_view::*;
 use neon_world::*;
 
@@ -22,69 +22,112 @@ fn line(t: f64, p: &[u8]) -> String {
 #[test]
 fn view_server_serves_page_state_and_404_over_a_real_socket() {
     use std::io::{Read, Write};
-    use std::sync::{Arc, Mutex};
-    let mut w = Shared::default();
-    w.world.apply(&Event::MapEnter { map: 1010 }, 0);
-    w.world.apply(&Event::PlayerSpawn { char_id: 5, name: "Zed".into() }, 1);
-    let reg = Arc::new(Registry::builtin().unwrap());
-    w.feed(&reg, &fx("0x3c9"), 5);
-    w.feed(&reg, &fx("0x44d"), 6);
-    let world = Arc::new(Mutex::new(w));
+    use std::sync::Arc;
+    let reg = Registry::builtin().unwrap();
+    let mut sh = Shared::default();
+    sh.world.apply(&Event::MapEnter { map: 1010 }, 0);
+    sh.world.apply(&Event::PlayerSpawn { char_id: 5, name: "Zed".into() }, 1);
+    sh.feed(&reg, Dir::In, &fx("0x3c9"), 5);
+    sh.feed(&reg, Dir::In, &fx("0x44d"), 6);
+    sh.feed(&reg, Dir::Out, &[0xfe, 0x02, 1, 2, 3], 7);
+    let app = Arc::new(App::new(reg, sh));
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let w2 = world.clone();
-    let r2 = reg.clone();
-    std::thread::spawn(move || server::serve(listener, w2, r2, std::time::Duration::from_millis(20)));
-    let get = |path: &str| {
+    let a2 = app.clone();
+    std::thread::spawn(move || server::serve(listener, a2, std::time::Duration::from_millis(20)));
+    let req = |method: &str, path: &str| {
         let mut s = std::net::TcpStream::connect(addr).unwrap();
-        write!(s, "GET {path} HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        write!(s, "{method} {path} HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
         let mut out = String::new();
         s.read_to_string(&mut out).unwrap();
         out
     };
+    let get = |path: &str| req("GET", path);
+    let body_of = |r: &str| r.split("\r\n\r\n").nth(1).unwrap().to_string();
     let page = get("/");
     assert!(page.starts_with("HTTP/1.1 200") && page.contains("Neon View") && page.contains("text/html"));
-    let st = get("/state");
-    let body = st.split("\r\n\r\n").nth(1).unwrap();
-    let j: serde_json::Value = serde_json::from_str(body).unwrap();
+    let j: serde_json::Value = serde_json::from_str(&body_of(&get("/state"))).unwrap();
     assert_eq!(j["map"], 1010);
     assert_eq!(j["players"]["5"]["name"], "Zed");
     assert!(get("/nope").starts_with("HTTP/1.1 404"));
-    let pk = get("/packets?limit=10");
-    let pj: serde_json::Value = serde_json::from_str(pk.split("\r\n\r\n").nth(1).unwrap()).unwrap();
-    assert_eq!(pj.as_array().unwrap().len(), 2);
-    assert_eq!(pj[1]["name"], "MobSpawn", "oldest last: newest first");
-    assert_eq!(pj[1]["status"], "verified");
-    assert!(pj[1]["fields"].as_array().unwrap().iter().any(|f| f[0] == "template" && f[1] == "6"));
-    assert_eq!(pj[0]["status"], "structure", "0x044d is registered as structure only");
-    assert_eq!(pj[0]["name"], "MobHit");
-    assert!(pj[0]["fields"].as_array().unwrap().iter().any(|f| f[0] == "factor" && f[1] == "100"), "the real fixture has factor 100");
-    let oc = get("/opcodes");
-    let oj: serde_json::Value = serde_json::from_str(oc.split("\r\n\r\n").nth(1).unwrap()).unwrap();
-    assert_eq!(oj.as_array().unwrap().len(), 2);
-    assert_eq!(oj[0]["count"], 1);
-    // The event stream emits snapshots and keeps updating.
+    let pj: serde_json::Value = serde_json::from_str(&body_of(&get("/packets?limit=10"))).unwrap();
+    assert_eq!(pj.as_array().unwrap().len(), 3);
+    assert_eq!(pj[0]["dir"], "out", "newest first, and the outgoing record is kept");
+    assert_eq!(pj[0]["status"], "structure", "0x02fe is registered as an outgoing structure-only opcode");
+    assert_eq!(pj[2]["name"], "MobSpawn");
+    assert_eq!(pj[2]["status"], "verified");
+    assert!(pj[2]["fields"].as_array().unwrap().iter().any(|f| f[0] == "template" && f[1] == "6"));
+    assert_eq!(pj[1]["name"], "MobHit");
+    let oj: serde_json::Value = serde_json::from_str(&body_of(&get("/opcodes"))).unwrap();
+    assert_eq!(oj.as_array().unwrap().len(), 3);
+    assert!(oj.as_array().unwrap().iter().any(|o| o["dir"] == "out" && o["op"] == "0x02fe"));
+    // live mode: no replay loaded
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&body_of(&get("/replay"))).unwrap()["mode"], "live");
+    assert!(req("POST", "/replay/play").starts_with("HTTP/1.1 404"), "no replay loaded");
+    // the event stream emits snapshots and keeps updating
     let mut s = std::net::TcpStream::connect(addr).unwrap();
     s.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
     write!(s, "GET /events HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
-    let mut buf = [0u8; 4096];
+    let mut buf = [0u8; 8192];
     let n = s.read(&mut buf).unwrap();
     let first = String::from_utf8_lossy(&buf[..n]).to_string();
     assert!(first.contains("text/event-stream"));
-    world.lock().unwrap().world.apply(&Event::MapEnter { map: 2020 }, 5);
+    app.shared.lock().unwrap().world.apply(&Event::MapEnter { map: 2020 }, 5);
     std::thread::sleep(std::time::Duration::from_millis(120));
     let mut all = first;
     let n = s.read(&mut buf).unwrap();
     all.push_str(&String::from_utf8_lossy(&buf[..n]));
     assert!(all.contains("\"map\":2020"), "stream did not pick up the new map: {all}");
+    assert!(all.contains("event: replay"), "the stream also carries the transport state");
 }
 
-fn hex(s: &str) -> Vec<u8> {
-    s.split_whitespace().map(|b| u8::from_str_radix(b, 16).unwrap()).collect()
-}
-
-fn party() -> serde_json::Value {
-    serde_json::from_str(include_str!("../../neon-stream/tests/fixtures/party_packets.json")).unwrap()
+#[test]
+fn the_replay_transport_works_over_http() {
+    use neon_world::record::{Replayer, Session};
+    use std::io::{Read, Write};
+    use std::sync::Arc;
+    let session = Session::from_lines(include_str!("../../neon-world/tests/fixtures/exp_session.log").lines().map(String::from));
+    let dur = session.duration_ms();
+    assert!(dur > 2000);
+    let app = Arc::new(App::new(Registry::builtin().unwrap(), Shared::default()));
+    *app.replay.lock().unwrap() = Some(Replayer::new(session));
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let a2 = app.clone();
+    std::thread::spawn(move || server::serve(listener, a2, std::time::Duration::from_millis(20)));
+    let req = |method: &str, path: &str| {
+        let mut s = std::net::TcpStream::connect(addr).unwrap();
+        write!(s, "{method} {path} HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        let mut out = String::new();
+        s.read_to_string(&mut out).unwrap();
+        out
+    };
+    let status = |r: &str| -> serde_json::Value { serde_json::from_str(r.split("\r\n\r\n").nth(1).unwrap()).unwrap() };
+    let st = status(&req("GET", "/replay"));
+    assert_eq!((st["mode"].as_str(), st["playing"].as_bool(), st["pos_ms"].as_u64()), (Some("replay"), Some(false), Some(0)));
+    assert_eq!(st["duration_ms"].as_u64(), Some(dur));
+    // controls are POST only
+    assert!(req("GET", "/replay/play").starts_with("HTTP/1.1 405"));
+    assert!(req("POST", "/replay/seek").starts_with("HTTP/1.1 404"), "missing argument");
+    // seek to the end: the whole session is in the world
+    let st = status(&req("POST", &format!("/replay/seek?ms={dur}")));
+    assert_eq!(st["pos_ms"].as_u64(), Some(dur));
+    let total = app.shared.lock().unwrap().world.snapshot().exp_gained;
+    assert!(total > 0);
+    // seek back to 0: the world is rebuilt empty
+    req("POST", "/replay/seek?ms=0");
+    assert!(app.shared.lock().unwrap().world.snapshot().exp_gained < total);
+    // play at speed 50, tick the ticker by hand: position advances, state reflects it
+    req("POST", "/replay/speed?x=50");
+    let st = status(&req("POST", "/replay/play"));
+    assert_eq!((st["playing"].as_bool(), st["speed"].as_f64()), (Some(true), Some(50.0)));
+    for _ in 0..40 {
+        app.tick_replay(50);
+    }
+    assert_eq!(app.shared.lock().unwrap().world.snapshot().exp_gained, total, "played to the end");
+    assert_eq!(status(&req("GET", "/replay"))["playing"].as_bool(), Some(false), "stops at the end");
+    let st = status(&req("POST", "/replay/pause"));
+    assert_eq!(st["playing"].as_bool(), Some(false));
 }
 
 #[test]

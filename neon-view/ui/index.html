@@ -32,6 +32,12 @@
   <span id="counts" class="dim"></span>
   <span id="conn" class="dim">connecting...</span>
 </header>
+<div id="transport" style="display:none;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap">
+  <button id="tp-play" style="min-width:64px">Play</button>
+  <select id="tp-speed"><option>0.5</option><option selected>1</option><option>2</option><option>5</option><option>10</option><option>50</option></select><span class="dim">x</span>
+  <input id="tp-seek" type="range" min="0" max="1" value="0" style="flex:1;min-width:160px">
+  <span id="tp-time" class="dim">0.0 / 0.0 s</span><span class="dim" id="tp-n"></span>
+</div>
 <main>
   <canvas id="c" width="900" height="420"></canvas>
   <aside>
@@ -45,8 +51,9 @@
 </main>
 <section>
   <div class="grid2">
-    <div><h2>Packets <label class="dim" style="text-transform:none;letter-spacing:0"><input type="checkbox" id="hide"> hide verified</label></h2>
-      <div class="box"><table><thead><tr><th>t</th><th>opcode</th><th>name</th><th>len</th><th>fields / bytes</th></tr></thead><tbody id="pk"></tbody></table></div></div>
+    <div><h2>Packets <label class="dim" style="text-transform:none;letter-spacing:0"><input type="checkbox" id="hide"> hide verified</label>
+      <select id="dirsel" style="margin-left:8px"><option value="">in + out</option><option value="in">incoming</option><option value="out">outgoing</option></select></h2>
+      <div class="box"><table><thead><tr><th>t</th><th>dir</th><th>opcode</th><th>name</th><th>len</th><th>fields / bytes</th></tr></thead><tbody id="pk"></tbody></table></div></div>
     <div><h2>Opcodes seen</h2>
       <div class="box"><table><thead><tr><th>opcode</th><th>n</th><th>len</th><th>status</th></tr></thead><tbody id="oc"></tbody></table></div></div>
   </div>
@@ -122,31 +129,55 @@ function render(s) {
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + id + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));
   draw();
 }
+let seeking = false;
+const post = path => fetch(path, { method: 'POST' }).then(r => r.ok ? r.json() : null).then(s => { if (s) renderTransport(s); });
+function renderTransport(s) {
+  const t = document.getElementById('transport');
+  if (s.mode !== 'replay') { t.style.display = 'none'; return; }
+  t.style.display = 'flex';
+  const seek = document.getElementById('tp-seek');
+  seek.max = s.duration_ms;
+  if (!seeking) seek.value = s.pos_ms;
+  document.getElementById('tp-play').textContent = s.playing ? 'Pause' : 'Play';
+  document.getElementById('tp-time').textContent = (s.pos_ms / 1000).toFixed(1) + ' / ' + (s.duration_ms / 1000).toFixed(1) + ' s';
+  document.getElementById('tp-n').textContent = s.records + ' records';
+  const sp = document.getElementById('tp-speed'); if (document.activeElement !== sp) sp.value = String(s.speed);
+  window.__playing = s.playing;
+}
+document.getElementById('tp-play').onclick = () => post(window.__playing ? 'replay/pause' : 'replay/play');
+document.getElementById('tp-speed').onchange = e => post('replay/speed?x=' + e.target.value);
+const sk = document.getElementById('tp-seek');
+sk.oninput = () => { seeking = true; document.getElementById('tp-time').textContent = (sk.value / 1000).toFixed(1) + ' s'; };
+sk.onchange = () => { post('replay/seek?ms=' + sk.value).then(() => { seeking = false; pollInspector(); }); };
 const qmap = new URLSearchParams(location.search).get('map');
 if (qmap) { document.getElementById('mapid').value = qmap; loadGeo(qmap); }
 const hexs = t => esc(t);
 function renderPackets(rows) {
   const hide = document.getElementById('hide').checked;
-  document.getElementById('pk').innerHTML = rows.filter(r => !(hide && r.status === 'verified')).slice(0, 80).map(r =>
-    '<tr><td class="dim">' + (r.t_ms / 1000).toFixed(1) + '</td><td class="' + r.status + '">' + r.op + '</td><td>' + esc(r.name || '') + '</td><td>' + r.len +
+  const dsel = document.getElementById('dirsel').value;
+  document.getElementById('pk').innerHTML = rows.filter(r => !(hide && r.status === 'verified') && (!dsel || r.dir === dsel)).slice(0, 80).map(r =>
+    '<tr><td class="dim">' + (r.t_ms / 1000).toFixed(1) + '</td><td class="dim">' + (r.dir === 'out' ? '&rarr;' : '&larr;') + '</td><td class="' + r.status + '">' + r.op + '</td><td>' + esc(r.name || '') + '</td><td>' + r.len +
     '</td><td class="hex">' + (r.fields.length ? esc(r.fields.map(f => f[0] + '=' + f[1]).join(' ')) : hexs(r.hex)) + '</td></tr>').join('');
 }
 function renderOps(rows) {
   document.getElementById('oc').innerHTML = rows.slice(0, 60).map(r =>
-    '<tr><td class="' + r.status + '">' + r.op + (r.name ? ' ' + esc(r.name) : '') + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>').join('');
+    '<tr><td class="' + r.status + '">' + (r.dir === 'out' ? '&rarr; ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>').join('');
 }
 let lastPk = [];
 document.getElementById('hide').onchange = () => renderPackets(lastPk);
+document.getElementById('dirsel').onchange = () => renderPackets(lastPk);
 const pollInspector = () => {
   fetch('packets?limit=200').then(r => r.json()).then(j => { lastPk = j; renderPackets(j); });
   fetch('opcodes').then(r => r.json()).then(renderOps);
 };
 if (new URLSearchParams(location.search).has('once')) {
   pollInspector();   // single fetch: for screenshots and tests
+  fetch('replay').then(r => r.json()).then(renderTransport);
   fetch('state').then(r => r.json()).then(s => { document.getElementById('conn').textContent = 'snapshot'; render(s); });
 } else {
   pollInspector(); setInterval(pollInspector, 1500);
   const es = new EventSource('events');
+  es.addEventListener('replay', e => renderTransport(JSON.parse(e.data)));
   es.onmessage = e => { document.getElementById('conn').textContent = 'live'; render(JSON.parse(e.data)); };
   es.onerror = () => { document.getElementById('conn').textContent = 'disconnected'; };
 }

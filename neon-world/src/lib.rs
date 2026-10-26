@@ -5,6 +5,7 @@
 //! [`replay`], so the model is testable without a live client.
 
 pub mod decode;
+pub mod record;
 use neon_protocol::{Dir, Registry};
 use serde::Serialize;
 use std::collections::BTreeMap;

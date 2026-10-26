@@ -1,11 +1,11 @@
 //! Minimal local view server (std only): `/` page, `/state` JSON snapshot, `/events` server-sent snapshots.
 //! The caller picks the bind address (neon-view defaults to 0.0.0.0). Read-only, but there is no authentication.
 
-use crate::Shared;
+use crate::{App, Shared};
 use neon_protocol::Registry;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 pub const INDEX_HTML: &str = include_str!("../ui/index.html");
@@ -15,6 +15,7 @@ pub enum Route {
     Events,
 }
 
+/// Read-only routes. `sh` is locked by the caller; replay controls are handled in [`control`].
 pub fn route(path: &str, sh: &Shared, reg: &Registry) -> Route {
     let (p, query) = path.split_once('?').unwrap_or((path, ""));
     let limit = query.split('&').find_map(|kv| kv.strip_prefix("limit=")).and_then(|n| n.parse().ok()).unwrap_or(100usize).min(400);
@@ -54,23 +55,51 @@ pub fn route(path: &str, sh: &Shared, reg: &Registry) -> Route {
     }
 }
 
-fn handle(mut stream: TcpStream, world: Arc<Mutex<Shared>>, reg: Arc<Registry>, tick: Duration) {
+/// Mutating routes (POST only): `/replay/play`, `/replay/pause`, `/replay/speed?x=2`, `/replay/seek?ms=1234`.
+pub fn control(app: &App, path: &str) -> Route {
+    let (p, query) = path.split_once('?').unwrap_or((path, ""));
+    let arg = |k: &str| query.split('&').find_map(|kv| kv.strip_prefix(&format!("{k}="))).and_then(|v| v.parse::<f64>().ok());
+    let ok = match p {
+        "/replay/play" => app.replay_control("play", None),
+        "/replay/pause" => app.replay_control("pause", None),
+        "/replay/speed" => arg("x").map_or(false, |x| app.replay_control("speed", Some(x))),
+        "/replay/seek" => arg("ms").map_or(false, |m| app.replay_control("seek", Some(m))),
+        _ => false,
+    };
+    if ok {
+        Route::Body { status: 200, content_type: "application/json", body: app.replay_status() }
+    } else {
+        Route::Body { status: 404, content_type: "text/plain", body: "no such control, bad argument, or no replay loaded".into() }
+    }
+}
+
+fn reason(status: u16) -> &'static str {
+    match status {
+        200 => "OK",
+        405 => "Method Not Allowed",
+        _ => "Not Found",
+    }
+}
+
+fn handle(mut stream: TcpStream, app: Arc<App>, tick: Duration) {
     let mut line = String::new();
     if BufReader::new(&stream).read_line(&mut line).is_err() {
         return;
     }
     let mut parts = line.split_whitespace();
     let (method, path) = (parts.next().unwrap_or(""), parts.next().unwrap_or("/"));
-    if method != "GET" {
-        let _ = stream.write_all(b"HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
-        return;
-    }
-    let r = { route(path, &world.lock().unwrap(), &reg) };
+    let r = match (method, path) {
+        ("GET", p) if p == "/replay" || p.starts_with("/replay?") => Route::Body { status: 200, content_type: "application/json", body: app.replay_status() },
+        ("POST", p) if p.starts_with("/replay/") => control(&app, p),
+        ("GET", p) if p.starts_with("/replay/") => Route::Body { status: 405, content_type: "text/plain", body: "use POST".into() },
+        ("GET", p) => route(p, &app.shared.lock().unwrap(), &app.reg),
+        _ => Route::Body { status: 405, content_type: "text/plain", body: "method not allowed".into() },
+    };
     match r {
         Route::Body { status, content_type, body } => {
-            let reason = if status == 200 { "OK" } else { "Not Found" };
             let head = format!(
-                "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+                "HTTP/1.1 {status} {}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+                reason(status),
                 body.len()
             );
             let _ = stream.write_all(head.as_bytes()).and_then(|_| stream.write_all(body.as_bytes()));
@@ -83,8 +112,9 @@ fn handle(mut stream: TcpStream, world: Arc<Mutex<Shared>>, reg: Arc<Registry>, 
                 return;
             }
             loop {
-                let json = world.lock().unwrap().world.to_json();
-                if stream.write_all(format!("data: {json}\n\n").as_bytes()).is_err() || stream.flush().is_err() {
+                let json = app.shared.lock().unwrap().world.to_json();
+                let status = app.replay_status();
+                if stream.write_all(format!("data: {json}\n\n").as_bytes()).is_err() || stream.write_all(format!("event: replay\ndata: {status}\n\n").as_bytes()).is_err() || stream.flush().is_err() {
                     return; // client went away
                 }
                 std::thread::sleep(tick);
@@ -94,11 +124,10 @@ fn handle(mut stream: TcpStream, world: Arc<Mutex<Shared>>, reg: Arc<Registry>, 
 }
 
 /// Accept connections forever, one thread each. Returns when the listener fails.
-pub fn serve(listener: TcpListener, world: Arc<Mutex<Shared>>, reg: Arc<Registry>, tick: Duration) {
+pub fn serve(listener: TcpListener, app: Arc<App>, tick: Duration) {
     for conn in listener.incoming() {
         let Ok(stream) = conn else { return };
-        let w = world.clone();
-        let r = reg.clone();
-        std::thread::spawn(move || handle(stream, w, r, tick));
+        let a = app.clone();
+        std::thread::spawn(move || handle(stream, a, tick));
     }
 }
