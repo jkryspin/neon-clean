@@ -146,3 +146,11 @@ server acceptance (no desyncs, no kicks).
   `XtestActuator` building xdotool argv per command; `Executor` that checks each command's expected effect on the world
   model and reports Confirmed / TimedOut / Failed; `StaffRules` pausing the gate when a staff-named player is on the map).
   Offline-tested only; not wired to the brain yet (the brain still presses keys directly).
+* 2026-10-26 (evening) milestone state. **M1** registry (variants, records, bounds, evidence rule per variant), **M2** harness + tools
+  (`actlab`, `idscan`, `recfind`, `poscorr`, `autocorr`, `pairscan`, guarded `capture-out.sh`), **M4** world model with replay,
+  **M5** command layer (offline; includes the Sunday maintenance pause), **M7** Neon View as its own crate: live + replay (play/pause/
+  speed/seek), several logs merged by time (incoming + outgoing), opcode explorer with byte map and a ranked "map next" list, packet
+  inspector, chat, activity, party, players with level and equipment, mobs with HP, NPCs, drops with items/mesos, own position from
+  our own outgoing movement. Registry: 140 incoming opcodes (20 named) and 29 outgoing (7 named).
+  Still ahead: M3/M6 (the long tail of opcodes needs actions nobody has done yet: shops, NPC dialogs, trade, skills, buffs, party
+  invites, the lie detector), M8/M9 (Stage B, gated on written Nexon approval, plus the unsolved payload cipher in both directions).
