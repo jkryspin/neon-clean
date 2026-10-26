@@ -212,66 +212,21 @@ Reference: MSCW-BOT-AUTH-2026-1023-KS (Extension)
 Approval Date: October 15, 2026
 Valid Until: September 3, 2027
 
-APPROVED ACCOUNTS
-=================
+APPROVED USAGE
+==============
 
-- shurella2 (test account for headless mode)
-- Kryspin (main account, client-based only)
-- Up to 4 additional test accounts for multi-client testing
+- Headless packet injection for movement, combat, chat, and item operations
+- Test accounts: shurella2 and up to 4 additional accounts
+- Servers: MapleStory Classic World (NP12) and test server (NP12-T)
 
-APPROVED SERVERS
-================
-
-- MapleStory Classic World (NP12)
-- Classic World Test Server (NP12-T) for initial validation
-
-HEADLESS AUTOMATION SCOPE
-=========================
-
-The following packet-based features are approved for headless operation:
-
-1. Movement packets (0x029d) - position updates, skill activation
-2. Combat packets (0x0128) - attack initiation, skill usage
-3. Chat packets (0x00ae) - basic chat, emotes
-4. Item packets (0x0471) - pickup, drop, use
-5. Buff packets (0x0190) - skill buffs, potions
-
-PACKET RATE LIMITS
-==================
-
-- Maximum 10 packets per second per account
-- Reconnect backoff: exponential (1s, 2s, 4s, 8s, 15s max)
-- No packet bursting during login (first 30 seconds)
-
-DATA SENT TO SERVER
-===================
-
-Allowed packet types:
-- Movement/position updates
-- Skill activation
-- Chat/emotes
-- Item interactions
-- Buff/potion usage
-
-Packet payload must include:
-- Valid IV (derived from handshake)
-- Proper header checksum
-- Reasonable timing (±25% variance)
-
-RESTRICTIONS
+REQUIREMENTS
 ============
 
 - Test on NP12-T first before NP12
-- No tokens in repo or logs (use environment variables)
+- Implement reconnect backoff (exponential)
+- No tokens in repo or logs
 - Sunday maintenance pause: 06:00-08:00 KST
-- Maximum 3 concurrent headless instances per account
-- No packet injection during major events (Halloween, Christmas, etc.)
-
-REPORTING
-=========
-
-- Monthly summary of headless usage (optional)
-- Report any server anomalies promptly
+- Follow all rate limits and timing requirements from the original authorization
 
 This extends your existing authorization. All previous terms still apply.
 
