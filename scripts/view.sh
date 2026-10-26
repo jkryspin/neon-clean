@@ -32,8 +32,9 @@ if [ -s "$LOG" ]; then
   STAMP=$NAME-$(date -r "$LOG" +%Y%m%d-%H%M%S)
   mv "$LOG" "run/sessions/$STAMP.log"
   [ -s "$LOG.wire" ] && mv "$LOG.wire" "run/sessions/$STAMP.log.wire"
+  [ -s "$LOG.wire.map" ] && mv "$LOG.wire.map" "run/sessions/$STAMP.log.wire.map"
 fi
-: >"$LOG"; : >"$LOG.wire"
+: >"$LOG"; : >"$LOG.wire"; rm -f "$LOG.wire.map"
 # Own session, so stopping it (kill -- -PGID) cannot touch the caller and `kill 0` below only reaches these processes.
 setsid bash -c '
   trap "kill 0" EXIT TERM INT
@@ -43,6 +44,8 @@ setsid bash -c '
   nice -n 15 neon-stream/target/release/neon-stream --pid "$1" --chains neon-calib/chains.json --no-footholds --seen-file "neon-calib/seen-max.$4.json" 2>/dev/null \
     | python3 neon-calib/tools/latest.py "run/view.$4.mem.json" 5 &
   neon-view/target/release/neon-view --log "$2" --log "$2.wire" --follow --speed 0 --port "$3" --mem "run/view.$4.mem.json" --marks run/marks.jsonl >"logs/view.$4.log" 2>&1 &
+  # the wire-opcode numbering is per connection: derive it from the traffic seen so far, every 30 s (neon-calib/tools/wiremap.py)
+  ( while sleep 30; do python3 neon-calib/tools/wiremap.py "$2" >/dev/null 2>&1; done ) &
   wait
 ' _ "$PID" "$LOG" "$PORT" "$NAME" >/dev/null 2>&1 &
 echo $! >"run/view.$NAME.pgid"

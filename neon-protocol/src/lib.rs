@@ -103,10 +103,6 @@ pub struct Opcode {
     pub records: Option<Records>,
     pub name: Option<String>,
     pub status: Status,
-    /// For `out` entries: the opcode this packet carries on the wire. The client's internal packet object (what the entries'
-    /// fields were first read from) and the wire use different opcode numbers; the payload is the same apart from clocks.
-    #[serde(default)]
-    pub wire_opcode: Option<u16>,
     pub summary: Option<String>,
     pub len_min: Option<usize>,
     pub len_max: Option<usize>,
@@ -176,8 +172,6 @@ struct File {
 #[derive(Debug, Clone)]
 pub struct Registry {
     ops: BTreeMap<(Dir, u16), Vec<Opcode>>,
-    /// wire opcode -> internal opcode (from `wire_opcode` of the `out` entries)
-    wire: BTreeMap<u16, u16>,
 }
 
 /// A byte range of a packet that the registry explains, with the field's name.
@@ -227,20 +221,8 @@ impl Registry {
             }
             group.push(op);
         }
-        let mut wire: BTreeMap<u16, u16> = BTreeMap::new();
-        for ((dir, id), group) in &ops {
-            for op in group {
-                if let Some(w) = op.wire_opcode {
-                    if *dir != Dir::Out {
-                        problems.push(format!("{dir:?} {id:#06x}: wire_opcode only makes sense for out entries"));
-                    } else if wire.insert(w, *id).map_or(false, |prev| prev != *id) {
-                        problems.push(format!("wire opcode {w:#06x} claimed by two internal opcodes"));
-                    }
-                }
-            }
-        }
         if problems.is_empty() {
-            Ok(Self { ops, wire })
+            Ok(Self { ops })
         } else {
             Err(Error::Invalid(problems))
         }
@@ -249,18 +231,6 @@ impl Registry {
     /// The first entry for an opcode (its primary description), whatever the packet looks like.
     pub fn get(&self, dir: Dir, id: u16) -> Option<&Opcode> {
         self.ops.get(&(dir, id)).and_then(|g| g.first())
-    }
-
-    /// A client->server packet as read from the wire, with its opcode rewritten to the internal one the registry describes.
-    /// `None` when the wire opcode is not mapped yet.
-    pub fn wire_to_internal(&self, plain: &[u8]) -> Option<Vec<u8>> {
-        if plain.len() < 2 {
-            return None;
-        }
-        let id = *self.wire.get(&u16::from_le_bytes([plain[0], plain[1]]))?;
-        let mut out = plain.to_vec();
-        out[..2].copy_from_slice(&id.to_le_bytes());
-        Some(out)
     }
 
     /// Every entry for an opcode (several when it has variants).
@@ -485,4 +455,39 @@ fn validate(op: &Opcode) -> Vec<String> {
         }
     }
     out
+}
+
+/// Client->server packets carry opcode numbers on the wire that differ from the ones the registry describes (the client's
+/// internal numbering), and for game packets the numbering is **different on every connection** (the same keepalive is 0x8786 on
+/// one account and 0xf5e8 on another, 2026-10-26). A `WireMap` is the translation for one connection; it is derived from that
+/// connection's traffic (`neon-calib/tools/wiremap.py`) and stored next to its log as `{"8786": "02f0", ...}` (hex, no prefix).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct WireMap(BTreeMap<u16, u16>);
+
+impl WireMap {
+    pub fn from_json(text: &str) -> Result<WireMap, String> {
+        let v: BTreeMap<String, String> = serde_json::from_str(text).map_err(|e| e.to_string())?;
+        let mut m = BTreeMap::new();
+        for (w, i) in v {
+            let w = u16::from_str_radix(w.trim_start_matches("0x"), 16).map_err(|e| format!("wire opcode {w}: {e}"))?;
+            let i = u16::from_str_radix(i.trim_start_matches("0x"), 16).map_err(|e| format!("internal opcode {i}: {e}"))?;
+            m.insert(w, i);
+        }
+        Ok(WireMap(m))
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// The packet with its opcode rewritten to the internal one; `None` when this wire opcode is not in the map.
+    pub fn translate(&self, plain: &[u8]) -> Option<Vec<u8>> {
+        if plain.len() < 2 {
+            return None;
+        }
+        let id = *self.0.get(&u16::from_le_bytes([plain[0], plain[1]]))?;
+        let mut out = plain.to_vec();
+        out[..2].copy_from_slice(&id.to_le_bytes());
+        Some(out)
+    }
 }

@@ -4,7 +4,7 @@ pub mod explorer;
 pub mod inspector;
 pub mod server;
 
-use neon_protocol::{Dir, Registry};
+use neon_protocol::{Dir, Registry, WireMap};
 use neon_world::record::{Record, Replayer, Sink};
 use neon_world::{event_from_packet, World};
 use std::sync::Mutex;
@@ -17,6 +17,8 @@ pub struct Shared {
     pub explorer: explorer::Explorer,
     /// Directory of per-map geometry files (`<id>.json`), served at `/map/<id>`; its parent holds the name tables.
     pub maps_dir: Option<std::path::PathBuf>,
+    /// Wire-opcode translation of the connection being shown (client->server packets use per-connection numbers).
+    pub wire_map: WireMap,
 }
 
 impl Shared {
@@ -55,7 +57,7 @@ impl Sink for ViewSink<'_> {
     fn feed(&mut self, rec: &Record) {
         if rec.wire {
             // a wire packet is shown as the internal packet the registry describes; unmapped wire opcodes are not shown yet
-            if let Some(p) = self.reg.wire_to_internal(&rec.plain) {
+            if let Some(p) = self.shared.wire_map.translate(&rec.plain) {
                 self.shared.feed(self.reg, Dir::Out, &p, rec.t_ms);
             }
             return;
@@ -150,6 +152,7 @@ impl App {
             return Err("bad session name".into());
         }
         let mut text = std::fs::read_to_string(dir.join(name)).map_err(|e| format!("cannot read {name}: {e}"))?;
+        let wire_map = std::fs::read_to_string(dir.join(format!("{name}.wire.map"))).ok().and_then(|t| WireMap::from_json(&t).ok()).unwrap_or_default();
         // a stamped incoming log may have the client->server packets of the same capture next to it (`<name>.wire`)
         if let Ok(w) = std::fs::read_to_string(dir.join(format!("{name}.wire"))) {
             text.push('\n');
@@ -161,6 +164,7 @@ impl App {
         }
         let mut rp = Replayer::new(session);
         let mut sh = self.shared.lock().unwrap();
+        sh.wire_map = wire_map;
         rp.seek(&mut ViewSink { shared: &mut sh, reg: &self.reg }, u64::MAX);
         *self.replay.lock().unwrap() = Some(rp);
         Ok(())

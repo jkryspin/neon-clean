@@ -2,6 +2,7 @@
 import json, os, sys, unittest
 sys.path.insert(0, os.path.dirname(__file__))
 import marklab
+import wiremap
 
 def pkt(t, d, op, n=4):
     return (t, d, op, n)
@@ -45,6 +46,23 @@ class MarkLab(unittest.TestCase):
         open(b, "w").write(json.dumps({"t": 1793051151000, "d": "out", "hex": "de00"}) + "\n")
         recs = marklab.load([a, b])
         self.assertEqual([(d_, op) for t, d_, op, n in recs], [("in", 0x28), ("out", 0xde)])
+
+class WireMap(unittest.TestCase):
+    def test_keepalive_is_the_two_byte_packet_that_answers_the_ping(self):
+        pings = [(100.0 + 10 * i, 0x062e, bytes([0x2e, 0x06])) for i in range(12)]
+        keep = [(100.0 + 10 * i + 0.03, 0x8786, bytes([0x86, 0x87])) for i in range(12)]
+        noise = [(100.0 + 7 * i, 0x00ba, bytes([0xba, 0, 1])) for i in range(30)]          # 3 bytes: never a keepalive
+        other2 = [(100.0 + 13 * i, 0x1111, bytes([0x11, 0x11])) for i in range(12)]          # 2 bytes but not tied to the pings
+        self.assertEqual(wiremap.derive(pings, keep + noise + other2), {0x8786: 0x02f0})
+
+    def test_nothing_is_guessed_without_pings(self):
+        self.assertEqual(wiremap.derive([], [(1.0, 0x8786, bytes([0x86, 0x87]))] * 20), {})
+
+    def test_attack_needs_the_fixture_bytes(self):
+        fixture = bytes([0xe1, 0]) + bytes(range(2, 40))
+        good = [(1.0 + i, 0x25d8, bytes([0xd8, 0x25]) + fixture[2:]) for i in range(6)]
+        bad = [(1.0 + i, 0x3333, bytes([0x33, 0x33]) + bytes(38)) for i in range(6)]
+        self.assertEqual(wiremap.derive([], good + bad, fixture), {0x25d8: 0x00e1})
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

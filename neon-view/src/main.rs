@@ -71,6 +71,25 @@ fn main() {
         // appended. Times are relative to the very first record of any file, so both formats look alike.
         let base = Arc::new(std::sync::Mutex::new(None::<u64>));
         let mut tails = vec![];
+        // the connection's wire-opcode map (`<first log>.wire.map`, written by neon-calib/tools/wiremap.py): re-read every few seconds
+        if let Some(first) = logs.first().cloned() {
+            let app = app.clone();
+            std::thread::spawn(move || {
+                let path = format!("{first}.wire.map");
+                let mut last = String::new();
+                loop {
+                    if let Ok(text) = std::fs::read_to_string(&path) {
+                        if text != last {
+                            if let Ok(m) = neon_protocol::WireMap::from_json(&text) {
+                                app.shared.lock().unwrap().wire_map = m;
+                            }
+                            last = text;
+                        }
+                    }
+                    std::thread::sleep(Duration::from_secs(3));
+                }
+            });
+        }
         for path in logs.clone() {
             let (app, base) = (app.clone(), base.clone());
             tails.push(std::thread::spawn(move || {
@@ -87,7 +106,7 @@ fn main() {
                     let t = if b > 1_000_000_000_000 { rec.t_ms.saturating_sub(b) } else { rec.t_ms };
                     let mut sh = app.shared.lock().unwrap();
                     if rec.wire {
-                        if let Some(p) = app.reg.wire_to_internal(&rec.plain) {
+                        if let Some(p) = sh.wire_map.translate(&rec.plain) {
                             sh.feed(&app.reg, rec.dir, &p, t);
                         }
                     } else {

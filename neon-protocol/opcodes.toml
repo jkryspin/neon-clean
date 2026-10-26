@@ -1109,6 +1109,15 @@ field = [
 ]
 
 [[opcode]]
+id = 0x062e
+dir = "in"
+name = "Ping"
+status = "structure"
+summary = "A bare 2-byte packet every 10.0 s (93% of 138 gaps within 15%), invisible to the old heuristic decoder (first seen once the receive cipher was solved). The client answers each one with its keepalive (internal 0x02f0, a per-connection opcode on the wire) 2-70 ms later: 139 pings and 139 keepalives on jib01 in 23 minutes, offsets of the first twelve 0.071, 0.060, 0.030, 0.027, 0.037, 0.032, 0.002, 0.014, 0.011, 0.015, 0.012, 0.023 s. 0x062c and 0x062d are bare 2-byte packets of the same family seen a few times (2026-10-26)"
+len_min = 2
+len_max = 2
+
+[[opcode]]
 id = 0x0452
 dir = "in"
 status = "observed"
@@ -1464,8 +1473,7 @@ id = 0x00db
 dir = "out"
 name = "MoveSelf"
 status = "structure"
-wire_opcode = 0x5f28
-summary = "Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players. WIRE: arrives as 0x5f28 (6/6 jump key presses of a marks test produce one; same layout: 01 6a 4d e8 f1 prefix, tick u32@7, x/y fragments)"
+summary = "Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players. On the wire it has a per-connection opcode (jib01 2026-10-26: 0x5f28; 6/6 jump key presses produce one; same layout: 01 6a 4d e8 f1 prefix, tick u32@7, x/y fragments)"
 len_min = 57
 field = [
   { name = "tick", ty = "u32", off = 7 },
@@ -1501,8 +1509,7 @@ id = 0x00e1
 dir = "out"
 name = "Attack"
 status = "structure"
-wire_opcode = 0x25d8
-summary = "Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this. WIRE: arrives as 0x25d8 (6/6 ctrl key presses produce one, 130 bytes; 92% of the bytes after the opcode equal the internal attack fixture, including the 0a 00 text)"
+summary = "Our attack: 130 bytes, sent exactly once per attack key press (three presses at 7.1 s, 8.1 s and 9.0 s produced three packets at 7.1, 8.1 and 9.0 s; 2026-10-26, jib01, basic attack). It carries a millisecond timestamp (u16 @~64 grew by 930 between presses 0.93 s apart) and a small counter; the packet contains the text User Melee1 (the attack's action name); other fields unexplained. 0x02fe, which filled the bot's runs, is NOT this. On the wire it has a per-connection opcode (jib01 2026-10-26: 0x25d8; 6/6 ctrl key presses produce one, 130 bytes; 92% of the bytes after the opcode equal the internal attack fixture, including the 0a 00 text)"
 len_min = 130
 len_max = 130
 
@@ -1581,30 +1588,6 @@ field = [
 ]
 
 [[opcode]]
-id = 0x7cec
-dir = "out"
-name = "NpcMoveReport"
-status = "structure"
-wire_opcode = 0x7cec
-summary = "WIRE-ONLY ENTRY (id is the wire number; the client's internal number is not known). The client reports the movement of an NPC it was told about: about 2.8 per second standing in Amherst, 85% of all client->server packets. Evidence: u32@2 is an NPC id, and the number of reports per id equals the number of incoming NpcMove 0x0456 packets for that id (ids 138/139/140: 1188/1158/227 reports against 1188/1157/228 incoming, totals 2573 and 2573 in one 11-minute capture of jib01). Lengths 12 (header only), 48, 69, 90, 111, 132, 153 (48 + 21n: movement fragments like PlayerMove's, coordinate pairs in the body) and 57. Fields after @6 unexplained. pairscan.py over the same capture: the report repeats the incoming NpcMove (0x0456) payload byte for byte at the same offsets (91% of 2573 reports match at offsets 13-44), so the layout of 0x0456 is the layout of this packet (2026-10-26)"
-len_min = 12
-field = [
-  { name = "npc_id", ty = "u32", off = 2, min = 1, max = 100000 },
-]
-
-[[opcode]]
-id = 0xfc6b
-dir = "out"
-status = "structure"
-wire_opcode = 0xfc6b
-summary = "WIRE-ONLY ENTRY (id is the wire number). 22 bytes, once every 300 s (5 in 25 minutes on jib01), always sent within 0.1 s of the incoming 0x001d (also 22 bytes, every 300 s): u32@18 equals that 0x001d's u32@2 in 5 of 5 pairs (a millisecond tick value), and u32@10 equals the previous 0x001d's u32@14. u32@2 and u32@10.. otherwise unexplained. Looks like a periodic time/health exchange; meaning not established (2026-10-26)"
-len_min = 22
-len_max = 22
-field = [
-  { name = "server_tick", ty = "u32", off = 18 },
-]
-
-[[opcode]]
 id = 0x032b
 dir = "out"
 name = "PickupDrop"
@@ -1624,8 +1607,7 @@ id = 0x02f0
 dir = "out"
 name = "KeepAlive"
 status = "structure"
-wire_opcode = 0x8786
-summary = "2 bytes, no fields, every 10.0 s (two intervals of exactly 10.0 s in the bot capture; also seen idle). Not a reply to the incoming 0x001b, which also repeats every 10 s but in another phase (3 to 7 s away). WIRE: arrives as 0x8786 (2026-10-26 capture: twelve frames per two minutes, all the same plaintext 86 87 under twelve different IVs)"
+summary = "2 bytes, no fields, every 10.0 s (two intervals of exactly 10.0 s in the bot capture; also seen idle). Not a reply to the incoming 0x001b, which also repeats every 10 s but in another phase (3 to 7 s away). On the wire it is a different, per-connection opcode (jib01 2026-10-26: 0x8786, shurella2: 0xf5e8): it is the answer to the incoming 2-byte ping 0x062e (139 pings, 139 keepalives, each 2-70 ms later)"
 len_min = 2
 len_max = 2
 

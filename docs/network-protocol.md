@@ -290,3 +290,18 @@ The payload is the internal packet's payload; only the opcode number differs, an
 `0x00ba` (3 bytes), `0x00c5` (4 bytes, a counter), `0x009c` (149 bytes, every 10 s), `0x0070` (48 bytes), `0xa409`, `0xd49e`. Opening the item/equipment/stats/skills/quest windows (clicking the entries of the shortcut menu that `i` opens;
 checked with a screenshot) produced no repeating wire or incoming opcode in 4 repeats each: those windows are client-only.
 
+### Correction (2026-10-26 19:25): wire opcodes are scrambled per connection
+
+The table above (keepalive `0x8786`, attack `0x25d8`, move `0x5f28`) is the numbering of **one connection** (jib01). On shurella2 the same keepalive is `0xf5e8`
+(138 of them, answering the 138 incoming pings); `0x00c5`, `0x009c`, `0x0070` and `0x00ba` have the same number on both accounts. So a fixed wire-to-internal table is wrong;
+the registry no longer has `wire_opcode`. Instead `neon_protocol::WireMap` is the translation of one connection (`{"8786": "02f0", ...}`), written next to the log as
+`<log>.wire.map` by `neon-calib/tools/wiremap.py` (which derives only what the traffic itself proves: the keepalive as the 2-byte reply to the ping, the attack by its bytes) and read by Neon View
+(live: every 3 s; replay: with the session). Unmapped wire packets are not shown; they are never guessed.
+
+What the first wire captures established (all in `opcodes.toml` summaries or here):
+* **Incoming `0x062e` is the server ping** (bare 2 bytes, every 10.0 s; the old heuristic decoder never showed it). The client answers with its keepalive 2-70 ms later: 139 pings, 139 keepalives.
+* **The client echoes NPC movement**: the wire packet with 48 + 21n bytes whose u32@2 is an NPC id (jib01: `0x7cec`) repeats the incoming NpcMove `0x0456` payload byte for byte (91% of 2573 reports at offsets 13-44, ids and counts equal: 2573 = 2573).
+  It is 85% of all client->server traffic in a town. Its internal opcode is not known, so it has no registry entry yet.
+* **A 5-minute exchange**: incoming `0x001d` (22 bytes) is answered within 0.1 s by a 22-byte wire packet (jib01: `0xfc6b`) whose u32@18 equals the `0x001d`'s u32@2 (5 of 5).
+* The 1 s ticks `0x003d`, `0x002c`, `0x006e`, `0x023f` I had registered from the old logs never existed (heuristic mis-decryptions; removed).
+

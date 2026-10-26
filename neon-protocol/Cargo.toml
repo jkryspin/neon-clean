@@ -7,6 +7,5 @@ description = "Neon opcode registry: one source of truth for MapleStory Classic 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
-
-[dev-dependencies]
 serde_json = "1"
+
