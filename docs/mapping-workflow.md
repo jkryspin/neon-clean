@@ -19,9 +19,7 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 * **Outgoing, short attach (opt-in):** the opcode and plaintext are read from the client's packet object just before encryption,
   not by breaking the cipher. `neon-calib/tools/outraw.py` (via `sudo gdb -p PID`, about 12 s) logs the raw object and the wire
   length of each send; `neon-calib/tools/outbuild.py raw.jsonl out.nsr` turns it into exact plaintext (length at `+0x428`,
-  validated 41/41 against the sends). **Keep the whole attach under ~20 s on a test account**: sessions of 60-150 s dropped both test clients on 2026-10-26, and a 34 s attach
-  (12 s capture + slow attach/detach) dropped jib01 a few minutes later even though the memory reader still saw it alive right after; a 24 s one was fine
-  (`docs/network-protocol.md`). Expect to re-login after a drop (`scripts/instance-launch.sh`, one attempt, then back off). Addresses are specific to Classic World v1.0.1.
+  validated 41/41 against the sends). **Treat every attach as able to cost the session.** Tally for 2026-10-26 (short attaches of 12-34 s each, taken with a few minutes between them): 2 of 5 were followed, a few minutes later, by a disconnect to the login screen ("Unable to connect to the game server"; one on a test account after a 34 s attach, one on the main account after a 20 s attach), and the very first, much longer sessions (60-150 s) dropped both test clients. The memory reader still showed the character as alive right after the capture each time, so the drop is delayed. Recovery works (`scripts/instance-launch.sh NAME`, one attempt, then back off) but costs a minute or two and some risk. So: test accounts only, one capture per action set, keep the numbers of attaches low, never unattended, and prefer re-using the committed fixtures over capturing again. Addresses are specific to Classic World v1.0.1.
 
 ## Finding structure (tools, in the order they pay off)
 
