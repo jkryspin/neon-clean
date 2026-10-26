@@ -23,13 +23,18 @@ for p in $(pgrep -f MapleStory.exe); do
 done
 [ -n "$PID" ] || { echo "$NAME: game not running"; exit 3; }
 mkdir -p run logs
+# max HP/MP are only remembered per level, per account: never share the default seed file between accounts
+[ -f "neon-calib/seen-max.$NAME.json" ] || echo '{"level":0,"max_hp":0,"max_mp":0}' >"neon-calib/seen-max.$NAME.json"
 LOG=run/view.$NAME.log; : >"$LOG"
 # Own session, so stopping it (kill -- -PGID) cannot touch the caller and `kill 0` below only reaches these processes.
 setsid bash -c '
   trap "kill 0" EXIT TERM INT
   NEON_DUMP_OPS=all nice -n 15 neon-stream/target/release/neon-stream --pid "$1" --chains neon-calib/chains.json --net --no-footholds \
     2> >(python3 neon-calib/tools/stamp.py "$2") >/dev/null &
-  neon-world/target/release/neon-view --log "$2" --follow --speed 0 --port "$3" >"logs/view.$4.log" 2>&1 &
+  # memory source (position, HP/MP, level): only the newest line is kept
+  nice -n 15 neon-stream/target/release/neon-stream --pid "$1" --chains neon-calib/chains.json --no-footholds --seen-file "neon-calib/seen-max.$4.json" 2>/dev/null \
+    | python3 neon-calib/tools/latest.py "run/view.$4.mem.json" 5 &
+  neon-world/target/release/neon-view --log "$2" --follow --speed 0 --port "$3" --mem "run/view.$4.mem.json" >"logs/view.$4.log" 2>&1 &
   wait
 ' _ "$PID" "$LOG" "$PORT" "$NAME" >/dev/null 2>&1 &
 echo $! >"run/view.$NAME.pgid"

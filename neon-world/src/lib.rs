@@ -60,6 +60,11 @@ pub struct Drop {
 /// Our own character, as far as stat updates have told us.
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
 pub struct Me {
+    /// Position and state read from the client's memory (`World::apply_mem`), not from packets.
+    pub x: Option<i32>,
+    pub y: Option<i32>,
+    pub grounded: Option<bool>,
+    pub dead: Option<bool>,
     pub hp: Option<u32>,
     pub max_hp: Option<u32>,
     pub mp: Option<u32>,
@@ -178,6 +183,30 @@ impl World {
                 }
             }
         }
+    }
+
+    /// Merge one `neon-stream` state line (JSON with a `player` object): position, HP/MP, level, grounded, dead.
+    /// Null fields are ignored, so a source that cannot read something does not erase what packets told us; max HP/MP from
+    /// memory are estimates and never override a packet-derived value.
+    pub fn apply_mem(&mut self, v: &serde_json::Value, now_ms: u64) {
+        let Some(p) = v.get("player") else { return };
+        let me = &mut self.s.me;
+        let num = |k: &str| p.get(k).and_then(|x| x.as_i64());
+        let set_i32 = |dst: &mut Option<i32>, v: Option<i64>| if let Some(n) = v { *dst = Some(n as i32) };
+        let set_u32 = |dst: &mut Option<u32>, v: Option<i64>| if let Some(n) = v { if n >= 0 { *dst = Some(n as u32) } };
+        set_i32(&mut me.x, num("x"));
+        set_i32(&mut me.y, num("y"));
+        set_u32(&mut me.hp, num("hp"));
+        // Max HP/MP from memory are estimates (remembered per level): a packet stat update gives the exact value, so
+        // memory only fills them in when no packet has.
+        if me.max_hp.is_none() { set_u32(&mut me.max_hp, num("max_hp")); }
+        set_u32(&mut me.mp, num("mp"));
+        if me.max_mp.is_none() { set_u32(&mut me.max_mp, num("max_mp")); }
+        set_u32(&mut me.level, num("level"));
+        if let Some(b) = p.get("grounded").and_then(|x| x.as_bool()) { me.grounded = Some(b) }
+        if let Some(b) = p.get("dead").and_then(|x| x.as_bool()) { me.dead = Some(b) }
+        if let Some(m) = num("map_id").filter(|m| *m > 0) { self.s.map = Some(m as u32) }
+        self.s.now_ms = self.s.now_ms.max(now_ms);
     }
 
     pub fn snapshot(&self) -> &Snapshot {

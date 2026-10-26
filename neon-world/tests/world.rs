@@ -272,3 +272,36 @@ fn map_geometry_is_served_by_id_and_only_by_digits() {
     assert!(matches!(view::route("/map/1010", &none, &reg), view::Route::Body { status: 404, .. }));
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn memory_state_merges_without_erasing_packet_knowledge() {
+    let mut w = World::new();
+    w.apply(&Event::Stats(StatUpdate { exp: Some(1455), meso: Some(900), ..Default::default() }), 0);
+    // A real neon-stream line (shurelia2 in Perion, 2026-10-26): map_id and exp are null, position and HP are read.
+    let line: serde_json::Value = serde_json::from_str(
+        r#"{"seq":1,"player":{"x":-783,"y":1785,"map_id":null,"level":10,"hp":368,"max_hp":544,"mp":194,"max_mp":263,"exp":null,"meso":null,"dead":false,"grounded":true,"job":null}}"#,
+    )
+    .unwrap();
+    w.apply_mem(&line, 10);
+    let me = &w.snapshot().me;
+    assert_eq!((me.x, me.y, me.hp, me.max_hp, me.level), (Some(-783), Some(1785), Some(368), Some(544), Some(10)));
+    assert_eq!((me.grounded, me.dead), (Some(true), Some(false)));
+    assert_eq!((me.exp, me.meso), (Some(1455), Some(900)), "null memory fields must not erase packet-derived values");
+    assert_eq!(w.snapshot().map, None, "no map id in memory");
+    let with_map: serde_json::Value = serde_json::from_str(r#"{"player":{"map_id":1010}}"#).unwrap();
+    w.apply_mem(&with_map, 11);
+    assert_eq!(w.snapshot().map, Some(1010));
+    w.apply_mem(&serde_json::json!({"nothing": 1}), 12); // not a state line: ignored
+    assert_eq!(w.snapshot().me.x, Some(-783));
+}
+
+#[test]
+fn estimated_max_hp_from_memory_never_overrides_the_exact_packet_value() {
+    let mut w = World::new();
+    w.apply(&Event::Stats(StatUpdate { max_hp: Some(162), ..Default::default() }), 0);
+    let line = serde_json::json!({"player": {"hp": 100, "max_hp": 419, "max_mp": 50}});
+    w.apply_mem(&line, 1);
+    assert_eq!(w.snapshot().me.max_hp, Some(162), "exact packet value kept");
+    assert_eq!(w.snapshot().me.max_mp, Some(50), "no packet value for MP yet: the estimate fills in");
+    assert_eq!(w.snapshot().me.hp, Some(100));
+}

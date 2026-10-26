@@ -13,7 +13,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let get = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
     let Some(log) = get("--log") else {
-        eprintln!("usage: neon-view --log <packet log> [--follow] [--speed 1.0 (0 = as fast as possible)] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps]");
+        eprintln!("usage: neon-view --log <packet log> [--follow] [--speed 1.0 (0 = as fast as possible)] [--port 8765] [--host 0.0.0.0] [--maps neon-calib/maps] [--mem <file with the latest neon-stream line>]");
         std::process::exit(2);
     };
     let follow = args.iter().any(|a| a == "--follow");
@@ -30,6 +30,24 @@ fn main() {
     let listener = std::net::TcpListener::bind((host.as_str(), port)).expect("bind (is the port taken or the host wrong?)");
     eprintln!("neon-view on http://{host}:{port}/  (log {log}, follow={follow}, speed={speed}; no authentication)");
 
+    if let Some(mem) = get("--mem") {
+        let w = world.clone();
+        std::thread::spawn(move || {
+            let mut last = String::new();
+            loop {
+                std::thread::sleep(Duration::from_millis(200));
+                let Ok(text) = std::fs::read_to_string(&mem) else { continue };
+                let line = text.lines().last().unwrap_or("").to_string();
+                if line.is_empty() || line == last {
+                    continue;
+                }
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
+                    w.lock().unwrap().world.apply_mem(&v, 0);
+                }
+                last = line;
+            }
+        });
+    }
     let (w2, r2) = (world.clone(), reg.clone());
     std::thread::spawn(move || view::serve(listener, w2, r2, Duration::from_millis(250)));
 
