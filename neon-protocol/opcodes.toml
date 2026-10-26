@@ -457,9 +457,10 @@ len_max = 77
 [[opcode]]
 id = 0x003d
 dir = "in"
-status = "observed"
+status = "structure"
 len_min = 2
 len_max = 10
+summary = "Unverified. Always 10 bytes, arrives in bursts once per second (periodic.py: 90% of 2267 gaps within 15% of 1.0 s). Bytes 6-8 take a small recurring set of values (about 5, e.g. 90 d7 01) and look like a stream/entity key; the u16 at 2 counts up by 1 per packet within one key (a6 3a, a7 3a, a8 3a, a9 3a); the u16 at 4 drifts slowly upward (7a fe -> 7b fe) like a clock. Several streams in step. Meaning not established; the incoming cipher key estimate may garble bytes."
 
 [[opcode]]
 id = 0x0055
