@@ -192,8 +192,38 @@ summary = "Pet spawn (name only); not mobs"
 id = 0x0282
 dir = "in"
 name = "PetMove"
+status = "verified"
+summary = "A pet moved: owner char id @2, four zero bytes @6, start x @14 / y @16 (on a platform in 90% of 722 packets), fragment count @22, then n 21-byte movement fragments (same layout as PlayerMove; 91% of fragment ends on platforms) and 1 trailing byte; length = 24 + 21n. Found by recfind.py (88.7% of 814 packets fit, count byte == n) and then checked against the map geometry (2026-10-26)"
+len_min = 45
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+  { name = "x", ty = "i16", off = 14, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 16, min = -20000, max = 20000 },
+  { name = "count", ty = "u8", off = 22 },
+]
+
+[opcode.records]
+name = "move"
+start = 23
+stride = 21
+tail = 1
+count_at = 22
+field = [
+  { name = "x", ty = "i16", off = 2, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 4, min = -20000, max = 20000 },
+  { name = "vx", ty = "i16", off = 6 },
+  { name = "vy", ty = "i16", off = 8 },
+  { name = "foothold", ty = "i16", off = 10 },
+  { name = "stance", ty = "u8", off = 18 },
+  { name = "duration", ty = "u16", off = 19 },
+]
+
+[[opcode]]
+id = 0x0282
+dir = "in"
+name = "PetMove"
 status = "decoded"
-summary = "Pet move (name only)"
+summary = "Pet move: the forms that do not fit the fragment layout above (name only)"
 
 [[opcode]]
 id = 0x00ae

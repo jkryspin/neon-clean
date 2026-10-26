@@ -366,3 +366,17 @@ fn real_movement_packets_decode_into_fragments_and_a_wrong_count_falls_back() {
     let explained: usize = spans.iter().map(|s| s.size).sum();
     assert!(explained < mm.len(), "padding and unknown bytes are not claimed");
 }
+
+#[test]
+fn a_real_pet_move_decodes_into_fragments() {
+    let r = Registry::builtin().unwrap();
+    let c: serde_json::Value = serde_json::from_str(include_str!("fixtures/combat_packets.json")).unwrap();
+    let p = plain(c["0x282_pet2"]["plain"].as_str().unwrap());
+    assert_eq!(p.len(), 24 + 21 * 2);
+    let d = r.decode(Dir::In, &p).unwrap();
+    assert_eq!(d.name.as_deref(), Some("PetMove"));
+    assert_eq!(d.get("count").unwrap().as_i64(), Some(2));
+    assert!(d.get("move[1].x").is_some() && d.get("move[2].x").is_none());
+    let owner = d.get("char_id").unwrap().as_i64().unwrap();
+    assert!((100_000..10_000_000).contains(&owner));
+}
