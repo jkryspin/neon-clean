@@ -233,3 +233,21 @@ fn every_real_pickup_request_is_answered_by_the_drop_being_picked_up_by_us() {
         assert_eq!(u32::from_le_bytes(removal.plain[7..11].try_into().unwrap()), 334426, "the picker is us");
     }
 }
+
+#[test]
+fn the_server_acknowledges_each_mob_move_we_report_with_the_same_numbers() {
+    // Real exchange (shurella2 grinding): outgoing MoveMob (mob oid, move counter) and the incoming MoveMobAck for the same pair.
+    let reg = Registry::builtin().unwrap();
+    let s = Session::from_lines(include_str!("fixtures/mobmove_exchange.jsonl").lines().map(String::from));
+    let dec = |r: &Record| reg.decode(r.dir, &r.plain);
+    let sent: Vec<(&Record, i64, i64)> = s.records.iter().filter(|r| r.dir == Dir::Out).filter_map(|r| dec(r).map(|d| (r, d.get("mob_oid").unwrap().as_i64().unwrap(), d.get("move_id").unwrap().as_i64().unwrap()))).collect();
+    assert_eq!(sent.len(), 5);
+    let mut acked = 0;
+    for (req, oid, id) in &sent {
+        let hit = s.records.iter().find(|r| {
+            r.dir == Dir::In && r.t_ms >= req.t_ms && r.t_ms - req.t_ms <= 1500 && dec(r).map_or(false, |d| d.name.as_deref() == Some("MoveMobAck") && d.get("mob_oid").unwrap().as_i64() == Some(*oid) && d.get("move_id").unwrap().as_i64() == Some(*id))
+        });
+        acked += hit.is_some() as usize;
+    }
+    assert!(acked >= 4, "only {acked} of 5 mob moves were acknowledged with the same (oid, id)");
+}

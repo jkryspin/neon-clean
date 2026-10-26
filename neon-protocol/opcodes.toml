@@ -1089,12 +1089,16 @@ len_max = 18
 [[opcode]]
 id = 0x03e7
 dir = "in"
-status = "structure"
-summary = "28 bytes, about 85 per minute while mobs are around: mob oid@2 is a known mob in 112 of 112 packets (20 distinct mobs). Meaning unknown (2026-10-26)."
+name = "MoveMobAck"
+status = "verified"
+summary = "The server acknowledges a mob move we reported (outgoing 0x02fe MoveMob): mob oid @2, the move counter u16 @6 (the same number we sent), a flag @8 (0 or 1), and a u16 @9 that was 30 in every packet (meaning unknown). 4 of 5 outgoing mob moves were answered by an incoming 0x03e7 with the same (oid, move id) 0.4 to 1.1 s later (2026-10-26, shurelia2 grinding). Also 36 of 112 are within 2 s of a kill of that mob, against 5 at chance (the controlled mob dies)"
 len_min = 28
 len_max = 28
 field = [
   { name = "mob_oid", ty = "u32", off = 2 },
+  { name = "move_id", ty = "u16", off = 6 },
+  { name = "flag", ty = "u8", off = 8 },
+  { name = "param", ty = "u16", off = 9 },
 ]
 
 [[opcode]]
