@@ -2,6 +2,8 @@ import gdb, struct, json
 import os
 OUT=os.environ.get("OUTCAP_JSON","outcap.json")
 D={}; PEND=[None]; N=[0]
+import time
+EVLOG=os.environ.get('OUTCAP_EVENTS')  # optional JSONL of every packet with a timestamp (local use; holds payload bytes)
 def save():
     json.dump(D,open(OUT,"w"),indent=1)
 class PK(gdb.Breakpoint):
@@ -21,6 +23,8 @@ class SD_(gdb.Breakpoint):
         e["count"]+=1
         e["wire_lens"][str(ln)]=e["wire_lens"].get(str(ln),0)+1
         if len(e["samples"])<4: e["samples"].append({"wire_len":ln,"plain_head":hx[:2*min(ln-4,96)+0]})
+        if EVLOG:
+            with open(EVLOG,'a') as f: f.write(json.dumps({'t':time.time(),'op':'0x%04x'%op,'wire':ln,'plain':hx[:128]})+'\n')
         N[0]+=1
         if N[0]%10==0: save()
         return False

@@ -192,5 +192,5 @@ World v1.0.1 build; **all addresses are for this build**):
   send. Results: `docs/outgoing-opcodes.json`, rendered by `scripts/opcode-doc.py` into `docs/opcodes.md`. Payload bytes
   are not committed (some packets carry the launcher login token).
 * Caveats: the packet's own length is not read yet (the wire length of the next send is only a hint); the breakpoint
-  sits in the game process, so a long attach should be watched; one capture of 150 s covered 25 opcodes, mostly
+  sits in the game process: **after gdb sessions of 60-150 s both test clients (jib01 and the main account shurella2) dropped to the login screen with "Unable to connect to the game server"** (cause not isolated: stalled heartbeat from stopping all threads, or the server reacting to the debugger). Treat every attach as able to cost the session; do not run it on the main account unattended, and prefer a few seconds at a time; one capture of 150 s covered 25 opcodes, mostly
   movement. The 2026-10-26 negative results above stand for the cipher itself.
