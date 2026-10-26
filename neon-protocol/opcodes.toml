@@ -321,10 +321,9 @@ len_max = 7
 id = 0x001b
 dir = "in"
 status = "structure"
-summary = "48 bytes, mostly zeros with two u64-looking values near the end; about 1 per 10 s"
+summary = "48 bytes every ~10 s (118 seen in 5 min, from both accounts): 30 zero bytes, a 1 at @31, then two 24-bit values at @32 and @40 (0 to ~3.8 million) that look uniformly random and change every time, each followed by five zero bytes. Hypothesis, NOT verified: a server challenge that the client answers with the outgoing heartbeat family (0x0265/0x0266); the log that would show the delay between them was overwritten (view.sh now archives logs)"
 len_min = 48
 len_max = 48
-
 
 [[opcode]]
 id = 0x00de

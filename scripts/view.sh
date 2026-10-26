@@ -25,7 +25,13 @@ done
 mkdir -p run logs
 # max HP/MP are only remembered per level, per account: never share the default seed file between accounts
 [ -f "neon-calib/seen-max.$NAME.json" ] || echo '{"level":0,"max_hp":0,"max_mp":0}' >"neon-calib/seen-max.$NAME.json"
-LOG=run/view.$NAME.log; : >"$LOG"
+LOG=run/view.$NAME.log
+# never destroy a capture by restarting the view: keep the previous log (run/ is git-ignored)
+if [ -s "$LOG" ]; then
+  mkdir -p run/sessions
+  mv "$LOG" "run/sessions/$NAME-$(date -r "$LOG" +%Y%m%d-%H%M%S).log"
+fi
+: >"$LOG"
 # Own session, so stopping it (kill -- -PGID) cannot touch the caller and `kill 0` below only reaches these processes.
 setsid bash -c '
   trap "kill 0" EXIT TERM INT
