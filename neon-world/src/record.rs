@@ -76,11 +76,12 @@ impl Session {
                 None => s.bad_lines += 1,
             }
         }
-        if let Some(t0) = s.records.first().map(|r| r.t_ms) {
+        // Several files may be merged, so time zero is the earliest record, not the first line read.
+        if let Some(t0) = s.records.iter().map(|r| r.t_ms).min() {
             // legacy logs carry unix ms; relative sessions already start near 0: subtract only when it is clearly absolute
             if t0 > 1_000_000_000_000 {
                 for r in &mut s.records {
-                    r.t_ms = r.t_ms.saturating_sub(t0);
+                    r.t_ms -= t0;
                 }
             }
         }
