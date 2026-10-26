@@ -163,3 +163,13 @@ memory; the plaintext only exists transiently around the cipher call. Reading it
 `libcrypto-3-x64.dll` (`EVP_*Update`). On this machine that also needs `ptrace` on a process outside our tree
 (`kernel.yama.ptrace_scope=1`, the game runs under the WineCharm flatpak), i.e. root or lowering the system-wide
 setting; neither was done.
+
+## Outgoing plaintext: breakpoints on the bundled libcrypto (2026-10-26, negative)
+
+With `sudo gdb -p <pid>` (no sysctl change; `set architecture i386:x86-64` is needed or gdb truncates addresses) on the
+jib01 client, breakpoints were set at the exports of the client's own `libcrypto-3-x64.dll` (base from `/proc/PID/maps`,
+RVAs from its export table): `EVP_EncryptUpdate` 0x749b, `EVP_CipherUpdate` 0x5d94, `EVP_CIPHER_CTX_new` 0x774d,
+`EVP_CipherInit_ex` 0x4606, `EVP_EncryptInit_ex` 0x6c4e, `EVP_aes_128_{ofb,ctr,cbc,ecb}`. Two 30-40 s runs (about 4
+client packets/s) produced **zero hits** on any of them, and the client stayed connected and unflagged while attached.
+So the packet cipher does not go through that DLL; it runs in the Themida-protected executable's own AES-NI code. The
+next step would be tracing that virtualised code, which is a much larger job than a breakpoint and was not attempted.
