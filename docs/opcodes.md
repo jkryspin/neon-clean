@@ -130,7 +130,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x0381` | 15 | 0.1 | 18 |  | observed |
 | `0x03c9` | 2286 | 11.7 | 313-317 | MobSpawn | verified: A mob appears (also sent for mobs already on the map when we enter it) |
 | `0x03d4` | 2192 | 11.2 | 16 | MobKill | verified: A mob was removed (killed) |
-| `0x03d5` | 180 | 0.9 | 7-313 | MobRespawn | verified: A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding) |
+| `0x03d5` | 180 | 0.9 | 7-313 | MobRespawn | verified: A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering) plus our OWN character id at @308 in 26 of 26 packets (0x03c9 does not carry it): consistent with the classic spawn-and-control packet, i.e. this client becomes the mob's controller (interpretation, not verified). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding) |
 | `0x03dc` | 40302 | 206.1 | 62-356 | MobMove | verified: Mob movement; x,y is where the move starts (later fragments are not decoded) |
 | `0x03e7` | 8991 | 46.0 | 28 |  | structure: 28 bytes, about 85 per minute while mobs are around: mob oid@2 is a known mob in 112 of 112 packets (20 distinct mobs). Meaning unknown (2026-10-26). |
 | `0x03e9` | 2 | 0.0 | 40 |  | observed, rare (<=2 sightings: may be decode noise) |

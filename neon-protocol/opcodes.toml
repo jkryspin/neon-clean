@@ -1191,13 +1191,14 @@ id = 0x03d5
 dir = "in"
 name = "MobRespawn"
 status = "verified"
-summary = "A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding)"
-len_min = 210
+summary = "A mob appears while we are on the map; same 313-byte layout as MobSpawn (0x03c9, which lists the mobs already there on entering) plus our OWN character id at @308 in 26 of 26 packets (0x03c9 does not carry it): consistent with the classic spawn-and-control packet, i.e. this client becomes the mob's controller (interpretation, not verified). 23 seen, each shortly after a kill; all 23 decoded positions lie within 6 px of a real platform of map 10004040, and 383 of 384 MobSpawn positions do too (2026-10-26, shurelia2 grinding)"
+len_min = 312
 field = [
   { name = "oid", ty = "u32", off = 3 },
   { name = "template", ty = "u32", off = 8, min = 1, max = 1000000 },
   { name = "x", ty = "i16", off = 206, min = -20000, max = 20000 },
   { name = "y", ty = "i16", off = 208, min = -20000, max = 20000 },
+  { name = "controller", ty = "u32", off = 308, min = 100000, max = 100000000 },
 ]
 
 [[opcode]]

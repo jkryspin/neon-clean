@@ -175,7 +175,12 @@ fn real_combat_packets_decode_with_the_registered_layouts() {
     let mut as_spawn = get("0x3d5");
     as_spawn[0..2].copy_from_slice(&0x03c9u16.to_le_bytes());
     let old = r.decode(Dir::In, &as_spawn).unwrap();
-    assert_eq!(old.fields, spawn.fields);
+    for name in ["oid", "template", "x", "y"] {
+        assert_eq!(old.get(name), spawn.get(name), "{name}");
+    }
+    // the respawn also carries our own character id (334426, known independently from drop ownership)
+    assert_eq!(spawn.get("controller").unwrap().as_i64(), Some(334426));
+    assert!(old.get("controller").is_none());
     let dead = r.decode(Dir::In, &get("0x3f3_dead")).unwrap();
     let live = r.decode(Dir::In, &get("0x3f3_spawn")).unwrap();
     assert_eq!(dead.get("state").unwrap().as_i64(), Some(0));
