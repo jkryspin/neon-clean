@@ -38,6 +38,8 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 | **Marks** + `neon-calib/tools/marklab.py MARKS LOG...` | Which opcodes follow a hand-made action? Type a label into the page's Mark box (stored in `run/marks.jsonl`, `POST /mark?label=`) when you do something in the game; `marklab.py run/marks.jsonl run/sessions/X.log` lists, per mark, the opcodes whose count in the next 15 s is far above their background rate. Repeat the action: an opcode that follows every repeat is the candidate (then confirm with the evidence rules). | needs logs with real capture times |
 | Aligned outgoing capture | Which sent packet belongs to which key press? | attack `0x00e1` at each `ctrl`; movement `0x00db` |
 
+**Marks pitfall (seen 2026-10-26):** never run an action loop whose period is a round number (60 s) without checking the periodicity first: `periodic.py` showed `0x004f` fires every 60 s, which phase-locked with a 60 s test loop and looked like "3/3 repeats" of opening the stats window. Vary the gaps (random 5-20 s) and run `periodic.py` on candidates before trusting them.
+
 ## Evidence rules (what gets a name)
 
 1. A **name** needs an independent check, not a plausible story: a known value from another source (memory reader, map file, EXP counter),

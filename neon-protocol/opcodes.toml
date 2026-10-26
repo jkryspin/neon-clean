@@ -297,7 +297,7 @@ summary = "(NPC movement is described by the entry above; this is the remaining 
 id = 0x004f
 dir = "in"
 status = "structure"
-summary = "3 bytes: op + one byte (0/1 seen)"
+summary = "3 bytes: op + one byte. Arrives as a burst of six packets with the byte counting 0,1,2,3,4,5 about 0.1 s apart, one burst every 60 s (9 bursts in 8 min on jib01, starting before any test action; every one of the 6 values seen exactly 9 times). A mark test that opened/closed the stats, inventory, equipment, skills and quest windows on a 60 s loop appeared to link it to opening the stats window (3/3), but that was phase-locking of the loop with the timer: bursts also occur with no action. Not caused by those windows. Meaning unknown."
 len_min = 3
 len_max = 3
 

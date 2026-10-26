@@ -27,7 +27,7 @@ Counts and sizes are what the passive capture actually saw (sizes include the 2-
 | `0x003b` | 1 | 0.0 | 6 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x003c` | 1 | 0.0 | 77 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x003d` | 5774 | 29.5 | 2-10 |  | structure: Unverified. Always 10 bytes, arrives in bursts once per second (periodic.py: 90% of 2267 gaps within 15% of 1.0 s). Bytes 6-8 take a small recurring set of values (about 5, e.g. 90 d7 01) and look like a stream/entity key; the u16 at 2 counts up by 1 per packet within one key (a6 3a, a7 3a, a8 3a, a9 3a); the u16 at 4 drifts slowly upward (7a fe -> 7b fe) like a clock. Several streams in step. Meaning not established; the incoming cipher key estimate may garble bytes. |
-| `0x004f` | 516 | 2.6 | 3 |  | structure: 3 bytes: op + one byte (0/1 seen) |
+| `0x004f` | 516 | 2.6 | 3 |  | structure: 3 bytes: op + one byte. Arrives as a burst of six packets with the byte counting 0,1,2,3,4,5 about 0.1 s apart, one burst every 60 s (9 bursts in 8 min on jib01, starting before any test action; every one of the 6 values seen exactly 9 times). A mark test that opened/closed the stats, inventory, equipment, skills and quest windows on a 60 s loop appeared to link it to opening the stats window (3/3), but that was phase-locking of the loop with the timer: bursts also occur with no action. Not caused by those windows. Meaning unknown. |
 | `0x0055` | 2 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x005c` | 1 | 0.0 | 12 |  | observed, rare (<=2 sightings: may be decode noise) |
 | `0x0065` | 1 | 0.0 | 10 |  | observed, rare (<=2 sightings: may be decode noise) |
