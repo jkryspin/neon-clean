@@ -333,3 +333,7 @@ Hello of this connection: send IV `d1 26 32 e1`, receive IV `12 9a db 06` (the f
 On jib02 the attack key press produced one `0x90b6` per press (6/6) and the jump key one `0xd34b` (6/6); `wiremap.py` derived keepalive and attack for that connection by itself (keepalive from the ping reply, attack from the internal fixture's bytes),
 so the per-connection map pipeline works on a fresh connection without hand work. The differences wire-internal are not a common xor/offset in either connection. `0x00c5` and `0x009c` are the same on all connections that were looked at.
 
+### Third account check (2026-10-26 19:52)
+A fresh 60 s capture of jib02's in-game connection (port 8577): 204 incoming frames, 192 exact (12 before the IV was learned), 0 chain breaks, 20 client frames decrypted, 0 breaks. So the same two rules hold on three different accounts and connections
+(jib01, shurella2, jib02). The in-game packets of jib02 are on the same connection as its hello and bulk table; the first 12 frames of any capture started mid-stream use the old heuristic, a capture that starts before the hello can in principle decode them exactly.
+
