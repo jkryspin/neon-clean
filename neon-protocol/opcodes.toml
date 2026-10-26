@@ -862,13 +862,6 @@ len_min = 6
 len_max = 6
 
 [[opcode]]
-id = 0x022e
-dir = "in"
-status = "observed"
-len_min = 6
-len_max = 6
-
-[[opcode]]
 id = 0x022f
 dir = "in"
 status = "observed"
@@ -1117,6 +1110,28 @@ status = "structure"
 summary = "A bare 2-byte packet every 10.0 s (93% of 138 gaps within 15%), invisible to the old heuristic decoder (first seen once the receive cipher was solved). The client answers each one with its keepalive (internal 0x02f0, a per-connection opcode on the wire) 2-70 ms later: 139 pings and 139 keepalives on jib01 in 23 minutes, offsets of the first twelve 0.071, 0.060, 0.030, 0.027, 0.037, 0.032, 0.002, 0.014, 0.011, 0.015, 0.012, 0.023 s. 0x062c and 0x062d are bare 2-byte packets of the same family seen a few times (2026-10-26)"
 len_min = 2
 len_max = 2
+
+[[opcode]]
+id = 0x022e
+dir = "in"
+status = "structure"
+summary = "6 bytes: a character id @2 (316 of 317 packets name a player seen on the map). One packet per player roughly every 30 to 500 seconds (101 different players in 35 minutes, up to 10 each), not tied to that player's attacks (0x02a8 of the same player within 0.3 s in 11 of 171) or movement (31 of 171). First seen with the exact decoder (2026-10-26); meaning unknown"
+len_min = 6
+len_max = 6
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+]
+
+[[opcode]]
+id = 0x0261
+dir = "in"
+status = "structure"
+summary = "14 bytes: a character id @2 (16 of 16 are players on the map), then eight 0xff bytes; 16 packets in 35 minutes, usually two per player. First seen with the exact decoder (2026-10-26); meaning unknown"
+len_min = 14
+len_max = 14
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x0452
