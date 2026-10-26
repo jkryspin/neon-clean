@@ -4,6 +4,8 @@
 //! into state; [`World::snapshot`] is what the view API serves. A packet log can be replayed offline with
 //! [`replay`], so the model is testable without a live client.
 
+pub mod view;
+
 use neon_protocol::{Dir, Registry};
 use serde::Serialize;
 use std::collections::BTreeMap;

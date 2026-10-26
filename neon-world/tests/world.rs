@@ -114,3 +114,46 @@ fn log_line_parser() {
     assert_eq!(parse_log_line("nope"), None);
     assert_eq!(parse_log_line("1.5 op 0028 len 2: zz"), None);
 }
+
+#[test]
+fn view_server_serves_page_state_and_404_over_a_real_socket() {
+    use std::io::{Read, Write};
+    use std::sync::{Arc, Mutex};
+    let mut w = World::new();
+    w.apply(&Event::MapEnter { map: 1010 }, 0);
+    w.apply(&Event::PlayerSpawn { char_id: 5, name: "Zed".into() }, 1);
+    let world = Arc::new(Mutex::new(w));
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let w2 = world.clone();
+    std::thread::spawn(move || view::serve(listener, w2, std::time::Duration::from_millis(20)));
+    let get = |path: &str| {
+        let mut s = std::net::TcpStream::connect(addr).unwrap();
+        write!(s, "GET {path} HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        let mut out = String::new();
+        s.read_to_string(&mut out).unwrap();
+        out
+    };
+    let page = get("/");
+    assert!(page.starts_with("HTTP/1.1 200") && page.contains("Neon View") && page.contains("text/html"));
+    let st = get("/state");
+    let body = st.split("\r\n\r\n").nth(1).unwrap();
+    let j: serde_json::Value = serde_json::from_str(body).unwrap();
+    assert_eq!(j["map"], 1010);
+    assert_eq!(j["players"]["5"]["name"], "Zed");
+    assert!(get("/nope").starts_with("HTTP/1.1 404"));
+    // The event stream emits snapshots and keeps updating.
+    let mut s = std::net::TcpStream::connect(addr).unwrap();
+    s.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
+    write!(s, "GET /events HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+    let mut buf = [0u8; 4096];
+    let n = s.read(&mut buf).unwrap();
+    let first = String::from_utf8_lossy(&buf[..n]).to_string();
+    assert!(first.contains("text/event-stream"));
+    world.lock().unwrap().apply(&Event::MapEnter { map: 2020 }, 5);
+    std::thread::sleep(std::time::Duration::from_millis(120));
+    let mut all = first;
+    let n = s.read(&mut buf).unwrap();
+    all.push_str(&String::from_utf8_lossy(&buf[..n]));
+    assert!(all.contains("\"map\":2020"), "stream did not pick up the new map: {all}");
+}

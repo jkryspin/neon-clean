@@ -130,3 +130,14 @@ server acceptance (no desyncs, no kicks).
 * The lie detector opcode only appears during a real check; plan for passive monitoring with alerts, never a guessed solver.
 * Live debugger sessions can cost an account session: keep them short, on test accounts, off the main account.
 * "Full opcode map" is open-ended: define done as the A3 exit criterion above, not "every opcode the server could send".
+
+## Status log
+
+* 2026-10-26 M1 `neon-protocol` (registry, 165 opcodes, constraints, real-packet tests), M2 `neon-calib/tools/actlab.py`
+  (baseline + repeats; validated on party create/leave), M4 `neon-world` (events, state, log replay, JSON snapshots),
+  first slice of M7: `neon-world/src/bin/neon-view.rs` serves `/` (page), `/state`, `/events` (SSE) on 0.0.0.0:8765 from a
+  packet log or a live `--follow` capture. Run:
+  `cd neon-world && cargo run --release --bin neon-view -- --log <stamped log> --follow --speed 0`
+  (log = `NEON_DUMP_OPS=all neon-stream --net ... 2> >(python3 stamp.py log)`). No authentication: LAN only.
+* Found and fixed on the way: `neon-stream` did not build (invented shuffle table in `outgoing.rs`); IV shuffle now
+  matches the algorithm verified on a real connection start.
