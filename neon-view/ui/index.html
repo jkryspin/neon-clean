@@ -33,6 +33,7 @@
   <b>Neon View</b>
   <span id="map" class="dim">map: -</span><label class="dim">map id <input id="mapid" size="9" placeholder="e.g. 1010" style="background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 4px"></label>
   <span id="counts" class="dim"></span>
+  <span id="coverage" class="dim" title="incoming opcodes by status"></span>
   <span id="conn" class="dim">connecting...</span>
   <span style="margin-left:auto"><input id="mark" size="26" maxlength="80" placeholder="mark: what you just did" style="background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:2px 6px"> <button id="mark-btn">Mark</button> <span id="marks" class="dim"></span></span>
 </header>
@@ -53,6 +54,7 @@
     <h2>Players</h2><ul id="players"></ul>
     <h2>Mobs</h2><ul id="mobs"></ul>
     <h2>Drops</h2><ul id="drops"></ul>
+    <h2>Reactors</h2><ul id="reactors"></ul>
   </aside>
 </main>
 <section>
@@ -151,6 +153,7 @@ function render(s) {
   list('players', Object.entries(s.players).map(([id, p]) => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + (p.level ? ' Lv' + p.level : '') + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
   list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + mobName(m.template) + (m.hp != null ? ' (' + m.hp + ' HP' + (m.damage_seen ? ', hit for ' + m.damage_seen + ' by others' : '') + ')' : '') + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + (d.item != null ? 'item ' + d.item : d.mesos != null ? d.mesos + ' mesos' : id) + '</span><span class="dim">' + d.x + ', ' + d.y + '</span>'));
+  list('reactors', Object.entries(s.reactors || {}).map(([id, r]) => '<span><i class="k" style="background:var(--npc)"></i>reactor ' + id + ' (template ' + r[0] + ')</span><span class="dim">' + (r[1] ? r[1] + ' hit' + (r[1] === 1 ? '' : 's') : 'unhit') + '</span>'));
   draw();
 }
 function loadMarks() { fetch('marks').then(r => r.ok ? r.json() : []).then(rows => { markRows = rows; document.getElementById('marks').textContent = rows.length ? rows.length + ' marks, last: ' + rows[rows.length - 1].label : ''; }); }
@@ -216,6 +219,14 @@ function renderPackets(rows) {
 function renderOps(rows) {
   document.getElementById('oc').innerHTML = rows.slice(0, 60).map(r =>
     '<tr class="click" onclick="openOp(\'' + r.dir + '\',\'' + r.op + '\')"><td class="' + r.status + '">' + (r.dir === 'out' ? '&rarr; ' : r.dir === 'wire' ? '&rarr;w ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>').join('');
+  const inRows = rows.filter(r => r.dir === 'in');
+  if (inRows.length) {
+    const by = {};
+    for (const r of inRows) by[r.status] = (by[r.status] || 0) + 1;
+    const order = ['verified', 'decoded', 'structure', 'observed'];
+    document.getElementById('coverage').textContent = inRows.length + ' opcodes seen: ' +
+      order.filter(s => by[s]).map(s => by[s] + ' ' + s).join(', ');
+  }
 }
 let exSel = null;
 const qop = new URLSearchParams(location.search).get('op');
