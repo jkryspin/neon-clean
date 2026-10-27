@@ -138,7 +138,8 @@ function render(s) {
   const mn = s.map != null && mapNames[String(s.map)] ? ' ' + mapNames[String(s.map)].name : '';
   document.getElementById('map').textContent = 'map: ' + (s.map ?? '-') + mn;
   if (s.map != null) { const box = document.getElementById('mapid'); if (document.activeElement !== box) box.value = s.map; loadGeo(String(s.map)); }
-  document.getElementById('counts').textContent = s.events + ' events';
+  const upMin = Math.floor(s.now_ms / 60000), upSec = Math.floor((s.now_ms % 60000) / 1000);
+  document.getElementById('counts').textContent = s.events + ' events, ' + upMin + ':' + String(upSec).padStart(2, '0') + ' captured';
   const desync = document.getElementById('desync');
   if (s.heuristic_skipped) {
     const agoMs = s.heuristic_last_ms != null ? (s.now_ms - s.heuristic_last_ms) : null;
