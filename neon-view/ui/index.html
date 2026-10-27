@@ -181,7 +181,12 @@ function render(s) {
   const dist = (x, y) => (m && m.x != null && x != null) ? Math.round(Math.hypot(x - m.x, y - m.y)) : null;
   const byDist = (a, b) => { const da = dist(a.x, a.y), db = dist(b.x, b.y); return (da ?? Infinity) - (db ?? Infinity); };
   const STANCE_LABEL = { 15: 'climbing', 7: 'jumping', 6: 'jumping?' };
-  list('players', Object.entries(s.players).map(([id, p]) => ({ id, ...p })).sort(byDist).map(p => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || p.id) + (p.level ? ' Lv' + p.level : '') + (STANCE_LABEL[p.stance] ? ' (' + STANCE_LABEL[p.stance] + ')' : '') + '</span><span class="dim">' + (dist(p.x, p.y) ?? '?') + 'px away</span>'));
+  list('players', Object.entries(s.players).map(([id, p]) => ({ id, ...p })).sort(byDist).map(p => {
+    const ageS = Math.round((s.now_ms - p.last_ms) / 1000);
+    const stale = ageS > 30; // PlayerLeave should remove them, but a missed/undecoded leave would otherwise linger forever
+    const title = esc(wears(p)) + (stale ? ' - not seen for ' + ageS + 's, may have left without a decodable PlayerLeave' : '');
+    return '<span title="' + title + '"' + (stale ? ' style="opacity:0.5"' : '') + '><i class="k" style="background:var(--player)"></i>' + esc(p.name || p.id) + (p.level ? ' Lv' + p.level : '') + (STANCE_LABEL[p.stance] ? ' (' + STANCE_LABEL[p.stance] + ')' : '') + '</span><span class="dim">' + (dist(p.x, p.y) ?? '?') + 'px away</span>';
+  }));
   list('mobs', Object.entries(s.mobs).map(([id, mo]) => ({ id, ...mo })).sort(byDist).map(mo => {
     const rem = (mo.hp && mo.damage_seen) ? Math.max(0, Math.round(100 * (1 - mo.damage_seen / mo.hp))) : null;
     const ageS = Math.round((s.now_ms - mo.last_ms) / 1000);
