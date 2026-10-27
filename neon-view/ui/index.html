@@ -148,7 +148,8 @@ function render(s) {
     '<span>Meso</span><span>' + (m.meso ?? '?') + '</span>',
     '<span>Last pickup</span><span>' + (s.pickups.length ? s.pickups[s.pickups.length - 1][0] + ' x' + s.pickups[s.pickups.length - 1][1] : '-') + '</span>']);
   list('feed', s.feed.slice().reverse().map(f => '<span>' + esc(f.text) + '</span><span class="dim">' + (f.t_ms / 1000).toFixed(0) + 's</span>'));
-  list('chat', (s.chat || []).slice().reverse().slice(0, 30).map(c => '<span>' + esc(c.text) + '</span>'));
+  const chatColor = k => k === 0xff ? 'var(--npc)' : k === 0xfe ? 'var(--drop)' : 'inherit';
+  list('chat', (s.chat || []).slice().reverse().slice(0, 30).map(c => '<span style="color:' + chatColor(c.kind) + '">' + esc(c.text) + '</span>'));
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
   list('players', Object.entries(s.players).map(([id, p]) => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + (p.level ? ' Lv' + p.level : '') + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
   list('mobs', Object.entries(s.mobs).map(([id, m]) => '<span><i class="k" style="background:var(--mob)"></i>' + mobName(m.template) + (m.hp != null ? ' (' + m.hp + ' HP' + (m.damage_seen ? ', hit for ' + m.damage_seen + ' by others' : '') + ')' : '') + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>'));
