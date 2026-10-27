@@ -140,6 +140,8 @@ pub struct Snapshot {
     /// EXP messages seen and their sum since the view started (one message per kill of ours).
     pub exp_messages: u64,
     pub exp_gained: u64,
+    /// Net meso change since the view started (can go negative - buying, repairs, taxes), from StatUpdate diffs.
+    pub meso_gained: i64,
     /// Chat lines, newest last (at most 60).
     pub chat: Vec<ChatLine>,
     /// Notable things that happened to us, newest last (at most 40).
@@ -218,6 +220,7 @@ impl World {
                     if let Some(old) = self.s.me.meso {
                         if m != old {
                             self.note(now_ms, format!("mesos {old} -> {m}"));
+                            self.s.meso_gained += m as i64 - old as i64;
                         }
                     }
                 }
