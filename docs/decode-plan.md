@@ -177,7 +177,31 @@ Workflow for one opcode (if a non-dispatch anchor is ever found):
 4. Write the finding into the opcode's `summary` with the exact addresses read, so it's reproducible and doesn't
    need re-deriving after the next client update.
 
-## Building Tier B encoders
+## Tier B encoders: DONE for the whole registry (2026-10-27)
+
+`Registry::encode_onto(dir, template, fields)` is now the exact inverse of `Registry::decode`, with
+`tests/encode.rs` covering it and `cargo run --example rt_check -- <logs>` running it over live captures.
+
+**It is patch-based on purpose.** For almost every opcode the registry explains only some of the bytes, so
+synthesising a packet from field values alone would mean inventing the rest - guessing dressed up as protocol.
+`encode_onto` instead takes a packet the server really sent and writes the named fields into it; the bytes we
+do not understand are carried over from real traffic. That is exactly what Tier B replay needs (take a real
+packet, change what you mean to change) and it is precisely round-trip testable.
+
+Guard rails, all tested: an unknown field name is an error rather than a silent no-op; a value outside the
+field's registered min/max is refused; a `str16` can only be replaced by a same-length string (a different
+length would shift every later byte, including the unexplained ones).
+
+**Validation result:** `1,777,788` real captured packets across ~40 opcodes decode and re-encode
+**byte-for-byte identical, with 0 failures** - including the hard cases (`PlayerMove`'s repeated 21-byte
+movement records, 446k packets; `PlayerSpawn`'s variable-length name field). This is also a strong independent
+re-check of the registry itself: a field can be NAMED wrongly and still round-trip, but it cannot be
+POSITIONED, sized or typed wrongly and round-trip.
+
+What is still not possible: building a packet from nothing for an opcode whose bytes are not fully explained.
+That needs the decode work this plan tracks, not more encoder work.
+
+### Original plan for Tier B encoders (kept for context)
 
 Once an opcode's fields are confirmed (named, `status = "verified"` or `"decoded"`, with a `field` array):
 

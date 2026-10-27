@@ -311,6 +311,47 @@ impl Registry {
         Some(Decoded { dir, id, name: op.name.clone(), fields })
     }
 
+    /// Write field values back into a real packet, the exact inverse of [`Registry::decode`].
+    ///
+    /// `template` is a packet the server really sent (it supplies the bytes no field covers - see `write`'s
+    /// note on why building from nothing would be guessing). `fields` are the values to patch in, named exactly
+    /// as `decode` reports them, including record fields as `name[i].field`. Unlisted fields keep the
+    /// template's value. Returns the patched packet, or an error naming the field that could not be written.
+    ///
+    /// Round-trip property, enforced by tests over real captures:
+    /// `encode_onto(dir, sample, &decode(dir, sample).fields) == sample`.
+    pub fn encode_onto(&self, dir: Dir, template: &[u8], fields: &[(String, Value)]) -> Result<Vec<u8>, String> {
+        let op = self.select(dir, template).ok_or("no registry entry fits this packet")?;
+        let mut out = template.to_vec();
+        let mut wanted: std::collections::HashMap<&str, &Value> = std::collections::HashMap::new();
+        for (n, v) in fields {
+            wanted.insert(n.as_str(), v);
+        }
+        for f in &op.field {
+            if let Some(v) = wanted.remove(f.name.as_str()) {
+                write(&mut out, f, v)?;
+            }
+        }
+        if let Some(r) = &op.records {
+            let n = r.count_in(template).ok_or("template does not fit the record layout")?;
+            for i in 0..n {
+                for f in &r.field {
+                    let key = format!("{}[{i}].{}", r.name, f.name);
+                    if let Some(v) = wanted.remove(key.as_str()) {
+                        let abs = Field { off: r.start + i * r.stride + f.off, ..f.clone() };
+                        write(&mut out, &abs, v)?;
+                    }
+                }
+            }
+        }
+        if !wanted.is_empty() {
+            let mut unknown: Vec<&str> = wanted.keys().copied().collect();
+            unknown.sort();
+            return Err(format!("no such field(s) for {:#06x}: {}", op.id, unknown.join(", ")));
+        }
+        Ok(out)
+    }
+
     /// Which bytes of this packet the registry explains (the opcode itself, fields, record fields).
     pub fn layout(&self, dir: Dir, plain: &[u8]) -> Vec<Span> {
         let mut out = Vec::new();
@@ -356,6 +397,42 @@ impl Registry {
         }
         s
     }
+}
+
+/// Why `write`/`encode_onto` are patch-based rather than building a packet from nothing: for almost every
+/// opcode the registry explains only SOME of the bytes (see each entry's "unexplained and varying" count in the
+/// explorer). Synthesising a packet from field values alone would mean inventing the rest, which would be
+/// guessing dressed up as a protocol. Patching a real captured packet is honest about that: the bytes we
+/// understand come from the caller, the ones we don't are carried over from a packet the server really sent.
+/// This is enough for Tier B replay (take a real packet, change the fields you mean to change) and it is
+/// exactly round-trip testable: `encode_onto(sample, decode(sample)) == sample`.
+fn write(p: &mut [u8], f: &Field, v: &Value) -> Result<(), String> {
+    let need = |n: usize| -> Result<(), String> {
+        if f.off + n > p.len() { Err(format!("field {} at {} runs past the {}-byte packet", f.name, f.off, p.len())) } else { Ok(()) }
+    };
+    match (f.ty, v) {
+        (Ty::U8, Value::U8(x)) => { need(1)?; p[f.off] = *x; }
+        (Ty::U16, Value::U16(x)) => { need(2)?; p[f.off..f.off + 2].copy_from_slice(&x.to_le_bytes()); }
+        (Ty::U32, Value::U32(x)) => { need(4)?; p[f.off..f.off + 4].copy_from_slice(&x.to_le_bytes()); }
+        (Ty::I16, Value::I16(x)) => { need(2)?; p[f.off..f.off + 2].copy_from_slice(&x.to_le_bytes()); }
+        (Ty::I32, Value::I32(x)) => { need(4)?; p[f.off..f.off + 4].copy_from_slice(&x.to_le_bytes()); }
+        (Ty::Str16, Value::Str(s)) => {
+            // Only a same-length string can be patched in place: a different length would move every byte after
+            // it, including bytes this registry does not understand, so refuse rather than corrupt the packet.
+            need(2)?;
+            let cur = u16::from_le_bytes([p[f.off], p[f.off + 1]]) as usize;
+            if s.len() != cur {
+                return Err(format!("field {}: in-place patch needs the same length (packet has {cur}, got {})", f.name, s.len()));
+            }
+            need(2 + s.len())?;
+            p[f.off + 2..f.off + 2 + s.len()].copy_from_slice(s.as_bytes());
+        }
+        (ty, got) => return Err(format!("field {}: expected {ty:?}, got {got:?}", f.name)),
+    }
+    if !in_bounds(v, f) {
+        return Err(format!("field {}: value {v:?} is outside the registered min/max", f.name));
+    }
+    Ok(())
 }
 
 fn in_bounds(v: &Value, f: &Field) -> bool {
