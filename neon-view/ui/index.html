@@ -53,7 +53,17 @@
   <span id="tp-time" class="dim">0.0 / 0.0 s</span><span class="dim" id="tp-n"></span>
 </div>
 <main>
-  <canvas id="c" width="900" height="420"></canvas>
+  <div>
+    <canvas id="c" width="900" height="420"></canvas>
+    <div class="legend dim" style="font-size:12px;margin-top:4px">
+      <span><i class="k" style="background:var(--me)"></i>me</span>
+      <span><i class="k" style="background:var(--player)"></i>player</span>
+      <span><i class="k" style="background:var(--mob)"></i>mob</span>
+      <span><i class="k" style="background:var(--npc)"></i>NPC</span>
+      <span><i class="k" style="background:var(--drop)"></i>drop</span>
+      <span>ring = climbing/jumping</span>
+    </div>
+  </div>
   <aside>
     <h2>Me</h2><ul id="me"></ul>
     <h2>Party</h2><ul id="party"></ul>
