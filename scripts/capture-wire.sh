@@ -45,6 +45,7 @@ set architecture i386:x86-64
 set pagination off
 set confirm off
 handle SIGUSR1 nostop noprint pass
+handle SIGSTOP nostop noprint nopass
 handle SIGUSR2 nostop noprint pass
 handle SIGALRM nostop noprint pass
 handle SIGCHLD nostop noprint pass
@@ -54,7 +55,15 @@ handle SIG35 nostop noprint pass
 handle SIGPWR nostop noprint pass
 handle SIGXCPU nostop noprint pass
 source $ROOT/neon-calib/tools/outwire.py
-continue
+python
+import time
+_end = time.time() + $SECS
+while time.time() < _end:
+    try:
+        gdb.execute('continue')
+    except Exception:
+        break
+end
 GDB
 echo "$(date +%s) $NAME pid=$PID secs=$SECS -> $OUT" >> "$LOG"
 echo "attaching to $NAME (pid $PID) for $SECS s ... do the action now (it takes ~5 s to attach)"
