@@ -139,7 +139,14 @@ function render(s) {
   if (s.map != null) { const box = document.getElementById('mapid'); if (document.activeElement !== box) box.value = s.map; loadGeo(String(s.map)); }
   document.getElementById('counts').textContent = s.events + ' events';
   const desync = document.getElementById('desync');
-  if (s.heuristic_skipped) { desync.style.display = ''; desync.textContent = '⚠ ' + s.heuristic_skipped + ' heuristic/unreadable packet(s)'; }
+  if (s.heuristic_skipped) {
+    const agoMs = s.heuristic_last_ms != null ? (s.now_ms - s.heuristic_last_ms) : null;
+    const recent = agoMs != null && agoMs < 30000; // still happening in the last 30s of captured time = an active desync, not a one-time startup blip
+    desync.style.display = '';
+    desync.style.color = recent ? 'var(--mob)' : 'var(--dim)';
+    desync.style.fontWeight = recent ? '600' : 'normal';
+    desync.textContent = (recent ? '⚠ ' : '') + s.heuristic_skipped + ' heuristic/unreadable packet(s)' + (agoMs != null ? (recent ? ', ongoing' : ', last ' + (agoMs / 1000).toFixed(0) + 's ago (likely just the startup sync)') : '');
+  }
   const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
   list('me', [
     '<span>Position</span><span>' + (m.x != null ? m.x + ', ' + m.y + (m.grounded === false ? ' (air)' : '') : '?') + '</span>',

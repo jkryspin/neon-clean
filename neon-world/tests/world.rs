@@ -162,6 +162,7 @@ fn world_counts_and_notes_heuristic_skips() {
     w.note_heuristic_skip(2000);
     let s = w.snapshot();
     assert_eq!(s.heuristic_skipped, 2);
+    assert_eq!(s.heuristic_last_ms, Some(2000));
     assert!(s.feed.last().unwrap().text.contains("2 heuristic"));
 }
 

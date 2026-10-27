@@ -155,6 +155,9 @@ pub struct Snapshot {
     /// unreadable live). Should stay 0 for a healthy connection; a rising count means a desynced/flapping capture is producing
     /// low-confidence data - see the jib02 incident (docs/mapping-workflow.md) for what happens when that goes unnoticed.
     pub heuristic_skipped: u64,
+    /// `now_ms` of the most recent heuristic skip, so a viewer can tell a one-time startup blip (long ago) from an actively
+    /// growing desync (just now) instead of only seeing a lifetime total.
+    pub heuristic_last_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -178,6 +181,8 @@ impl World {
     /// at 1, 10, 100, ... so a flapping connection is visible without spamming the feed on every single packet.
     pub fn note_heuristic_skip(&mut self, now_ms: u64) {
         self.s.heuristic_skipped += 1;
+        self.s.heuristic_last_ms = Some(now_ms);
+        self.s.now_ms = self.s.now_ms.max(now_ms);
         let n = self.s.heuristic_skipped;
         if n == 1 || (n % 10u64.pow(n.ilog10())) == 0 {
             self.note(now_ms, format!("{n} heuristic/unreadable packet(s) skipped - connection may be desynced"));
