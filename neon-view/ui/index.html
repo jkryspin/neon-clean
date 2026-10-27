@@ -25,6 +25,7 @@
   .c-known { background:var(--player); color:#fff; } .c-ref { background:var(--me); color:#fff; } .c-const { background:var(--line); color:var(--dim); } .c-var { background:var(--drop); color:#111; }
   .legend span { margin-right:12px; } .click { cursor:pointer; } .click:hover { text-decoration:underline; }
   .newop { background:var(--mob); color:#fff; border-radius:3px; padding:0 4px; font-size:10px; margin-left:4px; }
+  .falsepos { background:#d11; color:#fff; border-radius:3px; padding:0 4px; font-size:10px; margin-left:4px; font-weight:700; }
   .grid2 { display:grid; grid-template-columns: 2fr 1fr; gap:12px; } @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
   .box { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:8px 12px; max-height:360px; overflow:auto; }
 </style>
@@ -235,14 +236,24 @@ function renderPackets(rows) {
     '<tr><td class="dim">' + (r.t_ms / 1000).toFixed(1) + '</td><td class="dim">' + (r.dir === 'out' ? '&rarr;' : r.dir === 'wire' ? '&rarr;w' : '&larr;') + '</td><td class="' + r.status + '">' + r.op + '</td><td>' + esc(r.name || '') + '</td><td>' + r.len +
     '</td><td class="hex">' + (r.fields.length ? esc(r.fields.map(f => f[0] + '=' + f[1]).join(' ')) : hexs(r.hex)) + '</td></tr>').join('');
 }
+// incoming opcode ids already documented in docs/mapping-workflow.md "Corrections made along the way" as decode
+// artifacts that "never existed" (old per-block heuristic garbage) - if any of these shows up again, it is almost
+// certainly a recurrence of the same bug, not a real new finding. See that doc and the two 2026-10-27 registry
+// commits that reverted them for the history.
+const KNOWN_FALSE_POSITIVES = new Set(['in:0x002c', 'in:0x003d', 'in:0x006e', 'in:0x023f',
+  'in:0x0040', 'in:0x0041', 'in:0x0042', 'in:0x010f', 'in:0x016e']);
 let knownOps = null;
 function renderOps(rows) {
   const curOps = new Set(rows.map(r => r.dir + ':' + r.op));
   const firstLoad = knownOps === null;
   if (firstLoad) knownOps = curOps;
   document.getElementById('oc').innerHTML = rows.slice(0, 60).map(r => {
-    const isNew = !firstLoad && !knownOps.has(r.dir + ':' + r.op);
-    return '<tr class="click" onclick="openOp(\'' + r.dir + '\',\'' + r.op + '\')"><td class="' + r.status + '">' + (r.dir === 'out' ? '&rarr; ' : r.dir === 'wire' ? '&rarr;w ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + (isNew ? ' <span class="newop" title="not present in this view the last time it polled - verify it is real, not a glitch">NEW</span>' : '') + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>';
+    const key = r.dir + ':' + r.op;
+    const isNew = !firstLoad && !knownOps.has(key);
+    const isFalsePos = KNOWN_FALSE_POSITIVES.has(key);
+    const badge = isFalsePos ? ' <span class="falsepos" title="already documented in mapping-workflow.md as a heuristic-decode artifact that never existed - this is very likely the same bug recurring, not a new finding">KNOWN FALSE POSITIVE</span>'
+      : isNew ? ' <span class="newop" title="not present in this view the last time it polled - verify it is real, not a glitch">NEW</span>' : '';
+    return '<tr class="click" onclick="openOp(\'' + r.dir + '\',\'' + r.op + '\')"><td class="' + r.status + '">' + (r.dir === 'out' ? '&rarr; ' : r.dir === 'wire' ? '&rarr;w ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + badge + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>';
   }).join('');
   knownOps = curOps;
   const inRows = rows.filter(r => r.dir === 'in');
