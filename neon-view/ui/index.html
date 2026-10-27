@@ -61,6 +61,7 @@
     <h2>Players</h2><ul id="players"></ul>
     <h2>Mobs</h2><ul id="mobs"></ul>
     <h2>Drops</h2><ul id="drops"></ul>
+    <h2>Inventory</h2><ul id="inventory"></ul>
     <h2>Reactors</h2><ul id="reactors"></ul>
   </aside>
 </main>
@@ -182,6 +183,7 @@ function render(s) {
   }));
   list('drops', Object.entries(s.drops).map(([id, d]) => ({ id, ...d })).sort(byDist).map(d => '<span><i class="k" style="background:var(--drop)"></i>' + (d.item != null ? 'item ' + d.item : d.mesos != null ? d.mesos + ' mesos' : d.id) + '</span><span class="dim">' + (dist(d.x, d.y) ?? '?') + 'px away &middot; ' + Math.round((s.now_ms - d.last_ms) / 1000) + 's old</span>'));
   list('reactors', Object.entries(s.reactors || {}).map(([id, r]) => '<span><i class="k" style="background:var(--npc)"></i>reactor ' + id + ' (template ' + r[0] + ')</span><span class="dim">' + (r[1] ? r[1] + ' hit' + (r[1] === 1 ? '' : 's') : 'unhit') + '</span>'));
+  list('inventory', Object.entries(s.inventory || {}).map(([key, e]) => '<span><i class="k" style="background:var(--drop)"></i>' + (e[0] != null ? 'item ' + e[0] : key) + '</span><span class="dim">' + (e[1] != null ? 'x' + e[1] : '?') + ' &middot; ' + key + '</span>'));
   draw();
 }
 function loadMarks() {
