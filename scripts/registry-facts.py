@@ -172,3 +172,24 @@ print(f"{changed} entries updated, {added} opcodes added")
 if not dry:
     res = "".join(out).rstrip("\n") + "\n\n" + extra.rstrip("\n") + ("\n" if extra else "")
     open("neon-protocol/opcodes.toml", "w").write(res)
+
+# Lint: an entry's own FACTS "sizes" list is ground truth for what this opcode's traffic actually looks like.
+# len_min/len_max are hand-set (or set once when the opcode was first added) and never auto-updated by this
+# script, so they silently drift stale as more data comes in - found 2026-10-27 on 0x02b8 (len_min excluded a
+# quarter of its own traffic from Registry::decode) and three more opcodes the same night. Warn, don't fix:
+# changing len_min/len_max changes which packets this opcode's fields apply to, which is a judgment call, not
+# something to silently rewrite.
+written = "".join(out) if dry else res
+for b in re.split(r"(?=\[\[opcode\]\])", written):
+    idm = re.search(r'^id = (0x[0-9a-f]+)\n', b, re.M)
+    if not idm:
+        continue
+    lmin = re.search(r'^len_min = (\d+)', b, re.M)
+    lmax = re.search(r'^len_max = (\d+)', b, re.M)
+    if not (lmin or lmax):
+        continue
+    lo, hi = int(lmin[1]) if lmin else 0, int(lmax[1]) if lmax else 10**9
+    for sizes in re.finditer(r'sizes ([\d x,]+?)(?:;|\.)', b):
+        bad = [int(s.split("x")[0].strip()) for s in sizes[1].split(",") if "x" in s and not (lo <= int(s.split("x")[0].strip()) <= hi)]
+        if bad:
+            print(f"LINT: {idm[1]} len_min/len_max ({lo}-{hi}) excludes its own documented sizes {bad} from Registry::decode")
