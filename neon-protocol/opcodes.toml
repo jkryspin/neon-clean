@@ -896,12 +896,13 @@ len_max = 5206
 [[opcode]]
 id = 0x023d
 dir = "in"
+name = "ShopSign"
 status = "structure"
-summary = "24 bytes: char id@2 is a known player in 51 of 51 packets. About a player; meaning unknown (2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 3159 packets in 8 log(s); sizes 24 x1575, 43 x240, 37 x215, 32 x201; median gap 1.0 s; constant bytes @5-23=00 00 00 00 00 00...; u32@2 is a known player id in 1392/1575. Meaning not established."
+summary = "A floating advertisement line above a standing player's head (what a Hired Merchant / mini-shop shows): char_id@2 (only 13 distinct senders in 1611 text packets, from standing shop owners who rarely move, so the known-mover/spawn id set only catches 317 of them, but every one it does catch is a real player); mode u32@6 is 0 for the silent 24-byte form (1601 of 1601) or 3 when text follows; a u32@10 whose meaning is not established (not obviously a price: 5000-7500 range); a constant u32@14 = 2; a u16 text length @18 and the text itself, real shop-ad snippets seen verbatim (\"drops, equip, cheap\", \"Health Potion\", \"Scroll&etc\", ...) that match the wording of real player shop signs seen on screen. A short near-constant trailer follows the text (varies only in its first byte, 0x20/0x22/0x25); its meaning is not established, and reading it as more text would be a guess. (2026-10-26)"
 len_min = 24
-len_max = 24
 field = [
   { name = "char_id", ty = "u32", off = 2 },
+  { name = "mode", ty = "u32", off = 6 },
 ]
 
 [[opcode]]
