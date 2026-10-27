@@ -881,10 +881,13 @@ len_max = 6
 [[opcode]]
 id = 0x022f
 dir = "in"
-status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 30 packets in 5 log(s); sizes 79 x5, 77 x4, 131 x4, 75 x2; median gap 14.9 s; constant bytes @5-6=00 00, @12=00, @25=20, @30=00, @43=20; u32@2 is a known player id in 5/5; u32@56 is a known player id in 5/5. Meaning not established."
-len_min = 75
-len_max = 123
+name = "Whisper"
+status = "structure"
+summary = "A private message: char_id@2 (a known player in 5 of 5), a u32@6 that is not a known id (a per-message token?), then FOUR length-prefixed strings in a row: name, message, name again, message again (the same text both times, byte for byte, in every one of 60 real packets) - two UI copies of the same whisper (the floating bubble and the chat-log line is the obvious guess). Real text seen: \"cc plz\", \"ur a bot\", \"what are u 5\", \"bad enough with all the bots\" (casual short messages, unlike the trade-shout text of 0x00ae). After the second message: a 4-byte value that differs per message (hash/checksum?), a constant u32 = 0x00000ee0, a constant byte 0x50, the char_id a third time, 18 zero bytes, u16 = 3, final byte 0x50. (2026-10-26)"
+len_min = 71
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x0234
