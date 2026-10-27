@@ -108,7 +108,7 @@ function loadGeo(id) {
 document.getElementById('mapid').onchange = e => { geoId = null; loadGeo(e.target.value.trim()); };
 function pts(s) {
   const out = [];
-  for (const [id, p] of Object.entries(s.players)) if (p.x != null) out.push({k:'player', x:p.x, y:p.y, label:p.name || id});
+  for (const [id, p] of Object.entries(s.players)) if (p.x != null) out.push({k:'player', x:p.x, y:p.y, label:p.name || id, stance:p.stance});
   for (const [id, m] of Object.entries(s.mobs)) out.push({k:'mob', x:m.x, y:m.y, label:m.template != null ? (mobNames[String(m.template)] || '#' + m.template) : '?'});
   for (const [id, n] of Object.entries(s.npcs || {})) out.push({k:'npc', x:n.x, y:n.y, label:'NPC ' + id});
   for (const [id, d] of Object.entries(s.drops)) out.push({k:'drop', x:d.x, y:d.y, label:''});
@@ -137,6 +137,9 @@ function draw() {
   ctx.font = '11px system-ui'; ctx.textBaseline = 'middle';
   for (const p of P) {
     ctx.fillStyle = css('--' + p.k); ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), p.k === 'drop' ? 3 : p.k === 'me' ? 7 : 5, 0, 7); ctx.fill();
+    if (p.k === 'player' && (p.stance === 15 || p.stance === 7 || p.stance === 6)) {
+      ctx.strokeStyle = css('--drop'); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 8, 0, 7); ctx.stroke();
+    }
     if (p.label) { ctx.fillStyle = css('--fg'); ctx.fillText(p.label, X(p.x) + 8, Y(p.y)); }
   }
 }
