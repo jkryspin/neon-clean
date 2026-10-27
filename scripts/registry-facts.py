@@ -13,6 +13,15 @@ import collections, re, struct, sys
 
 dry = "--dry" in sys.argv
 logs = [a for a in sys.argv[1:] if not a.startswith("--")]
+# neon-stream only started marking heuristic-decoded lines with a literal " heuristic" suffix (commit e91d05a,
+# 2026-10-26 22:59:41 -0400 = epoch 1793069981) so this parser's regex (which requires "len N:" with no suffix)
+# can reject them by regex mismatch alone. Any packet timestamped before that commit could have come from a build
+# with no marker at all, where a heuristic-decoded frame is byte-for-byte indistinguishable from an exact one in
+# the log; the first-13-lines skip below only covers one IV-sync at the start of a capture, not a flapping
+# connection re-syncing mid-file. Found 2026-10-27: 0x002c/0x003d/0x006e/0x023f, already documented in
+# docs/mapping-workflow.md as heuristic artifacts that "never existed", reappeared via exactly this gap from a
+# 18:38 capture well before the marker existed. Hard cutoff: ignore every packet older than the marker commit.
+HEURISTIC_MARKER_EPOCH = 1793069981
 pk = collections.defaultdict(list)      # op -> [(t, bytes)]
 nlogs = collections.defaultdict(set)
 for path in logs:
@@ -23,8 +32,11 @@ for path in logs:
             skipped += 1
             if skipped <= 13:   # the first 12 frames of a capture are decoded with the old heuristic (the IV is not known yet)
                 continue
+            t = float(m[1])
+            if t < HEURISTIC_MARKER_EPOCH:
+                continue
             op = int(m[2], 16)
-            pk[op].append((float(m[1]), bytes.fromhex(m[4].replace(" ", ""))))
+            pk[op].append((t, bytes.fromhex(m[4].replace(" ", ""))))
             nlogs[op].add(path)
 mobs, players = set(), set()
 for t, b in pk.get(0x03dc, []):

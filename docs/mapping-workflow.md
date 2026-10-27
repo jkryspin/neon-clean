@@ -141,6 +141,7 @@ connects to NP12-T or sends anything live; this is the one item genuinely blocki
 ### Corrections made along the way (kept visible on purpose)
 
 * `0x003d`, `0x002c`, `0x006e`, `0x023f` ("1 s ticks", counters with constant `fe`/`fc` tails) never existed: they were frames the old per-block heuristic decrypted with the wrong constant. After exact decryption (docs/network-protocol.md, 2026-10-26 18:40) none of them occurs in 1,600 packets (they were 900 in 30 min). The registry entries are removed. Treat any entry derived from logs written before commit `ab800c1` as unconfirmed until it reappears in an exact-decoded log.
+  **2026-10-27 recurrence:** `scripts/registry-facts.py`'s "skip the first 13 lines of each file" IV-sync heuristic was not enough - a capture file can flap/reconnect mid-file, re-triggering the heuristic well past line 13, with no way to tell from old-format log lines alone (the `" heuristic"` marker didn't exist until commit `e91d05a`, 2026-10-26 22:59:41 -0400). All four opcodes reappeared, sourced from a capture file timestamped 18:38, well before the marker existed. Fixed by hard-excluding any packet older than the marker commit's epoch (`HEURISTIC_MARKER_EPOCH` in the script) from the whole pool, not just new-opcode discovery - dropped FACTS-count inflation on ~20 other entries too, not only these four.
 
 * `0x02fe` was first read as movement; it is the mob-movement report (`0x00db` is our movement).
 * `0x0456` "sequential ids" were x coordinates; it is NPC movement.

@@ -291,7 +291,7 @@ field = [
 id = 0x0456
 dir = "in"
 status = "structure"
-summary = "(NPC movement is described by the entry above; this is the remaining 12-byte form) Busiest opcode in a town (1295 packets, 4 min): sizes 12, or 26+21n (n=1..5; 47 is most common). u32@2 is NOT a counter: only 3 values seen (138,139,140), a group/type tag. The 21-byte records start with a flag byte (0) then a u32 id; ids within a packet run in sequence (0x009a0710, 0x009a0718, 0x009a071c) and each record has small signed values (e.g. -15, -87) and a 0x50 or 0x24 constant. Not player or mob ids. Meaning unknown (2026-10-26, jib01 in Amherst) FACTS (exact-decoded logs, 2026-10-26): 58955 packets in 31 log(s); sizes 47 x40226, 12 x5317, 89 x3710, 56 x3157; median gap 0.5 s; constant bytes @3-6=00 00 00 ff, @8-15=00 00 00 00 00 00..., @20-26=00 00 00 00 01 00..., @31-34=00 00 00 00, @36-42=00 00 00 00 00 00.... Meaning not established."
+summary = "(NPC movement is described by the entry above; this is the remaining 12-byte form) Busiest opcode in a town (1295 packets, 4 min): sizes 12, or 26+21n (n=1..5; 47 is most common). u32@2 is NOT a counter: only 3 values seen (138,139,140), a group/type tag. The 21-byte records start with a flag byte (0) then a u32 id; ids within a packet run in sequence (0x009a0710, 0x009a0718, 0x009a071c) and each record has small signed values (e.g. -15, -87) and a 0x50 or 0x24 constant. Not player or mob ids. Meaning unknown (2026-10-26, jib01 in Amherst) FACTS (exact-decoded logs, 2026-10-26): 24694 packets in 7 log(s); sizes 47 x16829, 12 x2228, 89 x1526, 110 x1381; median gap 0.5 s; constant bytes @3-6=00 00 00 ff, @8-15=00 00 00 00 00 00..., @20-26=00 00 00 00 01 00..., @31-34=00 00 00 00, @36-42=00 00 00 00 00 00.... Meaning not established."
 
 [[opcode]]
 id = 0x004f
@@ -322,7 +322,7 @@ len_max = 7
 id = 0x001b
 dir = "in"
 status = "structure"
-summary = "48 bytes every ~10 s (118 seen in 5 min, from both accounts): 30 zero bytes, a 1 at @31, then two 24-bit values at @32 and @40 (0 to ~3.8 million) that look uniformly random and change every time, each followed by five zero bytes. Hypothesis, NOT verified: a server challenge that the client answers with the outgoing heartbeat family (0x0265/0x0266); the log that would show the delay between them was overwritten (view.sh now archives logs) FACTS (exact-decoded logs, 2026-10-26): 6470 packets in 59 log(s); sizes 48 x6470; median gap 5.1 s; constant bytes @2-31=00 00 00 00 00 00..., @35-39=00 00 00 00 00, @43-47=00 00 00 00 00. Meaning not established."
+summary = "48 bytes every ~10 s (118 seen in 5 min, from both accounts): 30 zero bytes, a 1 at @31, then two 24-bit values at @32 and @40 (0 to ~3.8 million) that look uniformly random and change every time, each followed by five zero bytes. Hypothesis, NOT verified: a server challenge that the client answers with the outgoing heartbeat family (0x0265/0x0266); the log that would show the delay between them was overwritten (view.sh now archives logs) FACTS (exact-decoded logs, 2026-10-26): 2744 packets in 14 log(s); sizes 48 x2744; median gap 5.1 s; constant bytes @2-31=00 00 00 00 00 00..., @35-39=00 00 00 00 00, @43-47=00 00 00 00 00. Meaning not established."
 len_min = 48
 len_max = 48
 
@@ -368,7 +368,7 @@ len_max = 2
 id = 0x001d
 dir = "in"
 status = "structure"
-summary = "22 bytes every 300 s: u32@2 is a millisecond tick (the same clock as the client's own packets), u32@6 and u32@14 vary. The client answers within 0.1 s with the wire packet 0xfc6b whose u32@18 equals this u32@2 (5 of 5). Meaning not established (2026-10-26) FACTS (exact-decoded logs, 2026-10-26): 220 packets in 42 log(s); sizes 22 x220; median gap 148.0 s, periodic (95% of gaps within 15%); constant bytes @9-13=00 00 00 00 00, @17-21=00 00 00 00 00. Meaning not established."
+summary = "22 bytes every 300 s: u32@2 is a millisecond tick (the same clock as the client's own packets), u32@6 and u32@14 vary. The client answers within 0.1 s with the wire packet 0xfc6b whose u32@18 equals this u32@2 (5 of 5). Meaning not established (2026-10-26) FACTS (exact-decoded logs, 2026-10-26): 92 packets in 8 log(s); sizes 22 x92; median gap 152.0 s, periodic (100% of gaps within 15%); constant bytes @5=35, @9-13=00 00 00 00 00, @17-21=00 00 00 00 00. Meaning not established."
 len_min = 22
 len_max = 22
 
@@ -383,7 +383,7 @@ len_max = 8
 id = 0x0020
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 365 packets in 48 log(s); sizes 3 x365; median gap 88.8 s; constant bytes @2=05. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 153 packets in 12 log(s); sizes 3 x153; median gap 87.0 s; constant bytes @2=05. Meaning not established."
 len_min = 3
 len_max = 3
 
@@ -534,7 +534,7 @@ field = [
 id = 0x008d
 dir = "in"
 status = "structure"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 18 packets in 5 log(s); sizes 11 x18; median gap 1748.2 s; constant bytes @2-6=00 00 00 00 00, @10=00; u32@7 is a known player id in 18/18. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 4 packets in 1 log(s); sizes 11 x4. Meaning not established."
 len_min = 11
 len_max = 11
 field = [{ name = "char_id", ty = "u32", off = 7 }]
@@ -628,7 +628,7 @@ len_max = 3
 id = 0x00c1
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 18 packets in 10 log(s); sizes 6 x18; median gap 3599.9 s, periodic (73% of gaps within 15%); constant bytes @3=00, @5=00. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 8 packets in 4 log(s); sizes 6 x8; constant bytes @2-3=02 00, @5=00. Meaning not established."
 len_min = 6
 len_max = 6
 
@@ -932,7 +932,7 @@ len_max = 11
 id = 0x0279
 dir = "in"
 status = "structure"
-summary = "Post-spawn companion: in a 2474-spawn pool, 65.9% of 0x022d PlayerSpawn events for a given char_id are followed within 2s by a 0x0279 for that SAME char_id (median delay 0.67s, always after, never before; idscan.py + a same-char_id time-window check, 2026-10-26). Not every spawn gets one, so it is conditional on something about the player, not a fixed part of the spawn sequence. See 0x02bb/0x02bd/0x0281(PetSpawn), which show the identical same-char_id-after-spawn pattern at different rates (55.0%/12.6%/26.9%), suggesting a family of optional per-player state broadcasts sent just after a player becomes visible. Independently replicated later the same night on a fresh, non-overlapping 71-spawn session (Amherst+Perion, 2026-10-26 23:1x): 70.4%/57.7%/12.7%/28.2% for the same four opcodes respectively - closely matching the original rates, which is good evidence this is a real, stable pattern rather than a pool-specific artifact. FACTS (exact-decoded logs, 2026-10-26): 4221 packets in 57 log(s); sizes 7 x4210, 22 x11; median gap 4.5 s; constant bytes @5=00; u32@2 is a known player id in 3988/4210. Meaning not established."
+summary = "Post-spawn companion: in a 2474-spawn pool, 65.9% of 0x022d PlayerSpawn events for a given char_id are followed within 2s by a 0x0279 for that SAME char_id (median delay 0.67s, always after, never before; idscan.py + a same-char_id time-window check, 2026-10-26). Not every spawn gets one, so it is conditional on something about the player, not a fixed part of the spawn sequence. See 0x02bb/0x02bd/0x0281(PetSpawn), which show the identical same-char_id-after-spawn pattern at different rates (55.0%/12.6%/26.9%), suggesting a family of optional per-player state broadcasts sent just after a player becomes visible. Independently replicated later the same night on a fresh, non-overlapping 71-spawn session (Amherst+Perion, 2026-10-26 23:1x): 70.4%/57.7%/12.7%/28.2% for the same four opcodes respectively - closely matching the original rates, which is good evidence this is a real, stable pattern rather than a pool-specific artifact. FACTS (exact-decoded logs, 2026-10-26): 2162 packets in 14 log(s); sizes 7 x2162; median gap 4.3 s; constant bytes @5=00; u32@2 is a known player id in 2070/2162. Meaning not established."
 len_min = 7
 len_max = 7
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -941,7 +941,7 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 id = 0x0283
 dir = "in"
 status = "structure"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 107 packets in 12 log(s); sizes 17 x107; median gap 164.9 s; constant bytes @5-9=00 00 00 00 00, @15-16=00 00; u32@2 is a known player id in 91/107. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 48 packets in 3 log(s); sizes 17 x48; median gap 161.2 s; constant bytes @5-9=00 00 00 00 00, @14-16=01 00 00; u32@2 is a known player id in 41/48. Meaning not established."
 len_min = 17
 len_max = 17
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -950,7 +950,7 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 id = 0x02af
 dir = "in"
 status = "structure"
-summary = "164 bytes, 420 seen from 35 players about 247 mobs. char_id@2 is a known player (100%); the same mob oid appears at @63 and @67 (420 of 420 equal; known mob in 94%); and u32@130 equals the template id of that mob in 358 of 358 checkable packets (found by autocorr.py). So it is an event of a player about one mob that also names the mob's type. It pairs with a 0x044d hit of the same (player, mob) within 1 s in only 14% of packets, so it is not simply the hit; which event it is, is unknown (2026-10-26) FACTS (exact-decoded logs, 2026-10-26): 43417 packets in 29 log(s); sizes 164 x43417; median gap 0.5 s; constant bytes @5-13=00 00 00 00 00 ff..., @15-62=00 00 00 00 00 00..., @66=02, @70=02, @73=00; u32@2 is a known player id in 42115/43417; u32@63 is a known mob id in 41820/43417; u32@67 is a known mob id in 41820/43417. Meaning not established."
+summary = "164 bytes, 420 seen from 35 players about 247 mobs. char_id@2 is a known player (100%); the same mob oid appears at @63 and @67 (420 of 420 equal; known mob in 94%); and u32@130 equals the template id of that mob in 358 of 358 checkable packets (found by autocorr.py). So it is an event of a player about one mob that also names the mob's type. It pairs with a 0x044d hit of the same (player, mob) within 1 s in only 14% of packets, so it is not simply the hit; which event it is, is unknown (2026-10-26) FACTS (exact-decoded logs, 2026-10-26): 21233 packets in 7 log(s); sizes 164 x21233; median gap 0.5 s; constant bytes @5-13=00 00 00 00 00 ff..., @15-62=00 00 00 00 00 00..., @66=02, @70=02, @73=00; u32@2 is a known player id in 20534/21233; u32@63 is a known mob id in 20436/21233; u32@67 is a known mob id in 20436/21233. Meaning not established."
 len_min = 164
 len_max = 164
 field = [
@@ -964,7 +964,7 @@ field = [
 id = 0x02b0
 dir = "in"
 status = "structure"
-summary = "u32@2 is a known player id in 8 of 8 packets of the 15-byte form (idscan, pooled captures 2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 327 packets in 22 log(s); sizes 15 x327; median gap 36.3 s; constant bytes @5=00, @7-14=00 00 00 ff ff ff...; u32@2 is a known player id in 300/327. Meaning not established."
+summary = "u32@2 is a known player id in 8 of 8 packets of the 15-byte form (idscan, pooled captures 2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 222 packets in 6 log(s); sizes 15 x222; median gap 21.3 s; constant bytes @5=00, @7-14=00 00 00 ff ff ff...; u32@2 is a known player id in 197/222. Meaning not established."
 len_min = 15
 len_max = 15
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -973,7 +973,7 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 id = 0x02b7
 dir = "in"
 status = "structure"
-summary = "u32@2 is a known player id in 13 of 13 packets of the 15-byte form (idscan, pooled captures 2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 623 packets in 35 log(s); sizes 15 x623; median gap 8.1 s; constant bytes @5=00, @9-13=00 00 00 00 00; u32@2 is a known player id in 615/623. Meaning not established."
+summary = "u32@2 is a known player id in 13 of 13 packets of the 15-byte form (idscan, pooled captures 2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 332 packets in 8 log(s); sizes 15 x332; median gap 6.5 s; constant bytes @5=00, @9-13=00 00 00 00 00; u32@2 is a known player id in 326/332. Meaning not established."
 len_min = 15
 len_max = 15
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -994,7 +994,7 @@ field = [
 id = 0x02b9
 dir = "in"
 status = "structure"
-summary = "19 bytes: char id@2 is a known player in 12 of 12. mode byte@6: bare 7-byte form at modes 0/9/15 (787+115 of the 7-byte packets are mode 15/0); a 19-byte form at mode 1 carries a u32@7 whose values split into two groups - small sequential numbers (1001, 1002; together the commonest values by far, 202 of ~330 mode-1 packets) that look like skill or emote ids, and item-id-range numbers (1001000, 2001001, 3001000, 4101001, ...; none of these matched any item id seen dropped in the same pool, so not a drop reference; also checked against the SENDING player's own equipped items from their 0x022d PlayerSpawn - 0 of 171 checkable mode-1 item-range packets matched, so it is not an \"item shown off/worn\" display either). A per-player broadcast, action not confirmed either way (skill use and emote display are both plausible for the small-number group); supporting detail: our own test character's skill window genuinely has exactly 3 beginner skills (Three Snails, Recovery, Nimble Feet), so a handful of small sequential skill ids is plausible, but this does not independently prove which packet field means skill-cast vs emote. (2026-10-26) FACTS (exact-decoded logs, 2026-10-26): 5103 packets in 55 log(s); sizes 7 x3667, 19 x1311, 12 x125; median gap 3.8 s; constant bytes @5=00; u32@2 is a known player id in 3666/3667. Meaning not established."
+summary = "19 bytes: char id@2 is a known player in 12 of 12. mode byte@6: bare 7-byte form at modes 0/9/15 (787+115 of the 7-byte packets are mode 15/0); a 19-byte form at mode 1 carries a u32@7 whose values split into two groups - small sequential numbers (1001, 1002; together the commonest values by far, 202 of ~330 mode-1 packets) that look like skill or emote ids, and item-id-range numbers (1001000, 2001001, 3001000, 4101001, ...; none of these matched any item id seen dropped in the same pool, so not a drop reference; also checked against the SENDING player's own equipped items from their 0x022d PlayerSpawn - 0 of 171 checkable mode-1 item-range packets matched, so it is not an \"item shown off/worn\" display either). A per-player broadcast, action not confirmed either way (skill use and emote display are both plausible for the small-number group); supporting detail: our own test character's skill window genuinely has exactly 3 beginner skills (Three Snails, Recovery, Nimble Feet), so a handful of small sequential skill ids is plausible, but this does not independently prove which packet field means skill-cast vs emote. (2026-10-26) FACTS (exact-decoded logs, 2026-10-26): 2612 packets in 14 log(s); sizes 7 x1790, 19 x697, 12 x125; median gap 3.5 s; constant bytes @5=00; u32@2 is a known player id in 1789/1790. Meaning not established."
 len_min = 7
 len_max = 19
 field = [
@@ -1006,7 +1006,7 @@ field = [
 id = 0x02ba
 dir = "in"
 status = "structure"
-summary = "u32@2 is a known player id in 9 of 9 packets of the 157-byte form (idscan, pooled captures 2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 426 packets in 34 log(s); sizes 157 x280, 162 x94, 156 x52; median gap 43.5 s; constant bytes @5-152=00 00 00 00 00 00..., @154-156=00 00 01; u32@2 is a known player id in 271/280. Meaning not established."
+summary = "u32@2 is a known player id in 9 of 9 packets of the 157-byte form (idscan, pooled captures 2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 232 packets in 9 log(s); sizes 157 x142, 162 x72, 156 x18; median gap 34.0 s; constant bytes @5-152=00 00 00 00 00 00..., @154-156=00 00 01; u32@2 is a known player id in 140/142. Meaning not established."
 len_min = 156
 len_max = 157
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -1015,7 +1015,7 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 id = 0x02bb
 dir = "in"
 status = "structure"
-summary = "OPEN (2026-10-26, 146 exact-decoded packets, 94 players): all zero except flag bytes: 127 packets are exactly {@39 = 0x80, @130 = 0x01}; the rest add a single bit at @14 (0x08, 9), @35 (0x20, 8) or @14 + @25 (0x08, 0x10, 2). It looks like a status/buff bit mask, but nothing independent supports that yet, and no player that has one also has a 0x022d spawn in the pool, so it is not simply a companion of the spawn. 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26) Lifecycle (lifecycle.py, pooled captures): arrival-like. In the 5 s before it that player sent 265 movement packets over the 198 events, in the 5 s after 2038 (the same players at random times: 0 and 8), so it marks a player becoming visible or active; exactly what it adds to the 888-byte PlayerSpawn is unknown. Confirmed directly (2026-10-26, same pool as the lifecycle check): of 2474 0x022d PlayerSpawn events, 55.0% are followed within 2s by a 0x02bb for that SAME char_id, almost always at the same timestamp (median delay 0.0s, 1383/1383 checked strictly at or after the spawn, never before). So this is very likely part of the server's per-player spawn bundle, sent for players whose 0x02bb bit flags are non-default; it is not a fixed part of every spawn (see 0x0279/0x02bd/0x0281 for the sibling pattern at 65.9%/12.6%/26.9%). FACTS (exact-decoded logs, 2026-10-26): 4154 packets in 58 log(s); sizes 131 x4154; median gap 4.8 s; constant bytes @5-6=00 00, @8-13=00 00 00 00 00 00, @15-20=00 00 00 00 00 00, @22-24=00 00 00, @26-34=00 00 00 00 00 00...; u32@2 is a known player id in 4002/4154. Meaning not established."
+summary = "OPEN (2026-10-26, 146 exact-decoded packets, 94 players): all zero except flag bytes: 127 packets are exactly {@39 = 0x80, @130 = 0x01}; the rest add a single bit at @14 (0x08, 9), @35 (0x20, 8) or @14 + @25 (0x08, 0x10, 2). It looks like a status/buff bit mask, but nothing independent supports that yet, and no player that has one also has a 0x022d spawn in the pool, so it is not simply a companion of the spawn. 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26) Lifecycle (lifecycle.py, pooled captures): arrival-like. In the 5 s before it that player sent 265 movement packets over the 198 events, in the 5 s after 2038 (the same players at random times: 0 and 8), so it marks a player becoming visible or active; exactly what it adds to the 888-byte PlayerSpawn is unknown. Confirmed directly (2026-10-26, same pool as the lifecycle check): of 2474 0x022d PlayerSpawn events, 55.0% are followed within 2s by a 0x02bb for that SAME char_id, almost always at the same timestamp (median delay 0.0s, 1383/1383 checked strictly at or after the spawn, never before). So this is very likely part of the server's per-player spawn bundle, sent for players whose 0x02bb bit flags are non-default; it is not a fixed part of every spawn (see 0x0279/0x02bd/0x0281 for the sibling pattern at 65.9%/12.6%/26.9%). FACTS (exact-decoded logs, 2026-10-26): 1958 packets in 14 log(s); sizes 131 x1958; median gap 4.3 s; constant bytes @5-6=00 00, @8-13=00 00 00 00 00 00, @15-20=00 00 00 00 00 00, @22-24=00 00 00, @26-34=00 00 00 00 00 00...; u32@2 is a known player id in 1900/1958. Meaning not established."
 len_min = 131
 len_max = 131
 field = [
@@ -1026,7 +1026,7 @@ field = [
 id = 0x02bd
 dir = "in"
 status = "structure"
-summary = "u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26). Part of the same post-spawn family as 0x0279/0x02bb/0x0281(PetSpawn): 12.6% of 2474 0x022d PlayerSpawn events are followed within 2s by a 0x02bd for the SAME char_id, almost always at the same timestamp (median delay 0.0s, 312/312 checked at-or-after, never before); the low rate suggests a rarer per-player condition. Location split (2026-10-26, same-night comparison of two simultaneous captures): 0% of 35 spawns in Amherst (a beginner town) got one, vs 27.8% of 54 spawns in Perion (a hunting field) - consistent with a field/combat-related condition rather than something every player has. FACTS (exact-decoded logs, 2026-10-26): 892 packets in 38 log(s); sizes 22 x892; median gap 23.9 s; constant bytes @5-21=00 00 00 00 00 00...; u32@2 is a known player id in 804/892. Meaning not established."
+summary = "u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26). Part of the same post-spawn family as 0x0279/0x02bb/0x0281(PetSpawn): 12.6% of 2474 0x022d PlayerSpawn events are followed within 2s by a 0x02bd for the SAME char_id, almost always at the same timestamp (median delay 0.0s, 312/312 checked at-or-after, never before); the low rate suggests a rarer per-player condition. Location split (2026-10-26, same-night comparison of two simultaneous captures): 0% of 35 spawns in Amherst (a beginner town) got one, vs 27.8% of 54 spawns in Perion (a hunting field) - consistent with a field/combat-related condition rather than something every player has. FACTS (exact-decoded logs, 2026-10-26): 445 packets in 10 log(s); sizes 22 x445; median gap 20.3 s; constant bytes @5-21=00 00 00 00 00 00...; u32@2 is a known player id in 407/445. Meaning not established."
 len_min = 22
 len_max = 22
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -1089,7 +1089,7 @@ len_max = 22
 id = 0x0381
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 184 packets in 41 log(s); sizes 18 x184; median gap 177.4 s; constant bytes @5-9=00 00 00 00 00, @13-17=00 00 00 00 00. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 77 packets in 7 log(s); sizes 18 x77; median gap 87.9 s; constant bytes @5-9=00 00 00 00 00, @13-17=00 00 00 00 00. Meaning not established."
 len_min = 18
 len_max = 18
 
@@ -1113,7 +1113,7 @@ field = [
 id = 0x03e9
 dir = "in"
 status = "structure"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 54 packets in 6 log(s); sizes 40 x23, 62 x15, 72 x7, 107 x7; median gap 10.3 s; constant bytes @5-29=02 00 08 00 00 00..., @33=00, @35=00; u32@2 is a known mob id in 23/23. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 28 packets in 1 log(s); sizes 40 x13, 107 x7, 72 x5, 43 x2; median gap 5.6 s; constant bytes @5-29=02 00 08 00 00 00..., @33=00, @35=00, @38-39=02 01; u32@2 is a known mob id in 13/13. Meaning not established."
 len_min = 40
 len_max = 40
 field = [{ name = "mob_oid", ty = "u32", off = 2 }]
@@ -1129,7 +1129,7 @@ len_max = 4
 id = 0x0441
 dir = "in"
 status = "structure"
-summary = "10 bytes: mob oid@2 and a character id@6 (the same pair layout as MobHit 0x044d, without the factor). From an exact-decoded log (2026-10-26 18:45, 254 packets): 112 of 116 mob kills (0x03d4) have a 0x0441 for that mob in the 10 s before, most at the same instant as the kill; one mob gets 0x0441 for several different characters, and one character appears for many mobs at the same instant (an area attack). So it lists which characters are credited with a mob, near its death. Name not given: the exact event is not established. FACTS (exact-decoded logs, 2026-10-26): 140058 packets in 29 log(s); sizes 10 x140058; median gap 0.3 s; constant bytes @5=02, @9=00; u32@6 is a known player id in 138455/140058. Meaning not established."
+summary = "10 bytes: mob oid@2 and a character id@6 (the same pair layout as MobHit 0x044d, without the factor). From an exact-decoded log (2026-10-26 18:45, 254 packets): 112 of 116 mob kills (0x03d4) have a 0x0441 for that mob in the 10 s before, most at the same instant as the kill; one mob gets 0x0441 for several different characters, and one character appears for many mobs at the same instant (an area attack). So it lists which characters are credited with a mob, near its death. Name not given: the exact event is not established. FACTS (exact-decoded logs, 2026-10-26): 72469 packets in 7 log(s); sizes 10 x72469; median gap 0.3 s; constant bytes @5=02, @9=00; u32@6 is a known player id in 71556/72469. Meaning not established."
 len_min = 10
 len_max = 10
 field = [
@@ -1150,7 +1150,7 @@ len_max = 2
 id = 0x022e
 dir = "in"
 status = "structure"
-summary = "6 bytes: a character id @2 (316 of 317 packets name a player seen on the map). One packet per player roughly every 30 to 500 seconds (101 different players in 35 minutes, up to 10 each), not tied to that player's attacks (0x02a8 of the same player within 0.3 s in 11 of 171) or movement (31 of 171). Likely PlayerDespawn/leaves-view: that player's own packet rate changes sharply right at this event (2026-10-26, same-player gap analysis over a bigger pool, 795029 baseline inter-packet gaps vs 1759 0x022e events). The gap from that player's PREVIOUS packet to this one is 0 s at the median (they were active right up to it, matching the baseline's 0.5 s median), but the gap to their NEXT packet after this one is 16.8 s at the median and exceeds 10 s in 65.0% of cases - vs. only 0.9% for an unconditioned same-player gap. So this event marks a point after which that player goes quiet far longer than normal, consistent with no longer being visible rather than any in-view action - but NOT the same event as the already-confirmed 0x0209 PlayerLeave (13 bytes, stronger evidence: movement before, near-total silence after, re-spawn within 60s in 76/275); this one's post-gap (16.8s median) is much shorter and its own packets keep recurring, so it looks like a lighter/temporary drop from render range or similar, not a true map-leave. First seen with the exact decoder (2026-10-26) FACTS (exact-decoded logs, 2026-10-26): 5986 packets in 53 log(s); sizes 6 x5986; median gap 3.2 s; constant bytes @5=00; u32@2 is a known player id in 5715/5986. Meaning not established."
+summary = "6 bytes: a character id @2 (316 of 317 packets name a player seen on the map). One packet per player roughly every 30 to 500 seconds (101 different players in 35 minutes, up to 10 each), not tied to that player's attacks (0x02a8 of the same player within 0.3 s in 11 of 171) or movement (31 of 171). Likely PlayerDespawn/leaves-view: that player's own packet rate changes sharply right at this event (2026-10-26, same-player gap analysis over a bigger pool, 795029 baseline inter-packet gaps vs 1759 0x022e events). The gap from that player's PREVIOUS packet to this one is 0 s at the median (they were active right up to it, matching the baseline's 0.5 s median), but the gap to their NEXT packet after this one is 16.8 s at the median and exceeds 10 s in 65.0% of cases - vs. only 0.9% for an unconditioned same-player gap. So this event marks a point after which that player goes quiet far longer than normal, consistent with no longer being visible rather than any in-view action - but NOT the same event as the already-confirmed 0x0209 PlayerLeave (13 bytes, stronger evidence: movement before, near-total silence after, re-spawn within 60s in 76/275); this one's post-gap (16.8s median) is much shorter and its own packets keep recurring, so it looks like a lighter/temporary drop from render range or similar, not a true map-leave. First seen with the exact decoder (2026-10-26) FACTS (exact-decoded logs, 2026-10-26): 2960 packets in 14 log(s); sizes 6 x2960; median gap 3.1 s; constant bytes @5=00; u32@2 is a known player id in 2848/2960. Meaning not established."
 len_min = 6
 len_max = 6
 field = [
@@ -1731,7 +1731,7 @@ len_min = 151
 id = 0x0102
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 25 packets in 9 log(s); sizes 10 x25; median gap 1949.4 s; constant bytes @7-9=65 dd 01. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 12 packets in 2 log(s); sizes 10 x12; median gap 450.6 s; constant bytes @7-9=65 dd 01. Meaning not established."
 len_min = 10
 len_max = 10
 
@@ -1739,7 +1739,7 @@ len_max = 10
 id = 0x018c
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 140 packets in 29 log(s); sizes 6 x140; median gap 120.3 s. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 64 packets in 4 log(s); sizes 6 x64; median gap 84.4 s. Meaning not established."
 len_min = 6
 len_max = 6
 
@@ -1747,7 +1747,7 @@ len_max = 6
 id = 0x02b2
 dir = "in"
 status = "structure"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 12 packets in 5 log(s); sizes 10 x12; median gap 1430.6 s; constant bytes @5=00, @9=00; u32@2 is a known player id in 12/12. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 7 packets in 2 log(s); sizes 10 x7; median gap 4.2 s; constant bytes @5=00, @9=00; u32@2 is a known player id in 7/7. Meaning not established."
 len_min = 10
 len_max = 10
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -1756,7 +1756,7 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 id = 0x02b3
 dir = "in"
 status = "structure"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 56 packets in 18 log(s); sizes 11 x56; median gap 427.4 s; constant bytes @5-10=00 00 00 00 00 00; u32@2 is a known player id in 56/56. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 19 packets in 3 log(s); sizes 11 x19; median gap 529.6 s; constant bytes @5-10=00 00 00 00 00 00; u32@2 is a known player id in 19/19. Meaning not established."
 len_min = 11
 len_max = 11
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -1773,7 +1773,7 @@ len_max = 18
 id = 0x05ac
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 46 packets in 16 log(s); sizes 2 x46; median gap 1260.2 s, periodic (81% of gaps within 15%). Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 22 packets in 4 log(s); sizes 2 x22; median gap 1260.3 s, periodic (100% of gaps within 15%). Meaning not established."
 len_min = 2
 len_max = 2
 
@@ -1781,7 +1781,7 @@ len_max = 2
 id = 0x062c
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 63 packets in 19 log(s); sizes 2 x63; median gap 476.7 s. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 29 packets in 3 log(s); sizes 2 x29; median gap 541.9 s. Meaning not established."
 len_min = 2
 len_max = 2
 
@@ -1789,7 +1789,7 @@ len_max = 2
 id = 0x062d
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 96 packets in 22 log(s); sizes 2 x96; median gap 599.9 s. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 48 packets in 8 log(s); sizes 2 x48; median gap 599.9 s. Meaning not established."
 len_min = 2
 len_max = 2
 
@@ -1797,39 +1797,7 @@ len_max = 2
 id = 0x03ea
 dir = "in"
 status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 6 packets in 3 log(s); sizes 28 x3, 35 x3. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 3 packets in 1 log(s); sizes 35 x3. Meaning not established."
 len_min = 28
 len_max = 28
-
-[[opcode]]
-id = 0x002c
-dir = "in"
-status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 526 packets in 8 log(s); sizes 6 x526; median gap 4.5 s; constant bytes @5=fe. Meaning not established."
-len_min = 6
-len_max = 6
-
-[[opcode]]
-id = 0x003d
-dir = "in"
-status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 11399 packets in 4 log(s); sizes 10 x11399; median gap 0.7 s; constant bytes @5=fe, @9=fc. Meaning not established."
-len_min = 10
-len_max = 10
-
-[[opcode]]
-id = 0x006e
-dir = "in"
-status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 302 packets in 4 log(s); sizes 11 x288, 7 x14; median gap 3.1 s; constant bytes @4-6=0c fc fe, @10=fc. Meaning not established."
-len_min = 7
-len_max = 11
-
-[[opcode]]
-id = 0x023f
-dir = "in"
-status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 217 packets in 4 log(s); sizes 10 x217; median gap 9.0 s; constant bytes @5=00, @9=fe. Meaning not established."
-len_min = 10
-len_max = 10
 
