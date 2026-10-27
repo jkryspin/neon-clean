@@ -32,6 +32,7 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 | `scripts/registry-refs.py LOG` | Write what `idscan` found into the registry (fields `char_id` / `mob_oid` on still-unexplored entries; never touches verified ones) | `0x02b0`, `0x02b7`, `0x02ba`, `0x02bd`, `0x047b` reference players |
 | `neon-protocol/examples/validate.rs` | Does this registry file pass validation? `cargo run --example validate -- path` | catches a script writing an out-of-bounds field |
 | `neon-calib/tools/lifecycle.py` | Does a packet mark the start or end of an entity's presence (its movement packets before vs after, against random times)? | found `PlayerLeave 0x0209`; `0x02bb` is arrival-like; re-finds mob kill/hit and `PetSpawn` |
+| `scripts/correlate.py LOG...` (2026-10-27) | **Run this first, systematically, over every still-open opcode** rather than picking one by eye: for each opcode's best id-bearing field, does it line up in time with a mob kill (`0x03d4`) or PlayerSpawn (`0x022d`) for that SAME id, at least half the time? Generalizes the one-off checks already done by hand for `0x0441` and the `0x0279` family into a repeatable sweep. Report only, writes nothing; a hit is a lead to confirm by hand (e.g. the before/after-spawn check), same evidence rules as everywhere else. | first run found `0x03e9` (100% near a kill, same strength as `0x0441`) and `0x02b3` (a likely sixth member of the post-spawn `0x0279` family, confirmed 21/21 strictly at-or-after) |
 | `neon-calib/tools/poscorr.py` | Does a field hold the position of the entity the packet refers to? | attacker position pairs in `0x02a8` (77% within 30 px) |
 | `neon-calib/tools/actlab.py` | Which opcodes does one isolated action produce (baseline + repeats)? | party create/leave |
 | Map geometry (`neon-calib/maps/<id>.json`) | Do decoded positions lie on real platforms / at real NPC positions? | spawns 383/384, NPC moves vs the NPC list |
@@ -180,3 +181,8 @@ missing is a confirmed MEANING for the ones that still say "Meaning not establis
 4. ~~The movement fragment's stance/climbing byte layout~~ - SOLVED tonight (2026-10-26, active climb on jib01): climbing uses the same `MoveSelf`/`0x00db` opcode and x@16/y@18 header as walking; the per-fragment stance byte is 15 exactly when foothold is -1 (no platform underneath - the ladder case), a clean separation across 152 real fragments, never seen on any of the 141 fragments with a real foothold. Also fixed an off-by-one in the opcode's own records table (`start` was an unverified 26, should be 25).
 5. Once the wire numbering is solved offline against recorded connections: NP12-T first, with `neon-cmd`'s `SafetyGate` and
    `ReconnectPolicy` enforced, per the approval in `docs/authorization.md`.
+6. Systematic sweep (2026-10-27, new): run `scripts/correlate.py` over the full pool each session and work its
+   ranked output top-down, instead of picking the next opcode to study by eye from the Opcodes/Todo tables. First
+   run already surfaced `0x03e9` and `0x02b3` (see the tools table above) - re-run periodically as the pool grows,
+   since a correlation that was too thin to trust (few packets) can become solid with more data, the same way the
+   `0x0441` kill-correlation got stronger from 116 to 32,677 kills across this session.

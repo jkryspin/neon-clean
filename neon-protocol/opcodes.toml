@@ -1117,7 +1117,7 @@ field = [
 id = 0x03e9
 dir = "in"
 status = "structure"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 40 packets in 4 log(s); sizes 40 x22, 72 x7, 107 x7, 62 x2; median gap 5.6 s; constant bytes @5-29=02 00 08 00 00 00..., @33=00, @35=00, @38-39=02 01; u32@2 is a known mob id in 22/22. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 40 packets in 4 log(s); sizes 40 x22, 72 x7, 107 x7, 62 x2; median gap 5.6 s; constant bytes @5-29=02 00 08 00 00 00..., @33=00, @35=00, @38-39=02 01; u32@2 is a known mob id in 22/22. Meaning not established. 2026-10-27 (scripts/correlate.py, a new systematic sweep tool - see its docstring): of the 22 packets at the dominant 40-byte length, 22/22 (100%) occur within 10s of a mob kill (0x03d4) for that SAME mob oid. Strong timing signal; still not enough alone to name the event (compare 0x0441's similar-strength kill correlation, also unnamed)."
 len_min = 40
 len_max = 107
 field = [{ name = "mob_oid", ty = "u32", off = 2 }]
@@ -1760,7 +1760,7 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 id = 0x02b3
 dir = "in"
 status = "structure"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 22 packets in 6 log(s); sizes 11 x22; median gap 432.2 s; constant bytes @5-10=00 00 00 00 00 00; u32@2 is a known player id in 22/22. Meaning not established."
+summary = "FACTS (exact-decoded logs, 2026-10-26): 22 packets in 6 log(s); sizes 11 x22; median gap 432.2 s; constant bytes @5-10=00 00 00 00 00 00; u32@2 is a known player id in 22/22. Meaning not established. 2026-10-27 (scripts/correlate.py, a new systematic sweep tool - see its docstring): 21/22 packets (95%) occur within 10s of a PlayerSpawn (0x022d) for that SAME char_id. Followed up directly: of the 21 with a nearby spawn, 21/21 are strictly AT OR AFTER it, never before (median delay 1.0s) - the identical post-spawn signature as the confirmed 0x0279/0x02bb/0x02bd/0x0281(PetSpawn) family, just much rarer (22 packets total here vs. hundreds-thousands for that family). A plausible sixth member of that family; not added to it formally since 22 packets is a thin sample compared to the others."
 len_min = 11
 len_max = 11
 field = [{ name = "char_id", ty = "u32", off = 2 }]
