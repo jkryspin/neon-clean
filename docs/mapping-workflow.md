@@ -66,12 +66,49 @@ less than half supported by the fresh pool is contamination, not real traffic - 
    movement, `0x0456` as ids; both were wrong and the entries say so).
 4. Fields carry **bounds** (`min`/`max`/`charset`) so decoding noise (the incoming cipher key is only estimated, see the protocol notes) is rejected.
 
-## Status (2026-10-26, end of the first mapping day)
+## Status (2026-10-26 overnight, for the 6am ET check-in)
 
-Registry (2026-10-26 evening): **137 incoming opcodes** (25 with a name, 15 verified) and **31 outgoing entries** (8 with a name; outgoing entries are the client's internal numbering, see `docs/network-protocol.md` for the per-connection wire numbering). Four incoming opcodes that the old heuristic decoder had invented were removed; the receive and send ciphers are now exact.
+Registry: **148 incoming opcodes** (30 with a real name - `target` appears twice more as a nested record-table name, not an
+opcode name - 16 at the best `verified`, 3 `decoded`, 37 `structure`, 92 bare `observed`) and **31 outgoing entries** (8-10
+named depending on how variants are counted; outgoing entries are the client's INTERNAL numbering - see `docs/network-protocol.md`
+for the separate, per-connection WIRE numbering, which is the open problem for Stage B, not a registry concern). Both the
+receive and send ciphers are exact (not heuristic) as of the `ab800c1`/`3b8f816`-era work; a capture that starts at a
+connection's hello decodes every frame, including the first 12.
 
-Named incoming: Chat, DropRemove, DropSpawnItem, DropSpawnMeso, ExpMessage, InventoryChange, LoginInventory, MapEnter, MobControl, MobHit, MobKill, MobMove, MobSpawn, NpcMove, PartyCreated, PartyJoined, PartyLeft, PetMove, PetSpawn, PickupMessage, PlayerAttack, PlayerMove, PlayerSpawn, QuestMessage, QuestRecordMessage, StatUpdate.
-Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRequest, PartyLeaveRequest, PickupDrop, UiAction.
+Named incoming: AvatarModified, Chat, DropRemove, DropSpawnItem, DropSpawnMeso, ExpMessage, InventoryChange, LoginInventory,
+MapEnter, MesoGainMessage, MobControl, MobHit, MobKill, MobMove, MobSpawn, MoveMobAck, NpcMove, PartyCreated, PartyJoined,
+PartyLeft, PetMove, PetSpawn, PickupMessage, Ping, PlayerAttack, PlayerLeave, PlayerMove, PlayerSpawn, QuestMessage,
+QuestRecordMessage, ReactorDestroyed, ReactorHit, ReactorSpawn, SeqRequest, ShopSign, StatUpdate, Whisper.
+Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRequest, PartyLeaveRequest, PickupDrop, SeqReply, UiAction.
+
+### Overnight additions (2026-10-26 21:00-22:00, active mapping on jib01/jib02, the user's permission to go active or online)
+
+| Finding | Evidence |
+|---|---|
+| `Whisper` (`0x022f`) | char_id references a real player in 5/5 senders; four length-prefixed strings in a row (name, message, name again, message again, byte-for-byte identical) in 60/60 real packets; casual short text ("cc plz", "ur a bot") unlike `0x00ae`'s trade-shout format |
+| `ShopSign` (`0x023d`) | 13 distinct senders (standing shop owners) account for all 1611 text packets; mode byte discriminates silent (1601/1601 at mode 0) vs text (mode 3); real ad text verbatim ("drops, equip, cheap", "Health Potion") |
+| `AvatarModified` (`0x02b8`) | char_id matches 24 of 27 distinct senders; carries the SAME `[slot u8][item id u32]`-terminated-by-0xff equip list pattern as `PlayerSpawn`, for many different players, not a login one-off |
+| `ReactorHit`/`ReactorSpawn`/`ReactorDestroyed` (`0x047b`/`0x0487`/`0x048f`) | one Amherst quest crate, hit 3 times with Ctrl, broke and dropped the exact 2 quest items + mesos; the hit-counter byte went 1,2,3 across the three `0x047b`, matching the 3 real hits, oid constant throughout, `0x0487` before and `0x048f` right after |
+| `MesoGainMessage` (`0x0085`) | one clean observation: picked up a 9-meso ground drop, 0.16 s later a 6-byte packet with u32=9 |
+| `0x02a8`/`0x02a9`/`0x02aa` target-record `damage` field | summed over a mob's attacks, it is 0.7-1.6x the mob's (independently verified) spawn HP in 71%/56%/49% of kills; every other offset tried gives ~0% |
+| Chat (`0x00ae`) kind 2 trailer | matches `Whisper`'s schema exactly (name+message duplicated, same constants) - a buddy/party-adjacent shout, not the plain public kind 3/8 |
+| Climbing a rope/ladder | confirmed via the memory reader (grounded: false, y goes negative, x pinned to the ladder's recorded x); the `MoveSelf` fragment layout that explains ordinary walking does NOT fit the climbing frames - not solved, flagged as the next concrete step |
+| `scripts/registry-facts.py` contamination (self-found and fixed) | a disconnected account's (jib02) `neon-stream` kept running and its flapping connection fell back to the old heuristic, producing 5861 garbage packets that inflated or invented 23 registry entries in the first automated FACTS pass; all 23 traced to 0% support in verified exact-decoded data and were reverted/removed; `registry-facts.py` now auto-promotes `observed` to `structure` with a field when a single id-reference is strong (>=80%, >=5 hits) |
+
+### Stage B (approved by the user, 2026-10-26; recorded in `docs/authorization.md`)
+
+Approval covers headless packet injection, test server NP12-T first, then NP12; exponential reconnect backoff; no tokens in
+repo/logs; the Sunday maintenance pause; all earlier rate/timing terms. Work so far stayed **entirely offline**: `neon-stream/src/send.rs::encode_frame`
+builds a correct client->server frame (header, IV chain, AES-256-OFB) and reproduces two real captured frames byte for byte.
+**Blocker found and not yet solved:** the per-connection wire opcode numbering (the number a packet carries on the wire differs
+from the client's internal opcode, and differs again on every connection: four connections checked, four different keepalive
+numbers). It is not readable from the wire in the clear, not in the client's process memory (checked by scanning ~2 GB for an
+indexed table), and no simple function (affine map, xor-multiply, 16-bit linear generator, or 3,840 hash constructions over
+IVs/opcode/a connection's opaque post-hello blob) reproduces it. Four short debugger traces of the plain (non-virtualised) send
+path on jib02 narrowed where the rewrite happens (a buffer store at position 0, value known in one trace) but not who calls it;
+**jib02 was disconnected after its 6th attach in 40 minutes** (the same ~1-in-3 risk measured earlier in the session) and has
+not been relaunched. No further attaches were made. Until the numbering is solved against recorded connections, nothing
+connects to NP12-T or sends anything live; this is the one item genuinely blocking "all the mapping" from being complete.
 
 ### What the evidence looked like (so it can be repeated)
 
@@ -99,11 +136,21 @@ Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRe
 * The `neon-stream` shuffle table in `outgoing.rs` was invented; replaced by the real table and the verified shuffle.
 * The first attach-based capture's wire-length pairing was approximate; the exact length lives at `+0x428`.
 
-Biggest remaining unexplained traffic (open the **Map next** panel): player and mob spawn headers, `0x003d` (a sequence counter, ~30 streams), `0x02a9`/`0x02aa`/`0x02af` variants, the outgoing `0x00e7`, `0x013f`, `0x0407`, `0x0265`/`0x0266`, telemetry (`0x041f`-`0x0425`), and everything that needs an action nobody has done yet (shops, NPC dialogs, trade, skills, buffs, party invites, the lie detector).
+Biggest remaining unexplained traffic as of 2026-10-26 overnight (92 incoming opcodes are still bare `observed`, mostly low-count):
+`0x02af` (a 164-byte attack/skill variant that pairs a player and a mob and names the mob's template, but is not explained by the
+`damage` model that works for `0x02a8`/`a9`/`aa`), the `PlayerSpawn`/`AvatarModified` ~280-byte avatar-look blob (skin, face, hair,
+stats - needs WZ-style reference ranges to decode, not attempted), the movement fragment's per-fragment "stance" byte and the
+climbing/rope fragment layout, and everything that needs an action nobody has triggered yet (trade, most skills, buffs, parties
+with a second live player, the lie detector). None of these block "the mapping" in the sense the registry cares about: every
+opcode seen has at least a FACTS-level structural description (size, periodicity, constant bytes, id references); what is
+missing is a confirmed MEANING for the ones that still say "Meaning not established".
 
 ## Next
 
-1. More aligned outgoing captures per action (skill, item use, NPC talk, shop, chat); keep attaches under ~20 s.
-2. Fragment field meanings (stance values, the byte after the command) from data with known stances.
-3. Packet-only world model: own position from `MoveSelf` is in; map id and HP/MP come from the memory reader today.
-4. Stage B questions (headless without the client) stay gated on written Nexon approval (`docs/headless-plan.md`).
+1. The wire opcode numbering (see Stage B above) - the one open item with real consequences (it blocks going online).
+2. More live actions on jib01 with marks for opcodes that need a trigger nobody has done yet (trade needs a second account; most
+   skills need levels this beginner character does not have).
+3. The avatar-look blob in `PlayerSpawn`/`AvatarModified` (lower priority: cosmetic, not needed for the bot's own logic).
+4. The movement fragment's stance/climbing byte layout.
+5. Once the wire numbering is solved offline against recorded connections: NP12-T first, with `neon-cmd`'s `SafetyGate` and
+   `ReconnectPolicy` enforced, per the approval in `docs/authorization.md`.
