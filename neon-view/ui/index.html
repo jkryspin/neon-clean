@@ -177,7 +177,8 @@ function render(s) {
   }
   const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
   document.getElementById('dead-banner').style.display = m.dead ? '' : 'none';
-  document.title = (m.dead ? '☠ DEAD - ' : desyncOngoing ? '⚠ DESYNC - ' : '') + 'Neon View';
+  const lowHp = m.max_hp && m.hp != null && m.hp / m.max_hp < 0.3;
+  document.title = (m.dead ? '☠ DEAD - ' : lowHp ? '❤ LOW HP - ' : desyncOngoing ? '⚠ DESYNC - ' : '') + 'Neon View';
   list('me', [
     '<span>Position</span><span>' + (m.x != null ? m.x + ', ' + m.y + (m.grounded === false ? ' (air)' : '') : '?') + '</span>',
     '<span>Level</span><span>' + (m.level ?? '?') + (m.job != null ? ' (job ' + m.job + ')' : '') + '</span>',
