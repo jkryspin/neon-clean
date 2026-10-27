@@ -302,6 +302,13 @@ a specific OPCODE to its handler without either the (virtualised) dispatch or a 
 code-level route is injection/instrumentation, which MODIFIES the target - a separate decision that needs the
 user's explicit go-ahead at the moment of action and a plan that limits blast radius.
 
+## Injection: see docs/injector-plan.md
+
+The goal, expected value, authorisation conflict, risks, ranked designs and go/no-go gates for in-process
+instrumentation are written down in `docs/injector-plan.md`. Short version: it would give opcode->handler
+addresses and per-byte semantics (the one thing passive methods cannot), but it exceeds the memory-READ-only
+design disclosed to Nexon, so it needs an explicit decision first. Not started.
+
 ## Step 3 RESULT (2026-10-27): dynamic observation - how far it gets without touching the process
 
 Run on jib01 (test account) with the user monitoring. Cumulative ~2 minutes of profiling; **no adverse effect
