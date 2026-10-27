@@ -230,6 +230,10 @@ sk.onchange = () => { post('replay/seek?ms=' + sk.value).then(() => { seeking = 
 const qmap = new URLSearchParams(location.search).get('map');
 if (qmap) { document.getElementById('mapid').value = qmap; loadGeo(qmap); }
 const hexs = t => esc(t);
+// human labels for a few known low-cardinality registry fields, purely cosmetic - the raw number is still the
+// source of truth (shown in opcodes.toml), this just saves a lookup while eyeballing the live Packets table.
+const FIELD_LABELS = { gender: { 0: 'male', 1: 'female' } };
+const showField = (name, value) => FIELD_LABELS[name] && FIELD_LABELS[name][value] !== undefined ? value + ' (' + FIELD_LABELS[name][value] + ')' : value;
 function renderPackets(rows) {
   const hide = document.getElementById('hide').checked;
   const dsel = document.getElementById('dirsel').value;
@@ -237,7 +241,7 @@ function renderPackets(rows) {
   document.getElementById('pk').innerHTML = rows.filter(r => !(hide && r.status === 'verified') && (!dsel || r.dir === dsel) &&
     (!q || r.op.toLowerCase().includes(q) || (r.name || '').toLowerCase().includes(q))).slice(0, 80).map(r =>
     '<tr><td class="dim">' + (r.t_ms / 1000).toFixed(1) + '</td><td class="dim">' + (r.dir === 'out' ? '&rarr;' : r.dir === 'wire' ? '&rarr;w' : '&larr;') + '</td><td class="' + r.status + '">' + r.op + '</td><td>' + esc(r.name || '') + '</td><td>' + r.len +
-    '</td><td class="hex">' + (r.fields.length ? esc(r.fields.map(f => f[0] + '=' + f[1]).join(' ')) : hexs(r.hex)) + '</td></tr>').join('');
+    '</td><td class="hex">' + (r.fields.length ? esc(r.fields.map(f => f[0] + '=' + showField(f[0], f[1])).join(' ')) : hexs(r.hex)) + '</td></tr>').join('');
 }
 // incoming opcode ids already documented in docs/mapping-workflow.md "Corrections made along the way" as decode
 // artifacts that "never existed" (old per-block heuristic garbage) - if any of these shows up again, it is almost
