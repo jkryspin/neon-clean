@@ -263,6 +263,45 @@ content references, so the remaining levers for them are the Kinoko alignment an
 against the client's own data should be the first move whenever a field holds something id-shaped, before any
 statistical argument about what it might mean.
 
+## Static code analysis, round 2 (2026-10-27): what is and isn't reachable
+
+User direction: look at the code or inject rather than infer behaviourally. This is the static half.
+
+**Corrects an earlier over-claim.** The first static pass concluded "no static opcode->handler table exists".
+That was too strong: `exetable.py` searched for 8-byte POINTERS, but MSVC x64 stores switch tables as 4-byte
+image-relative offsets, so it could not have found a switch-based dispatcher whether or not one exists.
+`neon-calib/tools/exejumptab.py` searches for those. Result: `.rdata` holds ~400 runs of 10-30 consecutive
+valid code RVAs - the right shape - so tables are plentiful, but every large candidate examined was NOT a
+packet switch: `0x1435c77f0` (288 entries, all distinct) is an FFT **bit-reversal permutation**
+(`0x0c, 0x8c, 0x4c, 0xcc, 0x2c...`); others repeat `0x140010401`/`0x140050000` (bit-masks that land in code
+range). "Large and all-distinct" is not evidence of a switch. The filters I first used (tight spread,
+distinct >= n/4) rejected every table, so an initial "0 tables" was a filter bug, not a finding - caught by
+measuring the actual run-length distribution instead of trusting the empty result.
+
+**What genuinely works: object roots -> vtables -> readable methods.** neon-stream already tracks static roots
+(`0x143bf8e78` stats, `0x143bf05a0` player state). Dereferencing a root and reading its vtable needs no RTTI
+(which the protector relocated) and no debugger, only `/proc/PID/mem` reads. For the stats object **all 80
+virtual methods are in readable code** - game classes' own methods are NOT virtualised, only the
+opcode->handler edge is. `neon-calib/tools/exevtable.py ROOT` dumps the vtable and finds call sites of a slot;
+`exejumptab.py` finds switch tables. Rip-relative xrefs to a root (28 for the stats root) land in clean,
+unobfuscated compiler output: ordinary prologues, `int3` padding, `test rcx,rcx / je` null checks.
+
+**Where it stopped being specific.** Slot 29 of the stats vtable writes `[obj+0x160]` (level) six times and
+makes a cascade of virtual calls - it looked like a level-up handler. It is not specific: it has 59 direct
+callers, 585 data pointers and 324 virtual call sites. It is a widely-inherited BASE-CLASS method, and
+`+0x160` is a field of that shared base, not "the stats object's level" as such. Walking callers upward from
+it therefore does not converge on the StatUpdate handler. (Also: my first vtable read stopped at 48 methods;
+the real count is 80.)
+
+**Operational finding:** jib01's stats root is NULL and its position reads (0,0) - that client is not actually
+in-game (its HP 162/419 in neon-view is a stale last-known value), which also explains why it emits almost
+no traffic. Roots must be read from a client that is in-game; use `exevtable.py` with no PID to auto-pick one.
+
+**Net.** Static analysis reaches real, readable code and real vtables, but I have not found a way to get from
+a specific OPCODE to its handler without either the (virtualised) dispatch or a dynamic trace. The remaining
+code-level route is injection/instrumentation, which MODIFIES the target - a separate decision that needs the
+user's explicit go-ahead at the moment of action and a plan that limits blast radius.
+
 ## Step 3 RESULT (2026-10-27): dynamic observation - how far it gets without touching the process
 
 Run on jib01 (test account) with the user monitoring. Cumulative ~2 minutes of profiling; **no adverse effect
