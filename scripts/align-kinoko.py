@@ -66,7 +66,13 @@ KINOKO = {
 }
 
 # Anchors: (our opcode, Kinoko value). Only ones whose identification is solid.
-ANCHORS = [(0x022d,179),(0x023d,183),(0x0282,201),(0x029d,210),(0x02a8,211),(0x02b8,223),
+ANCHORS = [(0x022d,179),(0x023d,183),(0x0282,201),(0x029d,210),(0x02a8,211),
+           # 0x02a9/0x02aa confirmed 2026-10-27 by the JOB CLASS of the skill ids at their skill_id@8:
+           # 0x02a9 carries bowman+thief skills and is 36% zero (ranged); 0x02aa carries ONLY magician
+           # skills and is NEVER zero (magic always uses a skill). That matches Kinoko's
+           # UserShootAttack/UserMagicAttack exactly and is independent of the ordering argument.
+           (0x02a9,212),(0x02aa,213),
+           (0x02b8,223),
            (0x03c9,284),(0x03d4,285),(0x03d5,286),(0x03dc,287),(0x0456,314),(0x0471,322),(0x0487,336)]
 
 # Accepted hypotheses (position + an independent structural or behavioural check - see each opcode's summary).
