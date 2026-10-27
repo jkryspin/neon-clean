@@ -210,6 +210,49 @@ POSITIONED, sized or typed wrongly and round-trip.
 What is still not possible: building a packet from nothing for an opcode whose bytes are not fully explained.
 That needs the decode work this plan tracks, not more encoder work.
 
+## Step 3 RESULT (2026-10-27): dynamic observation - how far it gets without touching the process
+
+Run on jib01 (test account) with the user monitoring. Cumulative ~2 minutes of profiling; **no adverse effect
+on any client** (all three stayed alive, TCP intact, HP unchanged, `heuristic_skipped` flat at 12 throughout).
+`kernel.perf_event_paranoid` was temporarily lowered from 4 to 2 and **restored to 4 afterwards**.
+
+Tool choice matters here: `perf` samples via the kernel's perf subsystem - no ptrace, no thread stopping, no
+writes to the target. That is a different signature from a debugger attach, which has twice dropped both test
+accounts (`gdb-attach-drops-sessions`).
+
+**1. Handlers ARE in readable code - the protector does not virtualise everything.** Profiling the main
+`MapleStory.exe` thread at 4999 Hz: 16.2% of samples land in the plain r-xp image, 35.6% in the protector's
+rwxp region, the rest in Wine/libc. So a dynamic approach CAN reach real handler code - the static dead end was
+only about the opcode->handler *edge*, not the handlers themselves.
+(Incidental: 96.5% of whole-process CPU is `llvmpipe` software rendering - the client has no GPU acceleration.
+Profile the main thread specifically or the game logic is drowned out.)
+
+**2. Sampling correlation is too coarse - validated and rejected on a KNOWN opcode.** The method (correlate
+sample timestamps against packet arrival times, look for addresses enriched just after a given opcode) was
+tested on `NpcMove 0x0456`, where the answer is already known. 90 s, 69,406 samples, 162 arrivals: only 46
+readable samples fell in the 4 ms windows after an arrival, and **no address reached 3x enrichment**. A handler
+runs for microseconds; at ~5 kHz we simply never catch it. Tested on a known opcode precisely so that failure
+means "the method is too weak", not "the opcode is mysterious".
+
+**3. The precise tools are each independently unavailable here:**
+- *Intel PT* (full control-flow trace, would solve this outright): not present - this is an AMD Ryzen 5800X.
+- *uprobes* (exact hit counts at an arbitrary address, no sampling): the game's code regions are ANONYMOUS
+  memory (`r-xp ... 00:00 0`, no backing file), and a uprobe needs a file-backed mapping. Nothing to attach to.
+- *Hardware watchpoints* (`perf -e mem:ADDR:w`, would give the instruction pointer that writes a known game
+  state address - the "anchor on game state" idea): **blocked by the anti-cheat.** `perf_event_open` returns
+  ENOSPC (all four debug registers already occupied) for the game process, while the identical call on a
+  control process this session spawned opens fine. Occupying DR0-DR3 is a standard anti-debug technique.
+
+**Conclusion.** Everything that observes without modifying the process has now been tried. The remaining
+options - Frida/Stalker injection (which uses ptrace) or patching a logging stub into the dispatch via
+/proc/pid/mem writes - all MODIFY the target, which is both detectable by code-integrity checks and the exact
+category that has already cost sessions twice. That is a judgement call for the user, not a default next step.
+
+**Also worth knowing operationally:** jib02 (pid 3707397) is in state `T` (stopped/suspended) and holds only
+one TCP connection - it is not actually playing. And the high-traffic unknown `0x0441` is produced by
+shurella2, the MAIN account; jib01 is idle and never emits it. So even a working dynamic method would need
+either the main account profiled (not done - deliberately) or a test account actually put into combat.
+
 ### Original plan for Tier B encoders (kept for context)
 
 Once an opcode's fields are confirmed (named, `status = "verified"` or `"decoded"`, with a `field` array):
