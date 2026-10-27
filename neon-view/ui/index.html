@@ -78,6 +78,7 @@
         <span><i class="cell c-ref" style="width:12px">&nbsp;</i> holds known ids</span>
         <span><i class="cell c-const" style="width:12px">&nbsp;</i> never changes</span>
         <span><i class="cell c-var" style="width:12px">&nbsp;</i> varies, unexplained</span></div>
+        <div id="ex-summary" style="margin-bottom:8px;font-size:12px;line-height:1.4"></div>
         <div id="ex-map"></div><div id="ex-meta" class="dim" style="margin-top:8px;font-size:12px"></div>
         <div id="ex-samples" class="hex" style="margin-top:8px;font:11px ui-monospace,monospace;color:var(--dim);white-space:pre-wrap"></div></div></div>
     <div><h2>Map next <span class="dim" style="text-transform:none;letter-spacing:0">unexplained traffic first</span></h2>
@@ -279,6 +280,7 @@ function loadExplorer() {
   fetch('explore?dir=' + exSel[0] + '&op=' + exSel[1]).then(r => r.ok ? r.json() : null).then(x => {
     if (!x) { document.getElementById('ex-title').textContent = 'no data for that opcode'; return; }
     document.getElementById('ex-title').textContent = (x.dir === 'out' ? '\u2192 ' : x.dir === 'wire' ? '\u2192w ' : '\u2190 ') + x.op + (x.name ? ' ' + x.name : '') + ' (' + x.status + ')';
+    document.getElementById('ex-summary').innerHTML = x.summary ? esc(x.summary) : '<span class="dim">no summary in the registry yet</span>';
     const last = x.samples.length ? x.samples[0].split(' ') : [];
     document.getElementById('ex-map').innerHTML = x.offsets.map(o => {
       let cls = 'c-var', tip = 'unexplained, varies (' + o.distinct + ' values, ' + o.min + '..' + o.max + '; most common ' + o.top.map(t => t[0] + 'x' + t[1]).join(', ') + ')' + (o.u16_range ? '; as u16: ' + o.u16_range[0] + '..' + o.u16_range[1] + ', ' + o.u16_distinct + ' distinct' : '');

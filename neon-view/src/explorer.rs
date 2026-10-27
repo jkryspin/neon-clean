@@ -67,6 +67,9 @@ pub struct Exploration {
     pub op: String,
     pub name: Option<String>,
     pub status: String,
+    /// The registry's own prose for this opcode, if any - so the explorer doesn't require cross-referencing
+    /// opcodes.toml by hand to see what is already known.
+    pub summary: Option<String>,
     pub count: u64,
     pub lens: Vec<(usize, u64)>,
     pub dominant_len: usize,
@@ -226,6 +229,7 @@ impl Explorer {
             op: format!("{id:#06x}"),
             name: info.and_then(|o| o.name.clone()),
             status: info.map(|o| format!("{:?}", o.status).to_lowercase()).unwrap_or_else(|| "unregistered".into()),
+            summary: info.and_then(|o| o.summary.clone()),
             count: e.count,
             lens,
             dominant_len,
