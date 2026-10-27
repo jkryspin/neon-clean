@@ -75,7 +75,7 @@
 </section>
 <section>
   <div class="grid2">
-    <div><h2>Opcode explorer <span class="dim" id="ex-title" style="text-transform:none;letter-spacing:0">click an opcode</span> <button id="ex-copy" style="margin-left:8px;font-size:10px;text-transform:none;letter-spacing:0" title="copy this opcode's samples as hex, one per line, for pasting into a script or registry note">Copy samples</button></h2>
+    <div><h2>Opcode explorer <span class="dim" id="ex-title" style="text-transform:none;letter-spacing:0">click an opcode</span> <button id="ex-copy" style="margin-left:8px;font-size:10px;text-transform:none;letter-spacing:0" title="copy this opcode's samples as hex, one per line, for pasting into a script or registry note">Copy samples</button> <button id="ex-copy-toml" style="margin-left:4px;font-size:10px;text-transform:none;letter-spacing:0" title="copy a ready-to-paste [[opcode]] TOML scaffold, with id/dir/status/len_min/len_max filled from the length buckets shown here (up to 12) - double-check against the full FACTS sizes before trusting len_min/max, per tonight's lint findings">Copy as TOML</button></h2>
       <div class="box"><div id="ex-legend" class="legend dim" style="font-size:12px;margin-bottom:6px">
         <span><i class="cell c-known" style="width:12px">&nbsp;</i> explained by the registry</span>
         <span><i class="cell c-ref" style="width:12px">&nbsp;</i> holds known ids</span>
@@ -359,6 +359,18 @@ document.getElementById('ex-copy').onclick = () => {
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = old; }, 1200);
   }).catch(() => alert('clipboard write failed - select the Samples text below and copy manually'));
+};
+document.getElementById('ex-copy-toml').onclick = () => {
+  const x = lastExploration;
+  if (!x) return;
+  const lens = x.lens.map(l => l[0]);
+  const toml = '[[opcode]]\nid = ' + x.op + '\ndir = "' + (x.dir === 'wire' ? 'out' : x.dir) + '"\nstatus = "observed"\nlen_min = ' + Math.min(...lens) + '\nlen_max = ' + Math.max(...lens) + '\n';
+  navigator.clipboard.writeText(toml).then(() => {
+    const btn = document.getElementById('ex-copy-toml');
+    const old = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = old; }, 1200);
+  }).catch(() => alert('clipboard write failed'));
 };
 const pollInspector = () => {
   fetch('packets?limit=200').then(r => r.json()).then(j => { lastPk = j; renderPackets(j); });
