@@ -6,44 +6,44 @@ Incoming: 43/159 named (27%). Outgoing: 11/34 named (32%).
 
 | opcode | status | packets | next step |
 |---|---|---|---|
-| `0x0441` | structure | 106287 | needs binary analysis (passive tools already tried) |
-| `0x0456` | structure | 36203 | re-run sweep (not yet tried against landmarks) |
-| `0x02af` | structure | 29339 | needs binary analysis (passive tools already tried) |
-| `0x001b` | structure | 4036 | re-run sweep (not yet tried against landmarks) |
-| `0x022e` | structure | 3878 | needs binary analysis (passive tools already tried) |
-| `0x02b9` | structure | 3471 | needs binary analysis (passive tools already tried) |
-| `0x0279` | structure | 2736 | needs binary analysis (passive tools already tried) |
-| `0x02bb` | structure | 2456 | needs binary analysis (passive tools already tried) |
+| `0x0441` | structure | 121522 | needs binary analysis (passive tools already tried) |
+| `0x0456` | structure | 42592 | re-run sweep (not yet tried against landmarks) |
+| `0x02af` | structure | 33217 | needs binary analysis (passive tools already tried) |
+| `0x001b` | structure | 4749 | re-run sweep (not yet tried against landmarks) |
+| `0x022e` | structure | 4374 | needs binary analysis (passive tools already tried) |
+| `0x02b9` | structure | 3891 | needs binary analysis (passive tools already tried) |
+| `0x0279` | structure | 3051 | needs binary analysis (passive tools already tried) |
+| `0x02bb` | structure | 2765 | needs binary analysis (passive tools already tried) |
 | `0x0028` | structure | 674 | re-run sweep (not yet tried against landmarks) |
-| `0x02bd` | structure | 600 | re-run sweep as data grows |
-| `0x02b7` | structure | 404 | re-run sweep as data grows |
+| `0x02bd` | structure | 674 | re-run sweep as data grows |
+| `0x02b7` | structure | 420 | re-run sweep as data grows |
 | `0x0077` | structure | 330 | re-run sweep (not yet tried against landmarks) |
-| `0x02ba` | structure | 297 | re-run sweep as data grows |
-| `0x02b0` | structure | 284 | re-run sweep as data grows |
-| `0x0020` | observed | 225 | re-run sweep (not yet tried against landmarks) |
+| `0x02ba` | structure | 327 | re-run sweep as data grows |
+| `0x02b0` | structure | 304 | re-run sweep as data grows |
+| `0x0020` | observed | 265 | re-run sweep (not yet tried against landmarks) |
 | `0x00b7` | structure | 178 | re-run sweep (not yet tried against landmarks) |
-| `0x001d` | structure | 140 | re-run sweep (not yet tried against landmarks) |
-| `0x0381` | observed | 112 | re-run sweep (not yet tried against landmarks) |
-| `0x018c` | observed | 97 | re-run sweep (not yet tried against landmarks) |
-| `0x0283` | structure | 77 | re-run sweep (not yet tried against landmarks) |
-| `0x062d` | observed | 65 | re-run sweep (not yet tried against landmarks) |
-| `0x062c` | observed | 42 | re-run sweep (not yet tried against landmarks) |
+| `0x001d` | structure | 164 | re-run sweep (not yet tried against landmarks) |
+| `0x0381` | observed | 133 | re-run sweep (not yet tried against landmarks) |
+| `0x018c` | observed | 113 | re-run sweep (not yet tried against landmarks) |
+| `0x0283` | structure | 91 | re-run sweep (not yet tried against landmarks) |
+| `0x062d` | observed | 77 | re-run sweep (not yet tried against landmarks) |
+| `0x062c` | observed | 50 | re-run sweep (not yet tried against landmarks) |
+| `0x03e9` | structure | 42 | re-run sweep as data grows |
 | `0x0362` | observed | 40 | re-run sweep (not yet tried against landmarks) |
-| `0x03e9` | structure | 40 | re-run sweep as data grows |
 | `0x03f3` | structure | 39 | re-run sweep as data grows |
-| `0x05ac` | observed | 34 | re-run sweep (not yet tried against landmarks) |
-| `0x02b3` | structure | 24 | needs live trigger (too little passive data) |
+| `0x05ac` | observed | 38 | re-run sweep (not yet tried against landmarks) |
+| `0x02b3` | structure | 30 | re-run sweep as data grows |
+| `0x0102` | observed | 20 | needs live trigger (too little passive data) |
+| `0x008d` | structure | 19 | needs live trigger (too little passive data) |
 | `0x0270` | observed | 18 | needs live trigger (too little passive data) |
-| `0x0102` | observed | 18 | needs live trigger (too little passive data) |
+| `0x00c1` | observed | 16 | needs live trigger (too little passive data) |
 | `0x00d2` | structure | 16 | needs live trigger (too little passive data) |
 | `0x0178` | observed | 13 | needs live trigger (too little passive data) |
 | `0x02db` | structure | 12 | needs live trigger (too little passive data) |
-| `0x00c1` | observed | 12 | needs live trigger (too little passive data) |
 | `0x0340` | observed | 12 | needs live trigger (too little passive data) |
 | `0x0027` | observed | 10 | needs live trigger (too little passive data) |
+| `0x02b2` | structure | 9 | needs live trigger (too little passive data) |
 | `0x037a` | observed | 8 | needs live trigger (too little passive data) |
-| `0x008d` | structure | 7 | needs live trigger (too little passive data) |
-| `0x02b2` | structure | 7 | needs live trigger (too little passive data) |
 | `0x0026` | observed | 6 | needs live trigger (too little passive data) |
 | `0x03ea` | observed | 4 | needs live trigger (too little passive data) |
 | `0x0454` | observed | 3 | needs live trigger (too little passive data) |

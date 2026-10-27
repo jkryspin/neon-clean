@@ -52,6 +52,54 @@ repeat a dead end. Stop as soon as `docs/mapping-workflow.md`'s evidence rules a
 6. **Build the Tier B encoder** once decode is confirmed (see below) - this step is new; nothing has reached it
    yet for any opcode.
 
+## Step 1 RESULT (2026-10-27): public prior art works, and gives a validated alignment key
+
+**Do this before any disassembly.** MapleStory's protocol is extensively documented by open-source server
+emulators. Crucially, the [Kinoko](https://github.com/iw2d/kinoko) emulator's `OutHeader` table uses the
+CLIENT's own internal handler naming (`CUserPool`, `CMobPool`, `CWvsContext`), so its opcode ORDER reflects the
+real client enum, not a third-party invention.
+
+Our opcode numbers are much larger than Kinoko's (ours reach `0x062e`, a far newer version), so the numbers do
+not map. **But the order does.** Aligning Kinoko's table against our 13 already-named opcodes:
+
+| Kinoko | name | ours | our name |
+|---|---|---|---|
+| 179 | UserEnterField | `0x022d` | PlayerSpawn |
+| 183 | UserADBoard | `0x023d` | ShopSign |
+| 201 | PetMove | `0x0282` | PetMove |
+| 210 | UserMove | `0x029d` | PlayerMove |
+| 211 | UserMeleeAttack | `0x02a8` | PlayerAttack |
+| 223 | UserAvatarModified | `0x02b8` | AvatarModified |
+| 284-287 | MobEnterField/LeaveField/ChangeController/Move | `0x03c9`,`0x03d4`,`0x03d5`,`0x03dc` | MobSpawn/Kill/Control/Move |
+| 314 | NpcMove | `0x0456` | NpcMove |
+| 322 | DropEnterField | `0x0471` | DropSpawn |
+| 336 | ReactorEnterField | `0x0487` | ReactorSpawn |
+
+**Ordering is preserved across all 13 anchors.** That is not something chance produces, and several anchors
+(e.g. `ShopSign` -> `UserADBoard`) were named here independently, long before this table was consulted - so the
+alignment is validated by our own prior work rather than assumed.
+
+This makes the table a **hypothesis generator with testable predictions**: an unnamed opcode's position between
+two anchors predicts which Kinoko entry it should be, and that entry predicts a payload shape we can check
+against real captures. Findings so far (recorded in each opcode's `summary`, with their evidence and their
+gaps):
+
+- `0x022e` = **UserLeaveField** - at PlayerSpawn+1 exactly, as in Kinoko; payload `{int char_id}` = 6 bytes
+  matches exactly. **This implies the existing name `PlayerLeave` on `0x0209` is on the wrong opcode** (0x0209
+  is 13 bytes, which doesn't fit UserLeaveField; 58% of 0x022e events co-fire with a 0x0209 for the same char
+  within 2s, so the two are halves of one leave). Needs a decision before renaming either.
+- `0x02b9` = **UserEffectRemote** - at AvatarModified+1, as in Kinoko; the measured mode-byte-at-@6 shape is
+  exactly an effect-type discriminator, which also explains why mode 1 mixes small ids and item-range ids.
+- `0x02bb` = **UserTemporaryStatSet** - position fits; the measured 128-byte "all zero except flag bytes" field
+  is exactly a temporary-stat bitmask.
+- `0x02af` = **UserHit**, POSITION ONLY, weaker - content fits (player + mob oid + mob template), but the
+  behavioural test (named mob should be adjacent to the player) was run with wrong position extraction and is
+  inconclusive, not negative. Re-run it with `neon-world`'s own `end_position` before trusting it.
+
+**Method to repeat for the remaining ~110:** place the unknown between its two nearest named anchors, read off
+the Kinoko entries in that span, and test the predicted payload shape against captures. Cheap, zero risk, and
+it does not need the client binary at all.
+
 ## How to read the exe (step 2, safely)
 
 Already-proven method, used for both the send and receive cipher (`docs/network-protocol.md`), **zero debugger
@@ -80,7 +128,46 @@ after any client update):
   wall; don't re-attempt it without a new idea (see `stage-b-status` in memory). Everything else in this plan is
   in the plain, readable part of the image.
 
-Workflow for one opcode:
+### RESULT (2026-10-27): the opcode -> handler mapping is NOT statically reachable
+
+Attempted on jib01 (pid-of-the-day, image base `0x140000000`) with the tools below. Three independent lines of
+evidence, all negative:
+
+1. **The dispatch is virtualised.** `0x1416667a0` is four instructions long - a standard prologue, then
+   `jmp 0x144c0d0f8`, which lands in the **rwxp** region `0x143ebd000-0x145277000` (not the plain `r-xp` image).
+   The code there is textbook virtualiser output: redundant `push`/`pop` shuffles that cancel out
+   (`mov [rsp],r9; sub rsp,8; mov [rsp],r9; mov r9,[rsp]; add rsp,8`), self-cancelling constant arithmetic
+   (`sub QWORD PTR [rsp],0x6fff7969` immediately followed by `add r8,0x6fff7969`), and pushed VM keys
+   (`0x7f774b79`, `0x76cef21f`, `0x7f8c1950`). This is the same protector wall that already blocked the
+   per-connection wire-opcode numbering - now confirmed to cover the receive dispatch too.
+2. **Scanning the plain image for an opcode immediate is pure noise** (`exescan.py`). `0x441` has 63 imm32 hits
+   in the plain `r-xp` image; the ones that look promising (adjacent pairs 6 bytes apart) disassemble to
+   byte-by-byte struct copies - `movzx eax,[rdi+0x440]; mov [rbx+0x440],al; movzx eax,[rdi+0x441]; ...` - where
+   `0x441` is a *struct field offset*, not an opcode. A game struct has fields at every small offset, so every
+   opcode number collides with one. imm16 is worse: 3047 hits.
+3. **There is no static `{opcode -> handler}` table** (`exetable.py`). Searching every r-xp/r--p/rw-p region for
+   an opcode value within 16 bytes of a pointer into the code image found 368 pairs, but every run of >=4 is in
+   `.rdata` and decodes to `{pointer, small length}` string-table entries whose length field merely coincides
+   with an opcode number (pointers target sequential *data* 16 bytes apart, not code). No table of handler
+   addresses exists in readable memory.
+
+**What this rules out:** step 2 of the ladder cannot disambiguate `0x0441`, `0x02af`, `0x022e`, `0x02b9`,
+`0x0279`, `0x02bb` or anything else by reading the dispatch. Don't re-attempt it from the dispatch side - the
+evidence above is reproducible with the three committed tools in minutes.
+
+**What is NOT ruled out** (ideas that don't go through the dispatch, in rough order of promise):
+- Anchoring on *game state* instead of packet bytes: `neon-stream` already knows static roots for HP/MP/level/
+  position. Code that writes those addresses is, by definition, the tail of whatever handler processed the
+  packet that changed them. Finding writers of a known address is a different search than finding opcode
+  immediates, and is not obviously blocked.
+- The protector virtualises selected functions, not all of them (it is far too slow). The handlers themselves
+  may well be plain code - the problem is only that the *edge* from opcode to handler is hidden. Any other way
+  to get a handler's address (a callback registered in a readable structure, an RTTI/vtable for a packet-handler
+  class hierarchy, a log/assert string naming the packet type) would land inside plain code.
+- Live tracing is the obvious answer and is **off the table**: a debugger attach has twice dropped both test
+  accounts (`gdb-attach-drops-sessions`). Do not trade a session for this.
+
+Workflow for one opcode (if a non-dispatch anchor is ever found):
 1. From the dispatch table at `0x1416667a0`, find the case for this opcode's internal id (same table format as
    whatever found the existing addresses above - extend the same `objdump` + cross-reference method).
 2. Dump and disassemble that handler.
