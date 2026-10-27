@@ -328,7 +328,8 @@ function loadExplorer() {
     }).join('');
     document.getElementById('ex-meta').textContent = x.count + ' packets; lengths ' + x.lens.map(l => l[0] + 'x' + l[1]).join(', ') +
       '; analysed ' + x.analysed + ' bytes of the ' + x.dominant_len + '-byte form (' + x.samples_used + ' samples); explained ' + x.explained + ', unexplained and varying ' + x.unexplained_varying + '.';
-    document.getElementById('ex-samples').textContent = x.samples.join('\n');
+    const toAscii = hexLine => hexLine.split(' ').map(h => { const n = parseInt(h, 16); return n >= 32 && n < 127 ? String.fromCharCode(n) : '.'; }).join('');
+    document.getElementById('ex-samples').textContent = x.samples.map(s => s + '   ' + toAscii(s)).join('\n');
   });
 }
 function loadTodo() {
