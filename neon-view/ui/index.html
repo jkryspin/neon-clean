@@ -171,10 +171,12 @@ function render(s) {
   const chatColor = k => k === 0xff ? 'var(--npc)' : k === 0xfe ? 'var(--drop)' : 'inherit';
   list('chat', (s.chat || []).slice().reverse().slice(0, 30).map(c => '<span style="color:' + chatColor(c.kind) + '">' + esc(c.text) + '</span>'));
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
-  list('players', Object.entries(s.players).map(([id, p]) => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || id) + (p.level ? ' Lv' + p.level : '') + '</span><span class="dim">' + (p.x ?? '?') + ', ' + (p.y ?? '?') + '</span>'));
-  list('mobs', Object.entries(s.mobs).map(([id, m]) => {
-    const rem = (m.hp && m.damage_seen) ? Math.max(0, Math.round(100 * (1 - m.damage_seen / m.hp))) : null;
-    return '<span><i class="k" style="background:var(--mob)"></i>' + mobName(m.template) + (m.hp != null ? ' (' + m.hp + ' HP' + (m.damage_seen ? ', hit for ' + m.damage_seen + ' by others - ≤' + rem + '% left' : '') + ')' : '') + '</span><span class="dim">' + m.x + ', ' + m.y + '</span>';
+  const dist = (x, y) => (m && m.x != null && x != null) ? Math.round(Math.hypot(x - m.x, y - m.y)) : null;
+  const byDist = (a, b) => { const da = dist(a.x, a.y), db = dist(b.x, b.y); return (da ?? Infinity) - (db ?? Infinity); };
+  list('players', Object.entries(s.players).map(([id, p]) => ({ id, ...p })).sort(byDist).map(p => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || p.id) + (p.level ? ' Lv' + p.level : '') + '</span><span class="dim">' + (dist(p.x, p.y) ?? '?') + 'px away</span>'));
+  list('mobs', Object.entries(s.mobs).map(([id, mo]) => ({ id, ...mo })).sort(byDist).map(mo => {
+    const rem = (mo.hp && mo.damage_seen) ? Math.max(0, Math.round(100 * (1 - mo.damage_seen / mo.hp))) : null;
+    return '<span><i class="k" style="background:var(--mob)"></i>' + mobName(mo.template) + (mo.hp != null ? ' (' + mo.hp + ' HP' + (mo.damage_seen ? ', hit for ' + mo.damage_seen + ' by others - ≤' + rem + '% left' : '') + ')' : '') + '</span><span class="dim">' + (dist(mo.x, mo.y) ?? '?') + 'px away</span>';
   }));
   list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + (d.item != null ? 'item ' + d.item : d.mesos != null ? d.mesos + ' mesos' : id) + '</span><span class="dim">' + d.x + ', ' + d.y + ' &middot; ' + Math.round((s.now_ms - d.last_ms) / 1000) + 's old</span>'));
   list('reactors', Object.entries(s.reactors || {}).map(([id, r]) => '<span><i class="k" style="background:var(--npc)"></i>reactor ' + id + ' (template ' + r[0] + ')</span><span class="dim">' + (r[1] ? r[1] + ' hit' + (r[1] === 1 ? '' : 's') : 'unhit') + '</span>'));
