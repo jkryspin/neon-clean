@@ -786,11 +786,18 @@ impl NetDecoder {
             self.packets += 1;
             if body.len() >= 2 {
                 // exact decryption once the receive IV is known; the per-block heuristic until then
-                let plain = flow.rc.frame(a, &body).unwrap_or_else(|| decode_payload(&body));
+                let exact = flow.rc.frame(a, &body);
+                let heuristic = exact.is_none();
+                let plain = exact.unwrap_or_else(|| decode_payload(&body));
                 if let Some(op) = u16le(&plain, 0) {
                     if self.dump_ops.contains(&op) || self.dump_ops.contains(&0xffff) {
                         let ts = if self.cur_ts_us > 0 { format!("ts {:.3} ", self.cur_ts_us as f64 / 1e6) } else { String::new() };
-                        eprintln!("{ts}op {op:04x} len {}: {}", plain.len(), plain.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
+                        // the "heuristic" marker is appended ONLY on the low-confidence path, so every existing tool
+                        // that matches "len <n>: " (registry-facts.py, wiremap.py, idscan.py, ...) keeps excluding
+                        // these lines automatically; grepping a raw log for "heuristic" surfaces a desynced/flapping
+                        // connection immediately instead of silently contaminating a pool (see the jib02 incident).
+                        let marker = if heuristic { " heuristic" } else { "" };
+                        eprintln!("{ts}op {op:04x} len {}{marker}: {}", plain.len(), plain.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
                     }
                     let st = self.ops.entry(op).or_default();
                     st.count += 1;

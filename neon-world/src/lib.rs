@@ -151,6 +151,10 @@ pub struct Snapshot {
     /// Map reactors seen (oid -> (template, hits landed so far)); no position is decoded yet, so this is a list, not a map overlay.
     /// Destroyed reactors are removed, same as a killed mob.
     pub reactors: BTreeMap<u32, (u32, u8)>,
+    /// Incoming packets the capture could not decrypt exactly (the per-block heuristic kicked in, or the line was otherwise
+    /// unreadable live). Should stay 0 for a healthy connection; a rising count means a desynced/flapping capture is producing
+    /// low-confidence data - see the jib02 incident (docs/mapping-workflow.md) for what happens when that goes unnoticed.
+    pub heuristic_skipped: u64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -167,6 +171,16 @@ impl World {
         self.s.feed.push(FeedItem { t_ms: now_ms, text });
         if self.s.feed.len() > 40 {
             self.s.feed.remove(0);
+        }
+    }
+
+    /// Record that one incoming line could not be read exactly (see `Snapshot::heuristic_skipped`). Notes it in the feed
+    /// at 1, 10, 100, ... so a flapping connection is visible without spamming the feed on every single packet.
+    pub fn note_heuristic_skip(&mut self, now_ms: u64) {
+        self.s.heuristic_skipped += 1;
+        let n = self.s.heuristic_skipped;
+        if n == 1 || (n % 10u64.pow(n.ilog10())) == 0 {
+            self.note(now_ms, format!("{n} heuristic/unreadable packet(s) skipped - connection may be desynced"));
         }
     }
 
@@ -481,13 +495,24 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
 }
 
 /// One line of a stamped packet log: `<unix seconds> op <hex4> len <n>: <hex bytes separated by spaces>`
-/// (what `NEON_DUMP_OPS=all neon-stream` prints, with a timestamp prefixed by the capture helper).
+/// (what `NEON_DUMP_OPS=all neon-stream` prints, with a timestamp prefixed by the capture helper). A line whose length field
+/// is followed by " heuristic" (the per-block fallback kicked in because the exact cipher state was not available - see
+/// `neon-stream::net`) is deliberately rejected: callers should treat it like any other unreadable line, not as real data.
 pub fn parse_log_line(line: &str) -> Option<(f64, Vec<u8>)> {
     let (ts, rest) = line.split_once(' ')?;
     let rest = rest.strip_prefix("op ")?;
-    let (_, bytes) = rest.split_once(": ").or_else(|| rest.split_once(':'))?;
+    let (head, bytes) = rest.split_once(": ").or_else(|| rest.split_once(':'))?;
+    if head.ends_with("heuristic") {
+        return None;
+    }
     let plain: Option<Vec<u8>> = bytes.split_whitespace().map(|h| u8::from_str_radix(h, 16).ok()).collect();
     Some((ts.parse().ok()?, plain?))
+}
+
+/// True when `line` is a stamped packet log line that was rejected specifically because of the heuristic marker (as opposed
+/// to being malformed in some other way) - used by a live follower to count and surface this distinctly from ordinary noise.
+pub fn is_heuristic_line(line: &str) -> bool {
+    line.split_once(' ').and_then(|(_, rest)| rest.strip_prefix("op ")).and_then(|rest| rest.split_once(": ").or_else(|| rest.split_once(':'))).is_some_and(|(head, _)| head.ends_with("heuristic"))
 }
 
 /// Replay a packet log into a fresh world. Returns the world and how many lines were not understood.

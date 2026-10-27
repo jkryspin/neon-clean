@@ -34,6 +34,7 @@
   <span id="map" class="dim">map: -</span><label class="dim">map id <input id="mapid" size="9" placeholder="e.g. 1010" style="background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 4px"></label>
   <span id="counts" class="dim"></span>
   <span id="coverage" class="dim" title="incoming opcodes by status"></span>
+  <span id="desync" style="display:none;color:var(--mob);font-weight:600" title="the capture could not decrypt these packets exactly - check whether the connection desynced or is flapping (see the jib02 incident)"></span>
   <span id="conn" class="dim">connecting...</span>
   <span style="margin-left:auto"><input id="mark" size="26" maxlength="80" placeholder="mark: what you just did" style="background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:2px 6px"> <button id="mark-btn">Mark</button> <span id="marks" class="dim"></span></span>
 </header>
@@ -137,6 +138,8 @@ function render(s) {
   document.getElementById('map').textContent = 'map: ' + (s.map ?? '-') + mn;
   if (s.map != null) { const box = document.getElementById('mapid'); if (document.activeElement !== box) box.value = s.map; loadGeo(String(s.map)); }
   document.getElementById('counts').textContent = s.events + ' events';
+  const desync = document.getElementById('desync');
+  if (s.heuristic_skipped) { desync.style.display = ''; desync.textContent = '⚠ ' + s.heuristic_skipped + ' heuristic/unreadable packet(s)'; }
   const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
   list('me', [
     '<span>Position</span><span>' + (m.x != null ? m.x + ', ' + m.y + (m.grounded === false ? ' (air)' : '') : '?') + '</span>',

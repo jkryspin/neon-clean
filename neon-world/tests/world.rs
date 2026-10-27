@@ -145,6 +145,27 @@ fn log_line_parser() {
 }
 
 #[test]
+fn heuristic_lines_are_rejected_and_flagged_distinctly() {
+    // neon-stream marks a low-confidence (per-block heuristic) decode this way; it must never be treated as real data,
+    // but a live follower should be able to tell it apart from an ordinary malformed line (see the jib02 incident).
+    let line = "1.5 op 0028 len 2 heuristic: 28 00";
+    assert_eq!(parse_log_line(line), None);
+    assert!(neon_world::is_heuristic_line(line));
+    assert!(!neon_world::is_heuristic_line("1.5 op 0028 len 2: 28 00"));
+    assert!(!neon_world::is_heuristic_line("nope"));
+}
+
+#[test]
+fn world_counts_and_notes_heuristic_skips() {
+    let mut w = World::new();
+    w.note_heuristic_skip(1000);
+    w.note_heuristic_skip(2000);
+    let s = w.snapshot();
+    assert_eq!(s.heuristic_skipped, 2);
+    assert!(s.feed.last().unwrap().text.contains("2 heuristic"));
+}
+
+#[test]
 fn real_captured_stat_and_pickup_packets() {
     // From neon-stream's live captures (KryJib01 on Maple Island, 2026-10-25).
     let r = Registry::builtin().unwrap();

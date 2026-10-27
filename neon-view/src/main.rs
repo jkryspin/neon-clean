@@ -95,13 +95,20 @@ fn main() {
             tails.push(std::thread::spawn(move || {
                 let mut rd = std::io::BufReader::new(std::fs::File::open(&path).expect("open log"));
                 let mut line = String::new();
+                let mut last_t = 0u64;
                 loop {
                     line.clear();
                     if rd.read_line(&mut line).expect("read") == 0 {
                         std::thread::sleep(Duration::from_millis(100));
                         continue;
                     }
-                    let Some(mut rec) = Record::parse_line(line.trim_end()) else { continue };
+                    let trimmed = line.trim_end();
+                    let Some(mut rec) = Record::parse_line(trimmed) else {
+                        if neon_world::is_heuristic_line(trimmed) {
+                            app.shared.lock().unwrap().world.note_heuristic_skip(last_t);
+                        }
+                        continue;
+                    };
                     if path.ends_with(".wire") {
                         // everything in a .wire file is a client->server packet with a wire opcode
                         rec.wire = true;
@@ -109,6 +116,7 @@ fn main() {
                     }
                     let b = *base.lock().unwrap().get_or_insert(rec.t_ms);
                     let t = if b > 1_000_000_000_000 { rec.t_ms.saturating_sub(b) } else { rec.t_ms };
+                    last_t = t;
                     let mut sh = app.shared.lock().unwrap();
                     if rec.wire {
                         match sh.wire_map.translate(&rec.plain) {
