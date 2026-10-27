@@ -118,6 +118,23 @@ fn world_semantics() {
 }
 
 #[test]
+fn player_stance_is_tracked_and_sticky() {
+    // A PlayerMove with a decoded stance (e.g. 15 = climbing/ladder, see docs/mapping-workflow.md) should set
+    // Player.stance; a later move whose stance could not be decoded (None) must NOT clobber the last known one,
+    // since the UI (the climbing/jumping ring on the map, the Players list label) should keep showing the last
+    // real observation rather than flicker to "no stance" on every fragment that happens to lack one.
+    let mut w = World::new();
+    w.apply(&Event::PlayerSpawn { char_id: 1, name: "Zed".into(), level: 10, equips: vec![] }, 0);
+    assert_eq!(w.snapshot().players[&1].stance, None);
+    w.apply(&Event::PlayerMove { char_id: 1, x: 0, y: 0, stance: Some(15) }, 1);
+    assert_eq!(w.snapshot().players[&1].stance, Some(15), "a decoded stance must be recorded");
+    w.apply(&Event::PlayerMove { char_id: 1, x: 1, y: 0, stance: None }, 2);
+    assert_eq!(w.snapshot().players[&1].stance, Some(15), "an undecodable stance must not erase the last known one");
+    w.apply(&Event::PlayerMove { char_id: 1, x: 2, y: 0, stance: Some(7) }, 3);
+    assert_eq!(w.snapshot().players[&1].stance, Some(7), "a new decoded stance replaces the old one");
+}
+
+#[test]
 fn replaying_a_stamped_log_reproduces_the_world() {
     let r = Registry::builtin().unwrap();
     let lines = vec![
