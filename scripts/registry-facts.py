@@ -144,8 +144,13 @@ for op in sorted(pk):
     # 2026-10-26: five bare 2-byte "opcodes" all at one timestamp, sandwiched in otherwise normal traffic, never seen again).
     # Require real temporal spread - at least 3 packets spanning more than 1 second - to rule that out.
     rows = pk[op]
-    if op not in seen_in and len(rows) >= 3:
-        ts = sorted(t for t, b in rows)
+    # de-dupe identical (timestamp, bytes) pairs across files first: a glitch replayed into more than
+    # one log (e.g. a log that is a copy/tail of another, or an old session file re-scanned) must not
+    # count as extra temporal spread just because it showed up in extra files (2026-10-27: 0x0040 etc.
+    # resurfaced exactly this way from a stale run/sessions/*.log still containing the original glitch).
+    uniq = sorted(set(rows))
+    if op not in seen_in and len(uniq) >= 3:
+        ts = sorted(t for t, b in uniq)
         if ts[-1] - ts[0] > 1.0:
             lens = collections.Counter(len(b) for t, b in rows)
             lo, hi = min(lens), max(lens)
