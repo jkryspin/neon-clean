@@ -354,6 +354,12 @@ if (new URLSearchParams(location.search).has('once')) {
   es.onerror = () => { document.getElementById('conn').textContent = 'disconnected'; };
 }
 addEventListener('resize', draw);
+// "/" focuses the Packets filter (like many dev tools) unless already typing somewhere; shift-"/" focuses the Opcodes filter.
+addEventListener('keydown', e => {
+  if (e.key !== '/' || ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  e.preventDefault();
+  document.getElementById(e.shiftKey ? 'ocfilter' : 'pkfilter').focus();
+});
 </script>
 </body>
 </html>
