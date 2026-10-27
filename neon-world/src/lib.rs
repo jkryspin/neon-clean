@@ -42,6 +42,13 @@ pub enum Event {
     ExpGain { amount: u32 },
     /// One inventory slot: `item` known for a new stack, `qty` None when removed.
     Inventory { tab: u8, slot: u16, item: Option<u32>, qty: Option<u32> },
+    /// A private message (the first of its two duplicated name/message copies; see decode::parse_whisper).
+    Whisper { char_id: u32, name: String, text: String },
+    /// A player-run shop's floating ad text (`None` reaching here only via the silent form, which this event is not emitted for).
+    ShopSign { char_id: u32, text: String },
+    /// A map reactor's state: `None` hit_count is the spawn/active announcement, `Some(n)` is after the n-th hit,
+    /// and a reactor that reached `destroyed: true` is gone (see docs/network-protocol.md's Reactor* findings).
+    Reactor { oid: u32, template: u32, hit_count: Option<u8>, destroyed: bool },
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -141,6 +148,9 @@ pub struct Snapshot {
     pub drops: BTreeMap<u32, Drop>,
     /// NPCs that have walked since we entered the map (standing NPCs are not announced by anything we decode yet).
     pub npcs: BTreeMap<u32, Npc>,
+    /// Map reactors seen (oid -> (template, hits landed so far)); no position is decoded yet, so this is a list, not a map overlay.
+    /// Destroyed reactors are removed, same as a killed mob.
+    pub reactors: BTreeMap<u32, (u32, u8)>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -162,6 +172,17 @@ impl World {
 
     pub fn apply(&mut self, e: &Event, now_ms: u64) {
         match e {
+            Event::Reactor { oid, template, hit_count, destroyed } => {
+                if *destroyed {
+                    self.s.reactors.remove(oid);
+                    self.note(now_ms, format!("reactor {oid} destroyed"));
+                } else {
+                    self.s.reactors.insert(*oid, (*template, hit_count.unwrap_or(0)));
+                    if let Some(n) = hit_count {
+                        self.note(now_ms, format!("reactor {oid} hit ({n})"));
+                    }
+                }
+            }
             Event::ExpGain { amount } => self.note(now_ms, format!("+{amount} EXP")),
             Event::Pickup { item, qty } => self.note(now_ms, format!("picked up item {item} x{qty}")),
             Event::MapEnter { map } => self.note(now_ms, format!("entered map {map}")),
@@ -269,6 +290,20 @@ impl World {
                     s.chat.remove(0);
                 }
             }
+            Event::Whisper { char_id, name, text } => {
+                s.chat.push(ChatLine { t_ms: now_ms, kind: 0xff, text: format!("{name} (whisper): {text}") });
+                if s.chat.len() > 60 {
+                    s.chat.remove(0);
+                }
+                let _ = char_id;
+            }
+            Event::ShopSign { char_id, text } => {
+                s.chat.push(ChatLine { t_ms: now_ms, kind: 0xfe, text: format!("[shop {char_id}] {text}") });
+                if s.chat.len() > 60 {
+                    s.chat.remove(0);
+                }
+            }
+            Event::Reactor { .. } => {} // handled above (self.note + self.s.reactors), nothing more to update here
             Event::ExpGain { amount } => {
                 s.exp_messages += 1;
                 s.exp_gained += u64::from(*amount);
@@ -428,6 +463,19 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
         },
         "DropRemove" => Event::DropRemove { oid: int(&d, "oid")? as u32 },
         "StatUpdate" => Event::StatMask { mask: int(&d, "mask")? as u32 },
+        "Whisper" => {
+            let (name, text) = decode::parse_whisper(plain)?;
+            Event::Whisper { char_id: int(&d, "char_id")? as u32, name, text }
+        }
+        "ShopSign" => Event::ShopSign { char_id: int(&d, "char_id")? as u32, text: decode::parse_shop_sign(plain)? },
+        "ReactorSpawn" => Event::Reactor { oid: int(&d, "oid")? as u32, template: int(&d, "reactor_template")? as u32, hit_count: None, destroyed: false },
+        "ReactorHit" => Event::Reactor {
+            oid: int(&d, "oid")? as u32,
+            template: int(&d, "reactor_template")? as u32,
+            hit_count: Some(int(&d, "hit_count")? as u8),
+            destroyed: false,
+        },
+        "ReactorDestroyed" => Event::Reactor { oid: int(&d, "oid")? as u32, template: int(&d, "reactor_template")? as u32, hit_count: None, destroyed: true },
         _ => return None,
     })
 }

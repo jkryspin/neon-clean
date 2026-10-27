@@ -445,3 +445,35 @@ fn damage_from_other_players_accumulates_on_the_mob_until_it_is_killed() {
     w.apply(&Event::MobKill { oid }, 1000);
     assert_eq!(w.snapshot().mobs.get(&oid).map(|m| m.damage_seen), None, "a killed mob is gone");
 }
+
+#[test]
+fn whisper_shop_sign_and_reactor_events_decode_from_real_packets() {
+    use neon_world::{event_from_packet, Event, World};
+    let r = Registry::builtin().unwrap();
+    let f: serde_json::Value = serde_json::from_str(include_str!("fixtures/whisper_shop_reactor.json")).unwrap();
+    let get = |k: &str| plain(f[k]["plain"].as_str().unwrap());
+
+    let Some(Event::Whisper { name, text, .. }) = event_from_packet(&r, &get("whisper")) else { panic!("not a Whisper") };
+    assert_eq!((name.as_str(), text.as_str()), ("Huntra", "cc plz"));
+
+    let Some(Event::ShopSign { text, .. }) = event_from_packet(&r, &get("shopsign")) else { panic!("not a ShopSign") };
+    assert_eq!(text, "drops, equip, cheap");
+
+    let spawn = event_from_packet(&r, &get("reactor_spawn")).expect("reactor spawn");
+    let Event::Reactor { oid, template, hit_count: None, destroyed: false } = spawn else { panic!("not a reactor spawn: {spawn:?}") };
+    assert_eq!(template, 0x01030262);
+
+    let mut w = World::new();
+    w.apply(&spawn, 0);
+    assert_eq!(w.snapshot().reactors.get(&oid), Some(&(template, 0)));
+
+    let hit = event_from_packet(&r, &get("reactor_hit")).expect("reactor hit");
+    let Event::Reactor { hit_count: Some(1), destroyed: false, .. } = hit else { panic!("not a reactor hit: {hit:?}") };
+    w.apply(&hit, 1);
+    assert_eq!(w.snapshot().reactors.get(&oid), Some(&(template, 1)));
+
+    let gone = event_from_packet(&r, &get("reactor_destroyed")).expect("reactor destroyed");
+    let Event::Reactor { destroyed: true, .. } = gone else { panic!("not destroyed: {gone:?}") };
+    w.apply(&gone, 2);
+    assert!(w.snapshot().reactors.get(&oid).is_none(), "a destroyed reactor is gone");
+}

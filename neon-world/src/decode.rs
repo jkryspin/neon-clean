@@ -205,3 +205,54 @@ pub fn parse_equips(p: &[u8]) -> Vec<(u8, u32)> {
     }
     best
 }
+
+/// `0x022f` Whisper: char_id@2, an unidentified u32@6, then name, message, name again, message again (length-prefixed).
+/// Returns (name, message) from the first copy. See `docs/network-protocol.md` for the evidence (60/60 real packets duplicate it).
+pub fn parse_whisper(p: &[u8]) -> Option<(String, String)> {
+    let mut o = 11usize;
+    let nlen = u16le(p, o)? as usize;
+    o += 2;
+    let name = std::str::from_utf8(p.get(o..o + nlen)?).ok()?.to_string();
+    o += nlen;
+    let mlen = u16le(p, o)? as usize;
+    o += 2;
+    let msg = std::str::from_utf8(p.get(o..o + mlen)?).ok()?.to_string();
+    (!name.is_empty() && !msg.is_empty()).then_some((name, msg))
+}
+
+/// `0x023d` ShopSign: char_id@2, mode@6 (3 = text follows), u32@10, constant u32@14, then the ad text. `None` for the silent (mode 0) form.
+pub fn parse_shop_sign(p: &[u8]) -> Option<String> {
+    if p.len() < 20 || p[6] != 3 {
+        return None;
+    }
+    let slen = u16le(p, 18)? as usize;
+    let text = std::str::from_utf8(p.get(20..20 + slen)?).ok()?.to_string();
+    (!text.is_empty()).then_some(text)
+}
+
+#[cfg(test)]
+mod whisper_shop_tests {
+    use super::*;
+
+    #[test]
+    fn whisper_reads_the_first_name_and_message() {
+        // a real packet from docs/network-protocol.md's evidence: "Huntra" / "cc plz"
+        let p = hex("2f02af320500 00e458 4d0b 0600 48756e747261 0600 636320706c7a 0600 48756e747261 0600 636320706c7a e3b03662 e00e0000 50 af320500 000000000000000000000000000000000003 0050");
+        let (name, msg) = parse_whisper(&p).expect("parses");
+        assert_eq!((name.as_str(), msg.as_str()), ("Huntra", "cc plz"));
+    }
+
+    #[test]
+    fn shop_sign_reads_the_ad_text_and_the_silent_form_gives_none() {
+        // two real packets (docs/network-protocol.md's ShopSign evidence)
+        let p = hex("3d 02 22 c5 03 00 03 00 00 00 c7 1c 00 00 02 00 00 00 13 00 64 72 6f 70 73 2c 20 65 71 75 69 70 2c 20 63 68 65 61 70 20 6e 4e 00");
+        assert_eq!(parse_shop_sign(&p).as_deref(), Some("drops, equip, cheap"));
+        let silent = hex("3d 02 2f f0 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
+        assert_eq!(parse_shop_sign(&silent), None);
+    }
+
+    fn hex(s: &str) -> Vec<u8> {
+        let s: String = s.chars().filter(|c| !c.is_whitespace()).collect();
+        (0..s.len() / 2).map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap()).collect()
+    }
+}
