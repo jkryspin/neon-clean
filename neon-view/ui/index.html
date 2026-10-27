@@ -108,6 +108,18 @@ const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const SLOTS = {1:'cap',2:'face acc',3:'eye acc',4:'earrings',5:'top',6:'bottom',7:'shoes',8:'gloves',9:'cape',10:'shield',11:'weapon',12:'ring',13:'ring',14:'pet equip',15:'ring',16:'ring'};
 const wears = p => (p.equips || []).map(e => (SLOTS[e[0]] || 'slot ' + e[0]) + ' ' + e[1]).join(', ');
 let snap = null, geo = null, geoId = null, mobNames = {}, mapNames = {};
+let lastFaviconAlert = null;
+function setFavicon(alert) {
+  if (alert === lastFaviconAlert) return; // avoid re-encoding a data: URI every poll when nothing changed
+  lastFaviconAlert = alert;
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const g = c.getContext('2d');
+  g.beginPath(); g.arc(8, 8, 7, 0, 7);
+  g.fillStyle = alert ? '#d11' : '#3fb950'; g.fill();
+  let link = document.querySelector('link[rel="icon"]');
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+  link.href = c.toDataURL('image/png');
+}
 fetch('data/mob-names').then(r => r.ok ? r.json() : {}).then(j => { mobNames = j; if (snap) render(snap); });
 fetch('data/map-names').then(r => r.ok ? r.json() : {}).then(j => { mapNames = j; if (snap) render(snap); });
 const mobName = t => t == null ? 'unknown' : (mobNames[String(t)] || 'template ' + t);
@@ -178,7 +190,9 @@ function render(s) {
   const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
   document.getElementById('dead-banner').style.display = m.dead ? '' : 'none';
   const lowHp = m.max_hp && m.hp != null && m.hp / m.max_hp < 0.3;
+  const alert = m.dead || lowHp || desyncOngoing;
   document.title = (m.dead ? '☠ DEAD - ' : lowHp ? '❤ LOW HP - ' : desyncOngoing ? '⚠ DESYNC - ' : '') + 'Neon View';
+  setFavicon(alert);
   list('me', [
     '<span>Position</span><span>' + (m.x != null ? m.x + ', ' + m.y + (m.grounded === false ? ' (air)' : '') : '?') + '</span>',
     '<span>Level</span><span>' + (m.level ?? '?') + (m.job != null ? ' (job ' + m.job + ')' : '') + '</span>',
