@@ -178,7 +178,7 @@ function render(s) {
     const rem = (mo.hp && mo.damage_seen) ? Math.max(0, Math.round(100 * (1 - mo.damage_seen / mo.hp))) : null;
     return '<span><i class="k" style="background:var(--mob)"></i>' + mobName(mo.template) + (mo.hp != null ? ' (' + mo.hp + ' HP' + (mo.damage_seen ? ', hit for ' + mo.damage_seen + ' by others - ≤' + rem + '% left' : '') + ')' : '') + '</span><span class="dim">' + (dist(mo.x, mo.y) ?? '?') + 'px away</span>';
   }));
-  list('drops', Object.entries(s.drops).map(([id, d]) => '<span><i class="k" style="background:var(--drop)"></i>' + (d.item != null ? 'item ' + d.item : d.mesos != null ? d.mesos + ' mesos' : id) + '</span><span class="dim">' + d.x + ', ' + d.y + ' &middot; ' + Math.round((s.now_ms - d.last_ms) / 1000) + 's old</span>'));
+  list('drops', Object.entries(s.drops).map(([id, d]) => ({ id, ...d })).sort(byDist).map(d => '<span><i class="k" style="background:var(--drop)"></i>' + (d.item != null ? 'item ' + d.item : d.mesos != null ? d.mesos + ' mesos' : d.id) + '</span><span class="dim">' + (dist(d.x, d.y) ?? '?') + 'px away &middot; ' + Math.round((s.now_ms - d.last_ms) / 1000) + 's old</span>'));
   list('reactors', Object.entries(s.reactors || {}).map(([id, r]) => '<span><i class="k" style="background:var(--npc)"></i>reactor ' + id + ' (template ' + r[0] + ')</span><span class="dim">' + (r[1] ? r[1] + ' hit' + (r[1] === 1 ? '' : 's') : 'unhit') + '</span>'));
   draw();
 }
