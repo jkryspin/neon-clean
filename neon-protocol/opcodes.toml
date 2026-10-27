@@ -206,7 +206,7 @@ id = 0x0281
 dir = "in"
 name = "PetSpawn"
 status = "decoded"
-summary = "Pet spawn (name only); not mobs. Same-char_id check against 2474 0x022d PlayerSpawn events (2026-10-26): 26.9% are followed within 2s by a 0x0281 for that SAME char_id (always at or after the spawn, 666/666), consistent with the post-spawn family seen in 0x0279/0x02bb/0x02bd - here the condition is simply 'owns a pet'."
+summary = "Pet spawn (name only); not mobs. Same-char_id check against 2474 0x022d PlayerSpawn events (2026-10-26): 26.9% are followed within 2s by a 0x0281 for that SAME char_id (always at or after the spawn, 666/666), consistent with the post-spawn family seen in 0x0279/0x02bb/0x02bd - here the condition is simply 'owns a pet' - consistent with a location split (2026-10-26): 0% of 35 Amherst (town) spawns got one vs 50.0% of 54 Perion (hunting field) spawns, matching more players bringing pets out while grinding than while standing in town."
 
 [[opcode]]
 id = 0x0282
@@ -1019,7 +1019,7 @@ field = [
 id = 0x02bd
 dir = "in"
 status = "structure"
-summary = "u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26). Part of the same post-spawn family as 0x0279/0x02bb/0x0281(PetSpawn): 12.6% of 2474 0x022d PlayerSpawn events are followed within 2s by a 0x02bd for the SAME char_id, almost always at the same timestamp (median delay 0.0s, 312/312 checked at-or-after, never before); the low rate suggests a rarer per-player condition (2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 318 packets in 19 log(s); sizes 22 x318; median gap 28.5 s; constant bytes @5-21=00 00 00 00 00 00...; u32@2 is a known player id in 289/318. Meaning not established."
+summary = "u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26). Part of the same post-spawn family as 0x0279/0x02bb/0x0281(PetSpawn): 12.6% of 2474 0x022d PlayerSpawn events are followed within 2s by a 0x02bd for the SAME char_id, almost always at the same timestamp (median delay 0.0s, 312/312 checked at-or-after, never before); the low rate suggests a rarer per-player condition. Location split (2026-10-26, same-night comparison of two simultaneous captures): 0% of 35 spawns in Amherst (a beginner town) got one, vs 27.8% of 54 spawns in Perion (a hunting field) - consistent with a field/combat-related condition rather than something every player has. FACTS (exact-decoded logs, 2026-10-26): 318 packets in 19 log(s); sizes 22 x318; median gap 28.5 s; constant bytes @5-21=00 00 00 00 00 00...; u32@2 is a known player id in 289/318. Meaning not established."
 len_min = 22
 len_max = 22
 field = [{ name = "char_id", ty = "u32", off = 2 }]
