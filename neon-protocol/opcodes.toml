@@ -206,7 +206,7 @@ id = 0x0281
 dir = "in"
 name = "PetSpawn"
 status = "decoded"
-summary = "Pet spawn (name only); not mobs"
+summary = "Pet spawn (name only); not mobs. Same-char_id check against 2474 0x022d PlayerSpawn events (2026-10-26): 26.9% are followed within 2s by a 0x0281 for that SAME char_id (always at or after the spawn, 666/666), consistent with the post-spawn family seen in 0x0279/0x02bb/0x02bd - here the condition is simply 'owns a pet'."
 
 [[opcode]]
 id = 0x0282
@@ -925,7 +925,7 @@ len_max = 11
 id = 0x0279
 dir = "in"
 status = "structure"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 1676 packets in 22 log(s); sizes 7 x1676; median gap 5.3 s; constant bytes @5=00; u32@2 is a known player id in 1578/1676. Meaning not established."
+summary = "Post-spawn companion: in a 2474-spawn pool, 65.9% of 0x022d PlayerSpawn events for a given char_id are followed within 2s by a 0x0279 for that SAME char_id (median delay 0.67s, always after, never before; idscan.py + a same-char_id time-window check, 2026-10-26). Not every spawn gets one, so it is conditional on something about the player, not a fixed part of the spawn sequence. See 0x02bb/0x02bd/0x0281(PetSpawn), which show the identical same-char_id-after-spawn pattern at different rates (55.0%/12.6%/26.9%), suggesting a family of optional per-player state broadcasts sent just after a player becomes visible. FACTS (exact-decoded logs, 2026-10-26): 1676 packets in 22 log(s); sizes 7 x1676; median gap 5.3 s; constant bytes @5=00; u32@2 is a known player id in 1578/1676. Meaning not established."
 len_min = 7
 len_max = 7
 field = [{ name = "char_id", ty = "u32", off = 2 }]
@@ -1008,7 +1008,7 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 id = 0x02bb
 dir = "in"
 status = "structure"
-summary = "OPEN (2026-10-26, 146 exact-decoded packets, 94 players): all zero except flag bytes: 127 packets are exactly {@39 = 0x80, @130 = 0x01}; the rest add a single bit at @14 (0x08, 9), @35 (0x20, 8) or @14 + @25 (0x08, 0x10, 2). It looks like a status/buff bit mask, but nothing independent supports that yet, and no player that has one also has a 0x022d spawn in the pool, so it is not simply a companion of the spawn. 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26) Lifecycle (lifecycle.py, pooled captures): arrival-like. In the 5 s before it that player sent 265 movement packets over the 198 events, in the 5 s after 2038 (the same players at random times: 0 and 8), so it marks a player becoming visible or active; exactly what it adds to the 888-byte PlayerSpawn is unknown. FACTS (exact-decoded logs, 2026-10-26): 1537 packets in 22 log(s); sizes 131 x1537; median gap 5.4 s; constant bytes @5-6=00 00, @8-13=00 00 00 00 00 00, @15-20=00 00 00 00 00 00, @22-24=00 00 00, @26-34=00 00 00 00 00 00...; u32@2 is a known player id in 1466/1537. Meaning not established."
+summary = "OPEN (2026-10-26, 146 exact-decoded packets, 94 players): all zero except flag bytes: 127 packets are exactly {@39 = 0x80, @130 = 0x01}; the rest add a single bit at @14 (0x08, 9), @35 (0x20, 8) or @14 + @25 (0x08, 0x10, 2). It looks like a status/buff bit mask, but nothing independent supports that yet, and no player that has one also has a 0x022d spawn in the pool, so it is not simply a companion of the spawn. 131 bytes: char id@2 is a known player in 18 of 18 packets. About a player; meaning unknown (2026-10-26) Lifecycle (lifecycle.py, pooled captures): arrival-like. In the 5 s before it that player sent 265 movement packets over the 198 events, in the 5 s after 2038 (the same players at random times: 0 and 8), so it marks a player becoming visible or active; exactly what it adds to the 888-byte PlayerSpawn is unknown. Confirmed directly (2026-10-26, same pool as the lifecycle check): of 2474 0x022d PlayerSpawn events, 55.0% are followed within 2s by a 0x02bb for that SAME char_id, almost always at the same timestamp (median delay 0.0s, 1383/1383 checked strictly at or after the spawn, never before). So this is very likely part of the server's per-player spawn bundle, sent for players whose 0x02bb bit flags are non-default; it is not a fixed part of every spawn (see 0x0279/0x02bd/0x0281 for the sibling pattern at 65.9%/12.6%/26.9%). FACTS (exact-decoded logs, 2026-10-26): 1537 packets in 22 log(s); sizes 131 x1537; median gap 5.4 s; constant bytes @5-6=00 00, @8-13=00 00 00 00 00 00, @15-20=00 00 00 00 00 00, @22-24=00 00 00, @26-34=00 00 00 00 00 00...; u32@2 is a known player id in 1466/1537. Meaning not established."
 len_min = 131
 len_max = 131
 field = [
@@ -1019,7 +1019,7 @@ field = [
 id = 0x02bd
 dir = "in"
 status = "structure"
-summary = "u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 325 packets in 17 log(s); sizes 22 x325; median gap 30.9 s; constant bytes @5-21=00 00 00 00 00 00...; u32@2 is a known player id in 289/325. Meaning not established."
+summary = "u32@2 is a known player id in 25 of 29 packets of the 22-byte form (idscan, pooled captures 2026-10-26). Part of the same post-spawn family as 0x0279/0x02bb/0x0281(PetSpawn): 12.6% of 2474 0x022d PlayerSpawn events are followed within 2s by a 0x02bd for the SAME char_id, almost always at the same timestamp (median delay 0.0s, 312/312 checked at-or-after, never before); the low rate suggests a rarer per-player condition (2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 325 packets in 17 log(s); sizes 22 x325; median gap 30.9 s; constant bytes @5-21=00 00 00 00 00 00...; u32@2 is a known player id in 289/325. Meaning not established."
 len_min = 22
 len_max = 22
 field = [{ name = "char_id", ty = "u32", off = 2 }]
