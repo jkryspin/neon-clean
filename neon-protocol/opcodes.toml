@@ -520,9 +520,14 @@ len_max = 2
 [[opcode]]
 id = 0x0085
 dir = "in"
-status = "observed"
+name = "MesoGainMessage"
+status = "structure"
+summary = "6 bytes: op + u32 amount. One real observation (2026-10-26, jib01): picked up a 9-meso drop (DropSpawnMeso amount@21 = 9, verified field) and 0.16 s later got 0085 with u32@2 = 9, right after the matching 0x0472 DropRemove (reason 2, our own id). A second meso pickup in the same session was NOT followed by a matching 0085 within 1 s (picked up too close in time to the first to tell them apart), so this is one clean case, not a pattern; needs another isolated meso pickup to confirm."
 len_min = 6
 len_max = 6
+field = [
+  { name = "amount", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x008d
