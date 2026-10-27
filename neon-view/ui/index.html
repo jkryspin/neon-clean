@@ -161,7 +161,7 @@ function render(s) {
   list('me', [
     '<span>Position</span><span>' + (m.x != null ? m.x + ', ' + m.y + (m.grounded === false ? ' (air)' : '') : '?') + '</span>',
     '<span>Level</span><span>' + (m.level ?? '?') + (m.job != null ? ' (job ' + m.job + ')' : '') + '</span>',
-    '<span>HP</span><span>' + (m.hp ?? '?') + (m.max_hp ? ' / ' + m.max_hp + ' ' + pct(m.hp, m.max_hp) : '') + '</span>',
+    '<span>HP</span><span' + (m.max_hp && m.hp != null && m.hp / m.max_hp < 0.3 ? ' style="color:var(--mob);font-weight:600" title="below the brain\'s 30% low-HP stop-fighting threshold"' : '') + '>' + (m.hp ?? '?') + (m.max_hp ? ' / ' + m.max_hp + ' ' + pct(m.hp, m.max_hp) : '') + '</span>',
     '<span>MP</span><span>' + (m.mp ?? '?') + (m.max_mp ? ' / ' + m.max_mp + ' ' + pct(m.mp, m.max_mp) : '') + '</span>',
     '<span>EXP</span><span>' + (m.exp ?? '?') + '</span>',
     '<span>EXP gained</span><span>' + s.exp_gained + ' in ' + s.exp_messages + ' kills</span>',
