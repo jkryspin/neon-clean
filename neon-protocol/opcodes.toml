@@ -987,7 +987,7 @@ field = [
 id = 0x02b9
 dir = "in"
 status = "structure"
-summary = "19 bytes: char id@2 is a known player in 12 of 12 packets. mode byte@6 selects the form: with mode 1 or 4 the packet carries a u32@7 whose values sit in the item-id range (1-5 million: e.g. 2002793, 1001512, 2201536, 4096393) followed by a small value (byte@11 or u32@15, 1-31); other modes (0, 9, 15) are the bare 7-byte form with no extra data. Looks like a per-player broadcast that sometimes names an item (a use-item effect icon shown over the head is the obvious guess, but nothing independently confirms which action it is). Meaning not established. FACTS (exact-decoded logs, 2026-10-26): 1500 packets in 15 log(s); sizes 7 x1113, 19 x380, 12 x7; median gap 4.6 s; constant bytes @5=00; u32@2 is a known player id in 1113/1113. Meaning not established."
+summary = "19 bytes: char id@2 is a known player in 12 of 12. mode byte@6: bare 7-byte form at modes 0/9/15 (787+115 of the 7-byte packets are mode 15/0); a 19-byte form at mode 1 carries a u32@7 whose values split into two groups - small sequential numbers (1001, 1002; together the commonest values by far, 202 of ~330 mode-1 packets) that look like skill or emote ids, and item-id-range numbers (1001000, 2001001, 3001000, 4101001, ...; none of these matched any item id seen dropped in the same pool, so not a drop reference). A per-player broadcast, action not confirmed either way (skill use and emote display are both plausible for the small-number group). (2026-10-26)"
 len_min = 7
 len_max = 19
 field = [
