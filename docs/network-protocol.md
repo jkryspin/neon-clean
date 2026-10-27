@@ -415,3 +415,16 @@ internal opcode, which this wire capture does not know.
 ### Climbing a rope/ladder, attempted (2026-10-26 22:00, jib01)
 Walked to the ladder at map 1010 (Amherst), x=991 per neon-calib/maps/1010.json, and climbed it; the memory reader confirms it (grounded: false, y goes negative while x stays pinned at 991, matching the ladder's recorded x and y range). The outgoing MoveSelf (0x00db, wire 0x5f28 on this connection) packets during the climb have header fields (tick, x, y, count) that parse fine with the registered offsets, but the per-fragment byte layout documented for ordinary walking (end_x/end_y at fixed offsets within each 21-byte fragment) does NOT produce plausible coordinates for these climbing frames (wildly out-of-range values), so climbing clearly uses a different fragment layout (or a different stance encoding) that was not worked out in the time available. Not registering anything from this to avoid a wrong field claim; flagged as the next concrete step for the rope/ladder flag question.
 
+### PlayerSpawn/AvatarModified avatar-look blob: not decoded (2026-10-26 22:15, a documented dead end)
+Tried to find face/hair/skin inside the ~280 unexplained bytes between the name and the equip list. Comparing the SAME player's
+spawn packets at two different times (two sightings) shows the whole span is byte-identical except the equip-list region itself
+and a handful of bytes right at the very end (likely position) - so whatever is in there does not change session to session, as
+expected for a look. Comparing 13 DIFFERENT players (different levels, different visible hair colors on screen) shows the span is
+all zero bytes for every one of them, in both the Amherst (beginner) and the shurella2 hunting-map pool. A permissive scan for
+`[slot byte][u32 1..10,000,000]` runs elsewhere in the packet does turn up a few values in the classic hair-id range (30020,
+30027, 31821 at a byte position the scan calls "slot 0"), mixed with many small round numbers (1, 200, 300, 400...) that are
+almost certainly false positives from the same loose scan matching unrelated header bytes. Conclusion: the avatar look is not in
+the all-zero span, and the hair-like hits are not reliable enough to register as a field (no independent check available, and the
+false-positive rate of the scan that found them is unknown). Whoever picks this up next should get a reference list of real face/hair
+ids first (there is none in this repo) rather than guessing from a byte scan.
+
