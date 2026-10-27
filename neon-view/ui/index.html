@@ -251,8 +251,11 @@ if (qmap) { document.getElementById('mapid').value = qmap; loadGeo(qmap); }
 const hexs = t => esc(t);
 // human labels for a few known low-cardinality registry fields, purely cosmetic - the raw number is still the
 // source of truth (shown in opcodes.toml), this just saves a lookup while eyeballing the live Packets table.
-const FIELD_LABELS = { gender: { 0: 'male', 1: 'female' } };
-const showField = (name, value) => FIELD_LABELS[name] && FIELD_LABELS[name][value] !== undefined ? value + ' (' + FIELD_LABELS[name][value] + ')' : value;
+const FIELD_LABELS = { gender: { 0: 'male', 1: 'female' }, stance: { 15: 'climbing/ladder', 7: 'vertical jump', 6: 'diagonal jump?' } };
+const showField = (name, value) => {
+  const base = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1) : name; // "move[0].stance" -> "stance"
+  return FIELD_LABELS[base] && FIELD_LABELS[base][value] !== undefined ? value + ' (' + FIELD_LABELS[base][value] + ')' : value;
+};
 function renderPackets(rows) {
   const hide = document.getElementById('hide').checked;
   const dsel = document.getElementById('dirsel').value;
