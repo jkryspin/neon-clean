@@ -1206,27 +1206,40 @@ len_max = 965
 [[opcode]]
 id = 0x047b
 dir = "in"
+name = "ReactorHit"
 status = "structure"
-summary = "u32@18 is a known player id in 94 of 94 packets of the 22-byte form (idscan, pooled captures 2026-10-26). FACTS (exact-decoded logs, 2026-10-26): 387 packets in 8 log(s); sizes 22 x387; median gap 1.4 s; constant bytes @5=02, @12-13=01 00, @16-17=00 00, @21=00; u32@18 is a known player id in 384/387. Meaning not established."
+summary = "A map reactor (the wooden crate hit for Pio's Amherst quest) took a hit: reactor oid@2 constant across one reactor's life, a 1-based hit counter@6 that went 1, 2, 3 in our one observed sequence (three Ctrl presses, the crate then broke and dropped the two named quest items + mesos), a u32@7 constant across spawn/hit/destroy of the same reactor (0x01030262, probably its template id, matches 0x0487's u32@12 and 0x048f's u32@8), our own char_id@18 (we were the one hitting it). Bytes 11-17 vary between hits and are not resolved (not a stable position: two of three hits matched exactly, the middle one differed, so not simply x/y). One observation only (2026-10-26, jib01); needs a second reactor to confirm the template/oid reading."
 len_min = 22
 len_max = 22
-field = [{ name = "char_id", ty = "u32", off = 18 }]
+field = [
+  { name = "oid", ty = "u32", off = 2 },
+  { name = "hit_count", ty = "u8", off = 6 },
+  { name = "char_id", ty = "u32", off = 18 },
+]
 
 [[opcode]]
 id = 0x0487
 dir = "in"
-status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 129 packets in 8 log(s); sizes 19 x129; median gap 35.7 s; constant bytes @2=00, @6-11=02 01 00 00 00 00, @16-18=00 00 00. Meaning not established."
+name = "ReactorSpawn"
+status = "structure"
+summary = "Announces a map reactor appearing or becoming active: submode byte@2 (0 in the one case seen), reactor oid@3, u32@7 = 1 (state), then the same template-looking constant (0x01030262) seen in the matching 0x047b hits and 0x048f end message for that oid. Arrived once, right before the three 0x047b hits on the same oid (2026-10-26, jib01); one observation."
 len_min = 19
 len_max = 19
+field = [
+  { name = "oid", ty = "u32", off = 3 },
+]
 
 [[opcode]]
 id = 0x048f
 dir = "in"
-status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 129 packets in 8 log(s); sizes 13 x129; median gap 26.9 s; constant bytes @5-7=02 00 04, @12=01. Meaning not established."
+name = "ReactorDestroyed"
+status = "structure"
+summary = "The end-of-life message for the same reactor: oid@2, a 0 where 0x047b carried its hit counter, submode byte@7 = 4, then the same template constant (0x01030262) as the matching 0x0487/0x047b. Arrived once, right after the third (final) 0x047b hit on that oid, immediately before the item drops (0x0471) (2026-10-26, jib01); one observation."
 len_min = 13
 len_max = 13
+field = [
+  { name = "oid", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x0070
