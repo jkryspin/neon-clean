@@ -236,6 +236,29 @@ earlier by other means is good evidence the parser is right.
 
 Note this client numbers mobs with small sequential ids (2, 3, 5, 6, 11...), not the classic 100100-style ids.
 
+**Systematic sweep + discovery** (`scripts/wz-validate.py`): checks every registered u32 field against the
+tables, and with `--discover` brute-forces EVERY 4-byte offset of an opcode looking for unregistered content-id
+fields. That is how `skill_id@8` was found in the three attack opcodes.
+
+Getting the statistics right took three corrections, all worth knowing because each produced a confident false
+positive first:
+1. **Null model.** Mob/Skill/Npc ids are small sequential integers, so any small-int field (a damage factor, an
+   hp value, a count) "resolves" in them. Report enrichment over the chance rate for the field's range, not the
+   raw match rate. Without this the tool called 0x044d's damage `factor` a 99.4% Npc id.
+2. **Outlier-robust range.** Use the interdecile range, not min..max - one large outlier otherwise inflates the
+   span, drives chance to ~0 and manufactures enrichment. Without this, offset 4 of 0x02bb (which merely
+   overlaps `char_id@2` and reads its high half, values 0..10) looked like a 420,000x hit.
+3. **Judge distinct values, not packet-weighted hits.** Mixing a packet-weighted hit rate with a
+   distinct-value range lets a couple of very frequent small values masquerade as a whole field resolving.
+   Also skip 0, which is a universal sentinel ("no skill", "no owner").
+Positive control after all three: `skill_id@8` is still found at ~38,000x enrichment in both 0x02a8 and 0x02aa.
+
+**Result for the remaining high-traffic unknowns: no content ids at all.** `0x0441`, `0x0279`, `0x02bb`,
+`0x02bd`, `0x001b`, `0x0028`, `0x02b0`, `0x02b7` were all swept at every offset and none holds a value that
+resolves in any client table. Their id-shaped fields are runtime handles (char_id, mob oid) and the rest is
+flags/counters. **WZ validation is exhausted for these** - do not retry it; they are state/flag broadcasts, not
+content references, so the remaining levers for them are the Kinoko alignment and behavioural tests.
+
 **Use it for any future id field**: `wzread.py lookup Skill.img 0001001`, `... names Mob.img`. Checking an id
 against the client's own data should be the first move whenever a field holds something id-shaped, before any
 statistical argument about what it might mean.

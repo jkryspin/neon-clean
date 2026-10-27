@@ -58,6 +58,64 @@ def registry_u32_fields():
     return out
 
 
+def discover(args, tables, ops):
+    """Brute-force EVERY 4-byte offset of the given opcodes looking for unregistered content-id fields.
+
+    skill_id@8 in the attack opcodes was found this way by accident; this makes it systematic. The same null
+    model applies - a hit only counts if the values resolve far more often than a random value in that range
+    would, which is what stops small-int fields (counts, damage, hp) being reported as ids."""
+    seen = collections.defaultdict(lambda: collections.defaultdict(collections.Counter))
+    for path in args:
+        skipped = 0
+        for line in open(path, errors="replace"):
+            m = re.match(r"(\S+) op ([0-9a-f]{4}) len (\d+): ?(.*)", line)
+            if not (m and m[4].strip()):
+                continue
+            skipped += 1
+            if skipped <= 13 or float(m[1]) < HEURISTIC_MARKER_EPOCH:
+                continue
+            op = int(m[2], 16)
+            if ops and op not in ops:
+                continue
+            b = bytes.fromhex(m[4].replace(" ", ""))
+            for off in range(2, min(len(b) - 3, 400)):
+                seen[op][off][struct.unpack_from("<I", b, off)[0]] += 1
+    for op in sorted(seen):
+        found = []
+        for off, vals in seen[op].items():
+            tot = sum(vals.values())
+            if tot < 50 or len(vals) < 3:
+                continue
+            # Use the interdecile range, not min..max: ONE large outlier otherwise inflates the span, drives
+            # the chance rate to ~0 and manufactures huge fake enrichment. (That happened: offset 4 of 0x02bb
+            # overlaps char_id@2, so it reads char_id's high half - values 0..10, which land in Mob.img
+            # trivially - and a single 50331650 outlier made it look like a 420,000x hit.)
+            # 0 is a universal sentinel ("no skill", "no owner"); it resolves in nothing and would just drag
+            # every share down, so judge on the non-zero values.
+            vals = {v: c for v, c in vals.items() if v != 0}
+            if len(vals) < 3:
+                continue
+            ordered = sorted(vals)
+            lo = ordered[int(0.10 * (len(ordered) - 1))]
+            hi = ordered[int(0.90 * (len(ordered) - 1))]
+            span = max(hi - lo + 1, 1)
+            for tname, ids in tables.items():
+                # Judge on DISTINCT values, consistently with the range above. Mixing a packet-weighted hit
+                # rate with a distinct-value range lets a couple of very frequent small values masquerade as a
+                # whole field resolving (that is what offset 93 of 0x02aa did).
+                hit = sum(1 for v in vals if v in ids)
+                if not hit:
+                    continue
+                chance = sum(1 for i in ids if lo <= i <= hi) / span
+                share = hit / len(vals)
+                if share >= 0.9 and chance < 0.02 and share / chance >= 50:
+                    found.append((share / chance, off, tname, share, len(vals), lo, hi))
+        found.sort(reverse=True)
+        print(f"{op:#06x}: {len(found)} candidate content-id offset(s)")
+        for enr, off, tname, share, nd, lo, hi in found[:6]:
+            print(f"    @{off:<4} {tname:<13} {share:5.1%} of values resolve, {nd} distinct, range {lo}..{hi}, enrichment {enr:,.0f}x")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     only = next((a.split("=")[1] if "=" in a else None for a in sys.argv if a.startswith("--op")), None)
@@ -66,6 +124,10 @@ def main():
     only = int(only, 0) if only else None
 
     tables = load_tables()
+    if "--discover" in sys.argv:
+        ops = {int(a, 0) for a in sys.argv if a.startswith("0x")}
+        discover([a for a in args if not a.startswith("0x")], tables, ops)
+        return
     fields = registry_u32_fields()
     if only:
         fields = [f for f in fields if f[0] == only]
