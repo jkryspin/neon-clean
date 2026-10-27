@@ -67,7 +67,7 @@
       <input id="pkfilter" placeholder="filter: opcode or name" size="16" style="margin-left:8px;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 4px;text-transform:none;letter-spacing:0"></h2>
       <div class="box"><table><thead><tr><th>t</th><th>dir</th><th>opcode</th><th>name</th><th>len</th><th>fields / bytes</th></tr></thead><tbody id="pk"></tbody></table></div></div>
     <div><h2>Opcodes seen <input id="ocfilter" placeholder="filter: opcode, name or status" size="20" style="margin-left:8px;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 4px;text-transform:none;letter-spacing:0"></h2>
-      <div class="box"><table><thead><tr><th>opcode</th><th>n</th><th>len</th><th>status</th></tr></thead><tbody id="oc"></tbody></table></div></div>
+      <div class="box"><table><thead><tr><th class="click" data-sort="op">opcode</th><th class="click" data-sort="count">n</th><th class="click" data-sort="len">len</th><th class="click" data-sort="status">status</th></tr></thead><tbody id="oc"></tbody></table></div></div>
   </div>
 </section>
 <section>
@@ -245,13 +245,19 @@ const KNOWN_FALSE_POSITIVES = new Set(['in:0x002c', 'in:0x003d', 'in:0x006e', 'i
   'in:0x0040', 'in:0x0041', 'in:0x0042', 'in:0x010f', 'in:0x016e']);
 let knownOps = null;
 let lastOps = [];
+let ocSort = { key: null, dir: 1 };
+const OC_SORT_KEY = { op: r => r.dir + r.op, count: r => r.count, len: r => r.max_len, status: r => r.status };
 function renderOps(rows) {
   lastOps = rows;
   const curOps = new Set(rows.map(r => r.dir + ':' + r.op));
   const firstLoad = knownOps === null;
   if (firstLoad) knownOps = curOps;
   const q = document.getElementById('ocfilter').value.trim().toLowerCase();
-  const filtered = rows.filter(r => !q || r.op.toLowerCase().includes(q) || (r.name || '').toLowerCase().includes(q) || r.status.toLowerCase().includes(q));
+  let filtered = rows.filter(r => !q || r.op.toLowerCase().includes(q) || (r.name || '').toLowerCase().includes(q) || r.status.toLowerCase().includes(q));
+  if (ocSort.key) {
+    const key = OC_SORT_KEY[ocSort.key];
+    filtered = filtered.slice().sort((a, b) => { const av = key(a), bv = key(b); return av < bv ? -ocSort.dir : av > bv ? ocSort.dir : 0; });
+  }
   document.getElementById('oc').innerHTML = filtered.slice(0, 60).map(r => {
     const key = r.dir + ':' + r.op;
     const isNew = !firstLoad && !knownOps.has(key);
@@ -308,6 +314,12 @@ document.getElementById('hide').onchange = () => renderPackets(lastPk);
 document.getElementById('dirsel').onchange = () => renderPackets(lastPk);
 document.getElementById('pkfilter').oninput = () => renderPackets(lastPk);
 document.getElementById('ocfilter').oninput = () => renderOps(lastOps);
+document.querySelectorAll('th[data-sort]').forEach(th => th.onclick = () => {
+  const key = th.dataset.sort;
+  ocSort.dir = (ocSort.key === key) ? -ocSort.dir : 1;
+  ocSort.key = key;
+  renderOps(lastOps);
+});
 document.getElementById('ex-copy').onclick = () => {
   if (!lastExploration || !lastExploration.samples.length) return;
   navigator.clipboard.writeText(lastExploration.samples.join('\n')).then(() => {
