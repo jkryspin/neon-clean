@@ -163,6 +163,13 @@ missing is a confirmed MEANING for the ones that still say "Meaning not establis
 
 ## Next
 
+**2026-10-27: see `docs/decode-plan.md` for the full systematic plan** - every still-unnamed opcode, a defined
+escalation ladder per opcode (passive tools -> static exe analysis -> family correlation -> live trigger), and the
+Tier A/B replay-goal definition (byte-replay already works; building Rust encoders for the named opcodes is the
+actual remaining target). `docs/decode-plan-tables.md` is the auto-generated status table
+(`python3 scripts/decode-status.py > docs/decode-plan-tables.md`) - regenerate it instead of hand-tracking opcode
+status here. The list below is kept for its specific narrative history; the live status lives in that plan now.
+
 1. The wire opcode numbering (see Stage B above) - the one open item with real consequences (it blocks going online).
 2. More live actions on jib01 with marks for opcodes that need a trigger nobody has done yet (trade needs a second account; most
    skills need levels this beginner character does not have).
