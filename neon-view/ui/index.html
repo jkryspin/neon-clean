@@ -180,7 +180,14 @@ function render(s) {
   list('reactors', Object.entries(s.reactors || {}).map(([id, r]) => '<span><i class="k" style="background:var(--npc)"></i>reactor ' + id + ' (template ' + r[0] + ')</span><span class="dim">' + (r[1] ? r[1] + ' hit' + (r[1] === 1 ? '' : 's') : 'unhit') + '</span>'));
   draw();
 }
-function loadMarks() { fetch('marks').then(r => r.ok ? r.json() : []).then(rows => { markRows = rows; document.getElementById('marks').textContent = rows.length ? rows.length + ' marks, last: ' + rows[rows.length - 1].label : ''; }); }
+function loadMarks() {
+  fetch('marks').then(r => r.ok ? r.json() : []).then(rows => {
+    markRows = rows;
+    const el = document.getElementById('marks');
+    el.textContent = rows.length ? rows.length + ' marks, last: ' + rows[rows.length - 1].label : '';
+    el.title = rows.slice().reverse().map(m => new Date(m.t).toLocaleTimeString() + ' - ' + m.label).join('\n');
+  });
+}
 document.getElementById('mark-btn').onclick = () => {
   const box = document.getElementById('mark'); const v = box.value.trim(); if (!v) return;
   fetch('mark?label=' + encodeURIComponent(v), { method: 'POST' }).then(r => r.ok ? (box.value = '', loadMarks()) : r.text().then(t => alert(t)));
