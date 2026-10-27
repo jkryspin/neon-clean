@@ -163,16 +163,16 @@ missing is a confirmed MEANING for the ones that still say "Meaning not establis
 1. The wire opcode numbering (see Stage B above) - the one open item with real consequences (it blocks going online).
 2. More live actions on jib01 with marks for opcodes that need a trigger nobody has done yet (trade needs a second account; most
    skills need levels this beginner character does not have).
-3. The avatar-look blob in `PlayerSpawn`/`AvatarModified` (lower priority: cosmetic, not needed for the bot's own logic).
-   Partial progress (2026-10-27, passive only, no live actions): found a clean sub-record further into the unexplained
-   region - the player's own name repeats verbatim, tagged `u16=2`, followed by 4 zero bytes, preceded by a u16 that
-   clusters in 24434-24455 across thousands of players with no time correlation (so not a tick/counter) - in the
-   MapleStory face-id range, unconfirmed. See the opcode's summary in `opcodes.toml` for the full numbers.
-   Located precisely (2026-10-27, later same night): right after the gear equip list's `0xFF` terminator comes the
-   cash-item list (same shape, usually empty), then a FIXED 285-byte block, then the name-repeat record above. Found
-   which byte offsets in that 285-byte block are ever non-zero (a handful of candidate fields at @0, @5-7, @10-11/
-   @26-28, and some scattered ones) - meaning still not established, but the next pass can start from those offsets
-   instead of re-deriving them.
+3. ~~The avatar-look blob in `PlayerSpawn`/`AvatarModified`~~ - face and hair CONFIRMED tonight (2026-10-27, passive
+   only, no live actions). `AvatarModified`'s pre-equip header is a fixed 20 bytes: u16@13 is the face id (100% in
+   the real MapleStory face-id range 20000-22101, 62 samples) and u16@22 is the hair id (100%, range 30000-32035).
+   Cross-validated against `PlayerSpawn`'s own (variable-offset) header for the same 60 char_ids seen in both
+   opcodes: face matched 60/60, hair matched 60/60 - an independent-source confirmation, not a guess. Added as real
+   `field` entries on `AvatarModified`; `PlayerSpawn`'s copy is documented in its summary but not yet a `field`
+   entry since its offset shifts with name length (needs a `parse_look`-style helper like `decode::parse_equips`).
+   Earlier same-night exploration along the way (kept for the trail): found the player's own name repeats verbatim
+   in `PlayerSpawn`, tagged `u16=2`, right after a fixed 285-byte block whose other bytes (including a 16-value
+   per-player field at one offset) are still unexplained - that tag is NOT the face id, corrected in opcodes.toml.
 4. ~~The movement fragment's stance/climbing byte layout~~ - SOLVED tonight (2026-10-26, active climb on jib01): climbing uses the same `MoveSelf`/`0x00db` opcode and x@16/y@18 header as walking; the per-fragment stance byte is 15 exactly when foothold is -1 (no platform underneath - the ladder case), a clean separation across 152 real fragments, never seen on any of the 141 fragments with a real foothold. Also fixed an off-by-one in the opcode's own records table (`start` was an unverified 26, should be 25).
 5. Once the wire numbering is solved offline against recorded connections: NP12-T first, with `neon-cmd`'s `SafetyGate` and
    `ReconnectPolicy` enforced, per the approval in `docs/authorization.md`.
