@@ -50,6 +50,13 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 
 **Negative result 2:** after walking jib01 next to the Amherst mailbox, 4 clicks on it (random 6-15 s gaps) opened no window and produced no repeating opcode (candidates appeared in at most 1 of 4 windows and were ordinary town traffic). Walking by held arrow key (`xdotool keydown Left`, 3.2 s) works on the test account.
 
+**Contamination check (added 2026-10-26, after a real incident):** `scripts/registry-facts.py` trusts whatever log files it is given.
+A disconnected account's `neon-stream` can keep running and its connection flap, falling back to the old per-block heuristic, which
+silently produces garbage packets under MANY unrelated opcodes at once (not just one) - this happened once (jib02, 5861 garbage
+packets) and inflated or invented 23 registry entries before it was caught. **After every `registry-facts.py` run**, rebuild an
+independent pool from the same file list and check each FACTS sentence's claimed packet count against it; an entry whose count is
+less than half supported by the fresh pool is contamination, not real traffic - trace it to the source file and exclude it.
+
 ## Evidence rules (what gets a name)
 
 1. A **name** needs an independent check, not a plausible story: a known value from another source (memory reader, map file, EXP counter),
