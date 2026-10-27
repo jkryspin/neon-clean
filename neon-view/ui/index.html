@@ -177,7 +177,8 @@ function render(s) {
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
   const dist = (x, y) => (m && m.x != null && x != null) ? Math.round(Math.hypot(x - m.x, y - m.y)) : null;
   const byDist = (a, b) => { const da = dist(a.x, a.y), db = dist(b.x, b.y); return (da ?? Infinity) - (db ?? Infinity); };
-  list('players', Object.entries(s.players).map(([id, p]) => ({ id, ...p })).sort(byDist).map(p => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || p.id) + (p.level ? ' Lv' + p.level : '') + '</span><span class="dim">' + (dist(p.x, p.y) ?? '?') + 'px away</span>'));
+  const STANCE_LABEL = { 15: 'climbing', 7: 'jumping', 6: 'jumping?' };
+  list('players', Object.entries(s.players).map(([id, p]) => ({ id, ...p })).sort(byDist).map(p => '<span title="' + esc(wears(p)) + '"><i class="k" style="background:var(--player)"></i>' + esc(p.name || p.id) + (p.level ? ' Lv' + p.level : '') + (STANCE_LABEL[p.stance] ? ' (' + STANCE_LABEL[p.stance] + ')' : '') + '</span><span class="dim">' + (dist(p.x, p.y) ?? '?') + 'px away</span>'));
   list('mobs', Object.entries(s.mobs).map(([id, mo]) => ({ id, ...mo })).sort(byDist).map(mo => {
     const rem = (mo.hp && mo.damage_seen) ? Math.max(0, Math.round(100 * (1 - mo.damage_seen / mo.hp))) : null;
     return '<span><i class="k" style="background:var(--mob)"></i>' + mobName(mo.template) + (mo.hp != null ? ' (' + mo.hp + ' HP' + (mo.damage_seen ? ', hit for ' + mo.damage_seen + ' by others - ≤' + rem + '% left' : '') + ')' : '') + '</span><span class="dim">' + (dist(mo.x, mo.y) ?? '?') + 'px away</span>';

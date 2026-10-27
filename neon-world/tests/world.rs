@@ -51,7 +51,8 @@ fn real_packets_become_the_expected_events() {
     assert!((1..=250).contains(&level), "a real spawn carries the player's level: {level}");
     assert!(equips.len() >= 3, "a real spawn lists what the player wears: {equips:?}");
     // the packet starts at x = -185 and its one 21-byte fragment ends at x = -262, on the same ground line
-    assert_eq!(event_from_packet(&r, &fx("0x29d")), Some(Event::PlayerMove { char_id: 562142, x: -262, y: 274 }));
+    let Some(Event::PlayerMove { char_id, x, y, .. }) = event_from_packet(&r, &fx("0x29d")) else { panic!("0x029d must become a PlayerMove") };
+    assert_eq!((char_id, x, y), (562142, -262, 274));
     // the real meso drop recorded with the fixtures: mesos, not an item
     let Some(Event::DropSpawn { oid, owner, x, y, item, mesos }) = event_from_packet(&r, &fx("0x471")) else { panic!("0x0471 must become a DropSpawn") };
     assert_eq!((oid, owner, x, y), (1342746, 334426, 1677, 215));
@@ -101,7 +102,7 @@ fn world_semantics() {
     w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0, item: Some(4000001), mesos: None }, 30);
     w.apply(&Event::DropSpawn { oid: 1, owner: 3, x: 0, y: 0, item: Some(4000001), mesos: None }, 31); // sent twice by the server
     assert_eq!(w.snapshot().drops.len(), 1);
-    w.apply(&Event::PlayerMove { char_id: 4, x: 9, y: 9 }, 40);
+    w.apply(&Event::PlayerMove { char_id: 4, x: 9, y: 9, stance: None }, 40);
     w.apply(&Event::PlayerSpawn { char_id: 4, name: "Ann".into(), level: 12, equips: vec![(11, 1302000)] }, 41);
     let p = &w.snapshot().players[&4];
     assert_eq!((p.name.as_deref(), p.x, p.y), (Some("Ann"), Some(9), Some(9)));
@@ -435,7 +436,7 @@ fn a_real_removal_packet_removes_the_player_from_the_world() {
     let Some(Event::PlayerLeave { char_id }) = event_from_packet(&r, &p) else { panic!("0x0209 must become a PlayerLeave") };
     let mut w = World::new();
     w.apply(&Event::PlayerSpawn { char_id, name: "Gone".into(), level: 9, equips: vec![] }, 0);
-    w.apply(&Event::PlayerMove { char_id, x: 5, y: 6 }, 1);
+    w.apply(&Event::PlayerMove { char_id, x: 5, y: 6, stance: None }, 1);
     w.apply(&Event::PlayerSpawn { char_id: char_id + 1, name: "Stays".into(), level: 9, equips: vec![] }, 2);
     assert_eq!(w.snapshot().players.len(), 2);
     w.apply(&Event::PlayerLeave { char_id }, 3);

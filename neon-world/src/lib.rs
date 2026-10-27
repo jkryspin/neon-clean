@@ -18,7 +18,7 @@ pub enum Event {
     /// Another player's attack and what it did to each target (oid, damage). Our own attacks are not echoed by the server.
     MobHits { char_id: u32, hits: Vec<(u32, u32)> },
     PlayerSpawn { char_id: u32, name: String, level: u32, equips: Vec<(u8, u32)> },
-    PlayerMove { char_id: u32, x: i32, y: i32 },
+    PlayerMove { char_id: u32, x: i32, y: i32, stance: Option<u8> },
     /// Our own movement, read from the packet we send (the server never echoes it to us).
     SelfMove { x: i32, y: i32, tick: u32 },
     /// A player left the map.
@@ -71,6 +71,9 @@ pub struct Player {
     pub equips: Vec<(u8, u32)>,
     pub x: Option<i32>,
     pub y: Option<i32>,
+    /// Last known movement-fragment stance byte (see docs/mapping-workflow.md: 15 = climbing/ladder, 7 = vertical
+    /// jump, 6 = tentative diagonal jump). `None` until a PlayerMove with a decodable stance has been seen.
+    pub stance: Option<u8>,
     pub last_ms: u64,
 }
 
@@ -249,16 +252,19 @@ impl World {
                 }
             }
             Event::PlayerSpawn { char_id, name, level, equips } => {
-                let p = s.players.entry(*char_id).or_insert(Player { name: None, level: None, equips: vec![], x: None, y: None, last_ms: now_ms });
+                let p = s.players.entry(*char_id).or_insert(Player { name: None, level: None, equips: vec![], x: None, y: None, stance: None, last_ms: now_ms });
                 p.name = Some(name.clone());
                 p.equips = equips.clone();
                 p.level = Some(*level).filter(|l| *l > 0);
                 p.last_ms = now_ms;
             }
-            Event::PlayerMove { char_id, x, y } => {
-                let p = s.players.entry(*char_id).or_insert(Player { name: None, level: None, equips: vec![], x: None, y: None, last_ms: now_ms });
+            Event::PlayerMove { char_id, x, y, stance } => {
+                let p = s.players.entry(*char_id).or_insert(Player { name: None, level: None, equips: vec![], x: None, y: None, stance: None, last_ms: now_ms });
                 p.x = Some(*x);
                 p.y = Some(*y);
+                if stance.is_some() {
+                    p.stance = *stance;
+                }
                 p.last_ms = now_ms;
             }
             Event::PlayerLeave { char_id } => {
@@ -387,13 +393,21 @@ fn int(d: &neon_protocol::Decoded, name: &str) -> Option<i64> {
 
 /// Where a movement packet leaves the entity: the end of its last 21-byte fragment, else the packet's start position.
 fn end_position(d: &neon_protocol::Decoded) -> Option<(i32, i32)> {
+    end_position_and_stance(d).map(|(x, y, _)| (x, y))
+}
+
+/// Like `end_position`, but also returns the last movement fragment's stance byte when present (see
+/// `docs/mapping-workflow.md` - 15 is climbing/a ladder with no foothold underneath, 7 vertical jump, 6 tentative
+/// diagonal jump). `None` for the stance when the record has none (e.g. the single-position legacy fallback).
+fn end_position_and_stance(d: &neon_protocol::Decoded) -> Option<(i32, i32, Option<u8>)> {
     let n = d.fields.iter().filter(|(k, _)| k.starts_with("move[") && k.ends_with("].x")).count();
     if n > 0 {
         let x = int(d, &format!("move[{}].x", n - 1))?;
         let y = int(d, &format!("move[{}].y", n - 1))?;
-        return Some((x as i32, y as i32));
+        let stance = int(d, &format!("move[{}].stance", n - 1)).map(|v| v as u8);
+        return Some((x as i32, y as i32, stance));
     }
-    Some((int(d, "x")? as i32, int(d, "y")? as i32))
+    Some((int(d, "x")? as i32, int(d, "y")? as i32, None))
 }
 
 /// Turn a plaintext server->client packet into an event, using the registry for every verified layout.
@@ -460,8 +474,8 @@ fn event_from_registry(reg: &Registry, plain: &[u8]) -> Option<Event> {
             Event::PlayerSpawn { char_id: int(&d, "char_id")? as u32, name: n.clone(), level: int(&d, "level")? as u32, equips: decode::parse_equips(plain) }
         }
         "PlayerMove" => {
-            let (x, y) = end_position(&d)?;
-            Event::PlayerMove { char_id: int(&d, "char_id")? as u32, x, y }
+            let (x, y, stance) = end_position_and_stance(&d)?;
+            Event::PlayerMove { char_id: int(&d, "char_id")? as u32, x, y, stance }
         }
         "Chat" => {
             let neon_protocol::Value::Str(t) = d.get("text")? else { return None };
