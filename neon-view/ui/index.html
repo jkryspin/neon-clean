@@ -150,7 +150,9 @@ function render(s) {
     desync.style.display = '';
     desync.style.color = recent ? 'var(--mob)' : 'var(--dim)';
     desync.style.fontWeight = recent ? '600' : 'normal';
-    desync.textContent = (recent ? '⚠ ' : '') + s.heuristic_skipped + ' heuristic/unreadable packet(s)' + (agoMs != null ? (recent ? ', ongoing' : ', last ' + (agoMs / 1000).toFixed(0) + 's ago (likely just the startup sync)') : '');
+    const denom = lastTotalIn + s.heuristic_skipped;
+    const ratio = denom ? ' (' + (100 * s.heuristic_skipped / denom).toFixed(2) + '% of ' + denom + ')' : '';
+    desync.textContent = (recent ? '⚠ ' : '') + s.heuristic_skipped + ' heuristic/unreadable packet(s)' + ratio + (agoMs != null ? (recent ? ', ongoing' : ', last ' + (agoMs / 1000).toFixed(0) + 's ago (likely just the startup sync)') : '');
   }
   const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
   list('me', [
@@ -243,6 +245,7 @@ function renderPackets(rows) {
 // commits that reverted them for the history.
 const KNOWN_FALSE_POSITIVES = new Set(['in:0x002c', 'in:0x003d', 'in:0x006e', 'in:0x023f',
   'in:0x0040', 'in:0x0041', 'in:0x0042', 'in:0x010f', 'in:0x016e']);
+let lastTotalIn = 0;
 let knownOps = null;
 let lastOps = [];
 let ocSort = { key: null, dir: 1 };
@@ -267,6 +270,7 @@ function renderOps(rows) {
     return '<tr class="click" onclick="openOp(\'' + r.dir + '\',\'' + r.op + '\')"><td class="' + r.status + '">' + (r.dir === 'out' ? '&rarr; ' : r.dir === 'wire' ? '&rarr;w ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + badge + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>';
   }).join('');
   knownOps = curOps;
+  lastTotalIn = rows.filter(r => r.dir === 'in').reduce((a, r) => a + r.count, 0);
   const inRows = rows.filter(r => r.dir === 'in');
   const outRows = rows.filter(r => r.dir === 'out');
   const order = ['verified', 'decoded', 'structure', 'observed'];
