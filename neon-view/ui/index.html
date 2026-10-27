@@ -24,6 +24,7 @@
   .cell { display:inline-block; width:26px; padding:2px 0; margin:1px; text-align:center; font:11px ui-monospace, monospace; border-radius:3px; cursor:default; }
   .c-known { background:var(--player); color:#fff; } .c-ref { background:var(--me); color:#fff; } .c-const { background:var(--line); color:var(--dim); } .c-var { background:var(--drop); color:#111; }
   .legend span { margin-right:12px; } .click { cursor:pointer; } .click:hover { text-decoration:underline; }
+  .newop { background:var(--mob); color:#fff; border-radius:3px; padding:0 4px; font-size:10px; margin-left:4px; }
   .grid2 { display:grid; grid-template-columns: 2fr 1fr; gap:12px; } @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
   .box { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:8px 12px; max-height:360px; overflow:auto; }
 </style>
@@ -234,9 +235,16 @@ function renderPackets(rows) {
     '<tr><td class="dim">' + (r.t_ms / 1000).toFixed(1) + '</td><td class="dim">' + (r.dir === 'out' ? '&rarr;' : r.dir === 'wire' ? '&rarr;w' : '&larr;') + '</td><td class="' + r.status + '">' + r.op + '</td><td>' + esc(r.name || '') + '</td><td>' + r.len +
     '</td><td class="hex">' + (r.fields.length ? esc(r.fields.map(f => f[0] + '=' + f[1]).join(' ')) : hexs(r.hex)) + '</td></tr>').join('');
 }
+let knownOps = null;
 function renderOps(rows) {
-  document.getElementById('oc').innerHTML = rows.slice(0, 60).map(r =>
-    '<tr class="click" onclick="openOp(\'' + r.dir + '\',\'' + r.op + '\')"><td class="' + r.status + '">' + (r.dir === 'out' ? '&rarr; ' : r.dir === 'wire' ? '&rarr;w ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>').join('');
+  const curOps = new Set(rows.map(r => r.dir + ':' + r.op));
+  const firstLoad = knownOps === null;
+  if (firstLoad) knownOps = curOps;
+  document.getElementById('oc').innerHTML = rows.slice(0, 60).map(r => {
+    const isNew = !firstLoad && !knownOps.has(r.dir + ':' + r.op);
+    return '<tr class="click" onclick="openOp(\'' + r.dir + '\',\'' + r.op + '\')"><td class="' + r.status + '">' + (r.dir === 'out' ? '&rarr; ' : r.dir === 'wire' ? '&rarr;w ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + (isNew ? ' <span class="newop" title="not present in this view the last time it polled - verify it is real, not a glitch">NEW</span>' : '') + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>';
+  }).join('');
+  knownOps = curOps;
   const inRows = rows.filter(r => r.dir === 'in');
   if (inRows.length) {
     const by = {};
