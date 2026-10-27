@@ -400,3 +400,15 @@ The exe on disk is protector-packed, so its code is only readable in a running c
 Method for the next searches: cross-reference by byte patterns in this dump (call/jmp rel32, rip-relative lea, 8-byte pointers) and disassemble with `objdump -D -b binary -mi386:x86-64 --adjust-vma=ADDR`. The remaining lead is the code that handles the packet between `0x141660360` (the send function, which logs the object with the INTERNAL opcode at `+8`) and the frame builder at `0x1407618xx` (which encrypts what is at `+8`), i.e. what `0x141663fa0` and its (partly protected) callees do.
 * Static reading, last part (21:45): the two predicates the send function calls with the internal opcode, `0x141676040` and `0x141675ff0`, are plain classifications (`op in {0x13e, 0x143, 0x274}` and a small set around `0x249`), not mapping functions; reads of the opcode field `+0x434` elsewhere in the image (36 sites) belong to other objects that reuse the offset. No code in the plain part of the image that I could reach maps one opcode to another. Together with the earlier findings (constructor writes the internal opcode, frame builder encrypts `obj + 8` unchanged, the one observed store at position 0), the most consistent reading is that the mapping is performed inside the protector's virtualised sections (the tail of the send function from `0x141664300`, where the disassembly turns to noise), which cannot be read statically and would need a debugger trace of that region (or a long offline fit from many (opcode, number) pairs).
 
+### An unmapped client->server packet that looks like an integrity/anti-cheat check (2026-10-26 21:40)
+On jib01's connection, wire opcode `0x0070` (802 packets over several captures) is always 48 bytes: `mode@2 = 1`, a constant `u32@3 = 100`,
+then a 4-byte value repeated twice (`@7` and `@11`, always equal to each other, different each time: looks like a nonce/seed), a constant
+`u32@15 = 2`, then 29 bytes that look like random/hashed output (high byte-entropy, no repeats seen). Gaps between occurrences are irregular
+(0.09 s to 42 s in one capture), so it is not on a wall-clock timer; only 145 of 619 incoming `0x001b` (the other "server challenge" guess) are
+followed by one within 3 s (23%), so it is not simply that packet's reply either. The doubled nonce + hash-looking tail is the shape of a
+client integrity/anti-tamper check (a classic "hackshield"-style heartbeat), but nothing independently confirms that, and because wire opcode
+numbers are per-connection (docs above), this `0x0070` is not necessarily the same internal opcode as the one already in the registry under
+`out 0x0070` (an unrelated bare "observed" stub from an early gdb capture of the client's packet object, with no field data) - the two should
+not be assumed to be the same packet. Left undocumented in the registry on purpose, since the registry's `out` entries are keyed by the stable
+internal opcode, which this wire capture does not know.
+
