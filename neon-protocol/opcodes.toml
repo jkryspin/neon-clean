@@ -1150,7 +1150,7 @@ id = 0x0261
 dir = "in"
 name = "ReactorCredit"
 status = "structure"
-summary = "Sent to a player right after they destroy a map reactor: EVERY one of 132 ReactorDestroyed (0x048f) events in the pool is followed by a 0x0261 within 3 s (132/132), and in 128 of those the char_id@2 here matches the char_id that landed the reactor's hits (0x047b@18) - the few mismatches are cases two players were near the same reactor. 14 bytes: char_id@2, then eight 0xff bytes (a placeholder for \"no item id\"/\"no specific reward\", or a flag field not otherwise decoded). Also seen a few seconds after a quest accept in one earlier trace, so it may be a general \"quest-step completed\" acknowledgement rather than reactor-specific, but every confirmed trigger so far is a reactor break. (2026-10-26)"
+summary = "Sent to a player right after they destroy a map reactor: EVERY one of 192 ReactorDestroyed (0x048f) events in a later, bigger pool is followed by a 0x0261 within 3 s (191/192), and in 128 of 132 checked the char_id@2 here matches the char_id that landed the reactor's hits (0x047b@18) - the few mismatches are cases two players were near the same reactor. 14 bytes: char_id@2, then eight 0xff bytes (a placeholder for \"no item id\"/\"no specific reward\", or a flag field not otherwise decoded). Also seen a few seconds after a quest accept in one earlier trace, so it may be a general \"quest-step completed\" acknowledgement rather than reactor-specific, but every confirmed trigger so far is a reactor break. (2026-10-26)"
 len_min = 14
 len_max = 14
 field = [
@@ -1202,7 +1202,7 @@ id = 0x047b
 dir = "in"
 name = "ReactorHit"
 status = "structure"
-summary = "A map reactor took a hit: reactor oid@2 constant across one reactor's life, a 1-based hit counter@6 that goes 1, 2, 3 before it breaks, a u32@7 reactor_template that groups reactors by type: CONFIRMED over 130 distinct reactor oids in passive town traffic, every oid has exactly one template value across every packet about it (0 of 130 contradicted), and the same few template values repeat across many different oids (the commonest, 0x01030262, across 36 different reactor instances) - this is a real per-type id, not noise. Bytes 11-17 vary between hits and are not resolved (not a stable position). (2026-10-26, many real reactors seen passively in Amherst)"
+summary = "A map reactor took a hit: reactor oid@2 constant across one reactor's life, a 1-based hit counter@6 that goes 1, 2, 3 before it breaks, a u32@7 reactor_template that groups reactors by type: CONFIRMED over 191 distinct reactor oids in passive town traffic (re-checked with a bigger pool), every oid has exactly one template value across every packet about it (0 of 191 contradicted), and the same few template values repeat across many different oids (the commonest, 0x01030262, across 36 different reactor instances) - this is a real per-type id, not noise. Bytes 11-17 vary between hits and are not resolved (not a stable position). (2026-10-26, many real reactors seen passively in Amherst)"
 len_min = 22
 len_max = 22
 field = [
@@ -1217,7 +1217,7 @@ id = 0x0487
 dir = "in"
 name = "ReactorSpawn"
 status = "structure"
-summary = "Announces a map reactor appearing or becoming active: submode byte@2 (0 in every case seen), reactor oid@3, u32@7 = 1 (state). The trailing u32@12 is the reactor_template field (see 0x047b): over 130 distinct reactor oids in passive town traffic it takes a handful of repeating values, the commonest (0x01030262) shared by 36 different reactor instances - a real per-type id. (2026-10-26)"
+summary = "Announces a map reactor appearing or becoming active: submode byte@2 (0 in every case seen), reactor oid@3, u32@7 = 1 (state). The trailing u32@12 is the reactor_template field (see 0x047b): over 191 distinct reactor oids in passive town traffic (re-checked) it takes a handful of repeating values, the commonest (0x01030262) shared by 36 different reactor instances - a real per-type id. (2026-10-26)"
 len_min = 19
 len_max = 19
 field = [
