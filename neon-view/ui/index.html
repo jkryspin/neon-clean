@@ -6,7 +6,8 @@
 <title>Neon View</title>
 <style>
   :root { --bg:#0e1116; --panel:#171b22; --fg:#d7dde6; --dim:#8892a0; --player:#5bc0ff; --mob:#ff7b72; --drop:#e3b341; --me:#3fb950; --npc:#bc8cff; --line:#2a303a; }
-  @media (prefers-color-scheme: light) { :root { --bg:#f4f6f9; --panel:#fff; --fg:#1b2330; --dim:#5b6676; --player:#0b6cb8; --mob:#c2362d; --drop:#a87000; --me:#1a7f37; --npc:#8250df; --line:#d5dbe3; } }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg:#f4f6f9; --panel:#fff; --fg:#1b2330; --dim:#5b6676; --player:#0b6cb8; --mob:#c2362d; --drop:#a87000; --me:#1a7f37; --npc:#8250df; --line:#d5dbe3; } }
+  :root[data-theme="light"] { --bg:#f4f6f9; --panel:#fff; --fg:#1b2330; --dim:#5b6676; --player:#0b6cb8; --mob:#c2362d; --drop:#a87000; --me:#1a7f37; --npc:#8250df; --line:#d5dbe3; }
   body { margin:0; background:var(--bg); color:var(--fg); font:14px system-ui, sans-serif; }
   header { display:flex; gap:16px; align-items:baseline; padding:10px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   header b { font-size:16px; } .dim { color:var(--dim); }
@@ -38,6 +39,7 @@
   <span id="coverage" class="dim" title="incoming opcodes by status"></span>
   <span id="desync" style="display:none;color:var(--mob);font-weight:600" title="the capture could not decrypt these packets exactly - check whether the connection desynced or is flapping (see the jib02 incident)"></span>
   <span id="conn" class="dim">connecting...</span>
+  <button id="theme-btn" class="dim" style="background:none;border:1px solid var(--line);border-radius:4px;cursor:pointer;color:inherit" title="toggle light/dark (overrides the OS setting; remembered in this browser)">&#9680;</button>
   <span style="margin-left:auto"><input id="mark" size="26" maxlength="80" placeholder="mark: what you just did" style="background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:2px 6px"> <button id="mark-btn">Mark</button> <span id="marks" class="dim"></span></span>
 </header>
 <div id="transport" style="display:none;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap">
@@ -354,6 +356,18 @@ if (new URLSearchParams(location.search).has('once')) {
   es.onerror = () => { document.getElementById('conn').textContent = 'disconnected'; };
 }
 addEventListener('resize', draw);
+(() => {
+  // per-viewer convenience only - never required for the page to work correctly if storage is unavailable.
+  let saved = null;
+  try { saved = localStorage.getItem('neon-view-theme'); } catch {}
+  if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+  document.getElementById('theme-btn').onclick = () => {
+    const cur = document.documentElement.dataset.theme;
+    const next = cur === 'dark' ? 'light' : cur === 'light' ? null : (matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark');
+    if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme;
+    try { next ? localStorage.setItem('neon-view-theme', next) : localStorage.removeItem('neon-view-theme'); } catch {}
+  };
+})();
 // "/" focuses the Packets filter (like many dev tools) unless already typing somewhere; shift-"/" focuses the Opcodes filter.
 addEventListener('keydown', e => {
   if (e.key !== '/' || ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
