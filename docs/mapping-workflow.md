@@ -57,6 +57,8 @@ packets) and inflated or invented 23 registry entries before it was caught. **Af
 independent pool from the same file list and check each FACTS sentence's claimed packet count against it; an entry whose count is
 less than half supported by the fresh pool is contamination, not real traffic - trace it to the source file and exclude it.
 
+**Live verification (2026-10-26 22:26):** rebuilt and restarted both views after the `neon-world` Whisper/ShopSign/Reactor event work; confirmed live on real traffic within a minute: the Chat panel showed real shop-ad lines (`[shop 368615] Health Potion`), and the Feed panel showed a complete organic reactor lifecycle (`reactor 44350637 hit (1)` -> `(2)` -> `(3)` -> `destroyed`) from a passerby. Remember: a long-running `scripts/view.sh` process keeps whatever registry/decoder was compiled in when it started - rebuild (`cargo build --release`, `touch`ing a source file first if cargo's cache looks stale) and restart the view to see new registry/decode changes.
+
 ## Evidence rules (what gets a name)
 
 1. A **name** needs an independent check, not a plausible story: a known value from another source (memory reader, map file, EXP counter),
