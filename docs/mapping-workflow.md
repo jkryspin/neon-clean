@@ -170,6 +170,10 @@ missing is a confirmed MEANING for the ones that still say "Meaning not establis
    opcodes: face matched 60/60, hair matched 60/60 - an independent-source confirmation, not a guess. Added as real
    `field` entries on `AvatarModified`; `PlayerSpawn`'s copy is documented in its summary but not yet a `field`
    entry since its offset shifts with name length (needs a `parse_look`-style helper like `decode::parse_equips`).
+   Gender and skin CONFIRMED the same night, same method: a naive "same back-offset from face" guess only matched
+   89%/61%, so a brute-force per-offset scan against the two opcodes' headers found the real offsets - u8@7
+   (AvatarModified) / u8@22 (PlayerSpawn) is gender (0=male/1=female), u8@8 / u8@388 is skin color (0-5); both
+   50/50 exact matches for every shared char_id. Added as fields on `AvatarModified` too.
    Earlier same-night exploration along the way (kept for the trail): found the player's own name repeats verbatim
    in `PlayerSpawn`, tagged `u16=2`, right after a fixed 285-byte block whose other bytes (including a 16-value
    per-player field at one offset) are still unexplained - that tag is NOT the face id, corrected in opcodes.toml.
