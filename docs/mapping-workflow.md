@@ -70,17 +70,17 @@ less than half supported by the fresh pool is contamination, not real traffic - 
 
 ## Status (2026-10-26 overnight, for the 6am ET check-in)
 
-Registry: **148 incoming opcodes** (30 with a real name - `target` appears twice more as a nested record-table name, not an
-opcode name - 16 at the best `verified`, 3 `decoded`, 37 `structure`, 92 bare `observed`) and **31 outgoing entries** (8-10
-named depending on how variants are counted; outgoing entries are the client's INTERNAL numbering - see `docs/network-protocol.md`
-for the separate, per-connection WIRE numbering, which is the open problem for Stage B, not a registry concern). Both the
-receive and send ciphers are exact (not heuristic) as of the `ab800c1`/`3b8f816`-era work; a capture that starts at a
-connection's hello decodes every frame, including the first 12.
+Registry (refreshed 2026-10-26 ~22:50): **159 incoming opcodes** (41 name slots filled - MobMove/PetMove/MoveSelf each cover two
+length-variant forms of the same event, not a collision - 22 at the best `verified`, 7 `decoded`, 38 `structure`, 92 bare
+`observed`) and **34 outgoing entries** (11 named; outgoing entries are the client's INTERNAL numbering - see
+`docs/network-protocol.md` for the separate, per-connection WIRE numbering, which is the open problem for Stage B, not a
+registry concern). Both the receive and send ciphers are exact (not heuristic) as of the `ab800c1`/`3b8f816`-era work; a
+capture that starts at a connection's hello decodes every frame, including the first 12.
 
 Named incoming: AvatarModified, Chat, DropRemove, DropSpawnItem, DropSpawnMeso, ExpMessage, InventoryChange, LoginInventory,
 MapEnter, MesoGainMessage, MobControl, MobHit, MobKill, MobMove, MobSpawn, MoveMobAck, NpcMove, PartyCreated, PartyJoined,
 PartyLeft, PetMove, PetSpawn, PickupMessage, Ping, PlayerAttack, PlayerLeave, PlayerMove, PlayerSpawn, QuestMessage,
-QuestRecordMessage, ReactorDestroyed, ReactorHit, ReactorSpawn, SeqRequest, ShopSign, StatUpdate, Whisper.
+QuestRecordMessage, ReactorCredit, ReactorDestroyed, ReactorHit, ReactorSpawn, SeqRequest, ShopSign, StatUpdate, Whisper.
 Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRequest, PartyLeaveRequest, PickupDrop, SeqReply, UiAction.
 
 ### Overnight additions (2026-10-26 21:00-22:00, active mapping on jib01/jib02, the user's permission to go active or online)
@@ -96,6 +96,15 @@ Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRe
 | Chat (`0x00ae`) kind 2 trailer | matches `Whisper`'s schema exactly (name+message duplicated, same constants) - a buddy/party-adjacent shout, not the plain public kind 3/8 |
 | Climbing a rope/ladder | confirmed via the memory reader (grounded: false, y goes negative, x pinned to the ladder's recorded x); the `MoveSelf` fragment layout that explains ordinary walking does NOT fit the climbing frames - not solved, flagged as the next concrete step |
 | `scripts/registry-facts.py` contamination (self-found and fixed) | a disconnected account's (jib02) `neon-stream` kept running and its flapping connection fell back to the old heuristic, producing 5861 garbage packets that inflated or invented 23 registry entries in the first automated FACTS pass; all 23 traced to 0% support in verified exact-decoded data and were reverted/removed; `registry-facts.py` now auto-promotes `observed` to `structure` with a field when a single id-reference is strong (>=80%, >=5 hits) |
+
+### Later overnight additions (2026-10-26 22:30-23:00, passive-only - organic multiplayer traffic, no further live actions)
+
+| Finding | Evidence |
+|---|---|
+| A post-spawn status family: `0x0279`/`0x02bb`/`0x02bd`/`0x0281`(`PetSpawn`) | same-char_id, time-window check over 2474 `PlayerSpawn` events: 65.9%/55.0%/12.6%/26.9% of spawns get one of these for that SAME player, always at or after the spawn (never before); looks like optional per-player state sent right after a player becomes visible (buffs, a rarer flag, pet ownership) |
+| `0x022e` is a lighter, temporary drop from render range | NOT the same event as the confirmed `0x0209` `PlayerLeave`: that player's own packet gap jumps from a 0 s median (as active as baseline) to a 16.8 s median right at this event, and exceeds 10 s in 65.0% of cases vs 0.9% baseline (795029-gap baseline, 1759 events) - weaker/shorter than 0x0209's near-total silence + 76/275 re-spawn pattern, so it got a careful unnamed note instead of reusing that name (briefly double-named it `PlayerLeave` by mistake and caught it via a duplicate in the live `/opcodes` listing) |
+| `0x00ae` `Chat` kind 32 is not chat text | bigger pool (290 packets): the "text" field is always a well-formed player name, not "Name: msg"; a u32 nine bytes after a 100%-constant `0x004faed4` marker takes only 7 distinct values across all 290 packets, every one shaped like a classic equip id - a name-keyed per-player broadcast carrying one item id, not the coincidental "IP fragment" guess from the first look |
+| Self-inflicted build break, found and fixed | a prior `git add -A neon-protocol docs` picked up a stray empty `neon-protocol/src/main.rs` scaffold file (never referenced by anything) sitting in that directory and committed it, which broke `cargo build` for the whole crate at HEAD; `scripts/test-headless.sh` caught it immediately on the next run and it was removed in the following commit |
 
 ### Stage B (approved by the user, 2026-10-26; recorded in `docs/authorization.md`)
 
