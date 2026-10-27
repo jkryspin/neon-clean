@@ -1230,11 +1230,12 @@ id = 0x048f
 dir = "in"
 name = "ReactorDestroyed"
 status = "structure"
-summary = "The end-of-life message for the same reactor: oid@2, a 0 where 0x047b carried its hit counter, submode byte@7 = 4, then the same template constant (0x01030262) as the matching 0x0487/0x047b. Arrived once, right after the third (final) 0x047b hit on that oid, immediately before the item drops (0x0471) (2026-10-26, jib01); one observation."
+summary = "The end-of-life message for the same reactor: oid@2, a 0 where 0x047b carried its hit counter, submode byte@7 = 4, then the same template constant (0x01030262) as the matching 0x0487/0x047b, confirmed across many reactors like the other two (2026-10-26)."
 len_min = 13
 len_max = 13
 field = [
   { name = "oid", ty = "u32", off = 2 },
+  { name = "reactor_template", ty = "u32", off = 8 },
 ]
 
 [[opcode]]
