@@ -1543,7 +1543,7 @@ id = 0x00db
 dir = "out"
 name = "MoveSelf"
 status = "structure"
-summary = "Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players. On the wire it has a per-connection opcode (jib01 2026-10-26: 0x5f28; 6/6 jump key presses produce one; same layout: 01 6a 4d e8 f1 prefix, tick u32@7, x/y fragments). Climbing a ladder uses this SAME opcode and the SAME x@16/y@18 header fields, not a separate one: captured a live climb up and back down a real ladder (Amherst, map 1010, ladder x=991) and every packet during the climb has x@16 held constant at 991 (0x03df) while y@18 moves through the ladder range (down to -116 near the top), exactly matching the ladder's recorded x/y1/y2 in neon-calib/maps/1010.json. So the per-fragment byte that still needs decoding (the one after each fragment's vx/vy, @+8 in a 21-byte-ish fragment) is a STANCE or FOOTHOLD marker, not a different movement header - the header mechanism itself is no longer an open question for climbing. (2026-10-26)"
+summary = "Our own movement, sent about every 0.5 s while moving. Aligned with real key presses (2026-10-26, jib01 in Amherst): x@16 / y@18 follow the walk (rising while walking right, falling walking left) and y dips to 243 and 196 during a jump; the final x,y (598, 274) equals what the independent memory reader reported a moment later. tick u32@7 is a millisecond clock (+510 to +514 between packets 0.5 s apart). count@24 is the number of movement fragments; the length fits 26 + 21n + 10 for n = 1 (57 bytes), 2 (78), 3 (99), 4 (120) but not always when a jump is included (108, 150 bytes): fragment kinds of other sizes exist. The server relays this as 0x029d to the other players. On the wire it has a per-connection opcode (jib01 2026-10-26: 0x5f28; 6/6 jump key presses produce one; same layout: 01 6a 4d e8 f1 prefix, tick u32@7, x/y fragments). Climbing a ladder uses this SAME opcode and the SAME x@16/y@18 header fields, not a separate one: captured a live climb up and back down a real ladder (Amherst, map 1010, ladder x=991) and every packet during the climb has x@16 held constant at 991 (0x03df) while y@18 moves through the ladder range (down to -116 near the top), exactly matching the ladder's recorded x/y1/y2 in neon-calib/maps/1010.json. SOLVED with the real data: each 21-byte fragment is [cmd u8, ?, x i16, y i16, vx i16, vy i16, foothold i16, 6 unexplained bytes, stance u8, duration u16] (same relative layout as 0x029d PlayerMove's record table; found and fixed an off-by-one in this opcode's own un-verified records.start, which said 26 instead of the correct 25). Over 152 real fragments from this capture: every fragment with foothold == -1 (the \"no platform underneath\" sentinel) has stance == 15, and stance 15 NEVER appears on any of the 141 fragments with a real foothold id - a clean, total separation. So stance 15 is the ladder-climbing stance; stance 2-6 are ground-walking variants (by foothold id), and 254/255 showed up a handful of times, plausibly jump states, not yet checked separately. (2026-10-26)"
 len_min = 57
 field = [
   { name = "tick", ty = "u32", off = 7 },
@@ -1554,11 +1554,19 @@ field = [
 
 [opcode.records]
 name = "move"
-start = 26
+start = 25
 stride = 21
-tail = 10
+tail = 11
 count_at = 24
-field = []
+field = [
+  { name = "x", ty = "i16", off = 2, min = -20000, max = 20000 },
+  { name = "y", ty = "i16", off = 4, min = -20000, max = 20000 },
+  { name = "vx", ty = "i16", off = 6 },
+  { name = "vy", ty = "i16", off = 8 },
+  { name = "foothold", ty = "i16", off = 10 },
+  { name = "stance", ty = "u8", off = 18 },
+  { name = "duration", ty = "u16", off = 19 },
+]
 
 [[opcode]]
 id = 0x00db
