@@ -66,7 +66,7 @@
   </div>
   <aside>
     <h2>Me</h2><ul id="me"></ul>
-    <h2>Party</h2><ul id="party"></ul>
+    <h2>Party <span class="dim" id="party-id" style="text-transform:none;letter-spacing:0"></span></h2><ul id="party"></ul>
     <h2>Activity</h2><ul id="feed"></ul>
     <h2>Chat</h2><ul id="chat"></ul>
     <h2>Players</h2><ul id="players"></ul>
@@ -190,6 +190,7 @@ function render(s) {
   const chatColor = k => k === 0xff ? 'var(--npc)' : k === 0xfe ? 'var(--drop)' : 'inherit';
   list('chat', (s.chat || []).slice().reverse().slice(0, 30).map(c => '<span style="color:' + chatColor(c.kind) + '">' + esc(c.text) + '</span>'));
   list('party', s.party.map(p => '<span>' + esc(p.name) + '</span><span class="dim">Lv ' + p.level + ' ch ' + (p.channel + 1) + '</span>'));
+  document.getElementById('party-id').textContent = s.party_id != null ? '#' + s.party_id : '';
   const dist = (x, y) => (m && m.x != null && x != null) ? Math.round(Math.hypot(x - m.x, y - m.y)) : null;
   const byDist = (a, b) => { const da = dist(a.x, a.y), db = dist(b.x, b.y); return (da ?? Infinity) - (db ?? Infinity); };
   const STANCE_LABEL = { 15: 'climbing', 7: 'jumping', 6: 'jumping?' };
