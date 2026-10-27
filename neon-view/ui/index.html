@@ -26,6 +26,7 @@
   .c-known { background:var(--player); color:#fff; } .c-ref { background:var(--me); color:#fff; } .c-const { background:var(--line); color:var(--dim); } .c-var { background:var(--drop); color:#111; }
   .legend span { margin-right:12px; } .click { cursor:pointer; } .click:hover { text-decoration:underline; }
   .newop { background:var(--mob); color:#fff; border-radius:3px; padding:0 4px; font-size:10px; margin-left:4px; }
+  .pin-btn { cursor:pointer; margin-right:4px; opacity:0.35; } .pin-btn.pinned { opacity:1; }
   .falsepos { background:#d11; color:#fff; border-radius:3px; padding:0 4px; font-size:10px; margin-left:4px; font-weight:700; }
   .grid2 { display:grid; grid-template-columns: 2fr 1fr; gap:12px; } @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
   .box { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:8px 12px; max-height:360px; overflow:auto; }
@@ -256,6 +257,13 @@ let knownOps = null;
 let lastOps = [];
 let ocSort = { key: null, dir: 1 };
 const OC_SORT_KEY = { op: r => r.dir + r.op, count: r => r.count, len: r => r.max_len, status: r => r.status };
+let pinnedOps = new Set();
+try { pinnedOps = new Set(JSON.parse(localStorage.getItem('neon-view-pins') || '[]')); } catch {}
+function togglePin(key) {
+  pinnedOps.has(key) ? pinnedOps.delete(key) : pinnedOps.add(key);
+  try { localStorage.setItem('neon-view-pins', JSON.stringify([...pinnedOps])); } catch {}
+  renderOps(lastOps);
+}
 function renderOps(rows) {
   lastOps = rows;
   const curOps = new Set(rows.map(r => r.dir + ':' + r.op));
@@ -267,13 +275,16 @@ function renderOps(rows) {
     const key = OC_SORT_KEY[ocSort.key];
     filtered = filtered.slice().sort((a, b) => { const av = key(a), bv = key(b); return av < bv ? -ocSort.dir : av > bv ? ocSort.dir : 0; });
   }
+  filtered = filtered.slice().sort((a, b) => (pinnedOps.has(b.dir + ':' + b.op) ? 1 : 0) - (pinnedOps.has(a.dir + ':' + a.op) ? 1 : 0));
   document.getElementById('oc').innerHTML = filtered.slice(0, 60).map(r => {
     const key = r.dir + ':' + r.op;
     const isNew = !firstLoad && !knownOps.has(key);
     const isFalsePos = KNOWN_FALSE_POSITIVES.has(key);
+    const isPinned = pinnedOps.has(key);
     const badge = isFalsePos ? ' <span class="falsepos" title="already documented in mapping-workflow.md as a heuristic-decode artifact that never existed - this is very likely the same bug recurring, not a new finding">KNOWN FALSE POSITIVE</span>'
       : isNew ? ' <span class="newop" title="not present in this view the last time it polled - verify it is real, not a glitch">NEW</span>' : '';
-    return '<tr class="click" onclick="openOp(\'' + r.dir + '\',\'' + r.op + '\')"><td class="' + r.status + '">' + (r.dir === 'out' ? '&rarr; ' : r.dir === 'wire' ? '&rarr;w ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + badge + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>';
+    const pin = '<span class="pin-btn' + (isPinned ? ' pinned' : '') + '" title="pin to top (remembered in this browser)" onclick="event.stopPropagation(); togglePin(\'' + key + '\')">★</span>';
+    return '<tr class="click" onclick="openOp(\'' + r.dir + '\',\'' + r.op + '\')"><td class="' + r.status + '">' + pin + (r.dir === 'out' ? '&rarr; ' : r.dir === 'wire' ? '&rarr;w ' : '') + r.op + (r.name ? ' ' + esc(r.name) : '') + badge + '</td><td>' + r.count + '</td><td>' + (r.min_len === r.max_len ? r.min_len : r.min_len + '-' + r.max_len) + '</td><td class="dim">' + r.status + '</td></tr>';
   }).join('');
   knownOps = curOps;
   lastTotalIn = rows.filter(r => r.dir === 'in').reduce((a, r) => a + r.count, 0);
