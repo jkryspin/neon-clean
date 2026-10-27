@@ -34,6 +34,10 @@ for t, b in pk.get(0x029d, []):
 for t, b in pk.get(0x03c9, []):
     if len(b) >= 7:
         mobs.add(struct.unpack_from("<I", b, 3)[0])
+# ids of real objects are large; 0 and other tiny values are decode noise (a truncated/garbage packet) and would match every
+# all-zero field, which several packets have (explorer.rs uses the same guard)
+mobs = {v for v in mobs if v >= 100_000}
+players = {v for v in players if v >= 100_000}
 
 def ranges(offs):
     out, i = [], 0
