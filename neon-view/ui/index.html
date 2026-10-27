@@ -171,7 +171,7 @@ function render(s) {
     '<span>HP</span><span' + (m.max_hp && m.hp != null && m.hp / m.max_hp < 0.3 ? ' style="color:var(--mob);font-weight:600" title="below the brain\'s 30% low-HP stop-fighting threshold"' : '') + '>' + (m.hp ?? '?') + (m.max_hp ? ' / ' + m.max_hp + ' ' + pct(m.hp, m.max_hp) : '') + '</span>',
     '<span>MP</span><span>' + (m.mp ?? '?') + (m.max_mp ? ' / ' + m.max_mp + ' ' + pct(m.mp, m.max_mp) : '') + '</span>',
     '<span>EXP</span><span>' + (m.exp ?? '?') + '</span>',
-    '<span>EXP gained</span><span>' + s.exp_gained + ' in ' + s.exp_messages + ' kills</span>',
+    '<span>EXP gained</span><span>' + s.exp_gained + ' in ' + s.exp_messages + ' kills' + (s.now_ms > 60000 ? ' (' + Math.round(s.exp_gained / (s.now_ms / 3600000)) + '/hr)' : '') + '</span>',
     '<span>Meso</span><span>' + (m.meso ?? '?') + '</span>',
     '<span>Last pickup</span><span>' + (s.pickups.length ? s.pickups[s.pickups.length - 1][0] + ' x' + s.pickups[s.pickups.length - 1][1] : '-') + '</span>']);
   list('feed', s.feed.slice().reverse().map(f => '<span>' + esc(f.text) + '</span><span class="dim">' + (f.t_ms / 1000).toFixed(0) + 's</span>'));
