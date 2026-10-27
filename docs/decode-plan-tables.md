@@ -6,34 +6,34 @@ Incoming: 43/159 named (27%). Outgoing: 11/34 named (32%).
 
 | opcode | status | packets | next step |
 |---|---|---|---|
-| `0x0441` | structure | 138624 | needs binary analysis (passive tools already tried) |
-| `0x0456` | structure | 49280 | re-run sweep (not yet tried against landmarks) |
-| `0x02af` | structure | 36627 | needs binary analysis (passive tools already tried) |
-| `0x001b` | structure | 5491 | re-run sweep (not yet tried against landmarks) |
-| `0x022e` | structure | 4852 | needs binary analysis (passive tools already tried) |
-| `0x02b9` | structure | 4251 | needs binary analysis (passive tools already tried) |
-| `0x0279` | structure | 3348 | needs binary analysis (passive tools already tried) |
-| `0x02bb` | structure | 3044 | needs binary analysis (passive tools already tried) |
-| `0x02bd` | structure | 762 | re-run sweep as data grows |
+| `0x0441` | structure | 142401 | needs binary analysis (passive tools already tried) |
+| `0x0456` | structure | 50980 | re-run sweep (not yet tried against landmarks) |
+| `0x02af` | structure | 37515 | needs binary analysis (passive tools already tried) |
+| `0x001b` | structure | 5678 | re-run sweep (not yet tried against landmarks) |
+| `0x022e` | structure | 4958 | needs binary analysis (passive tools already tried) |
+| `0x02b9` | structure | 4316 | needs binary analysis (passive tools already tried) |
+| `0x0279` | structure | 3392 | needs binary analysis (passive tools already tried) |
+| `0x02bb` | structure | 3076 | needs binary analysis (passive tools already tried) |
+| `0x02bd` | structure | 778 | re-run sweep as data grows |
 | `0x0028` | structure | 674 | re-run sweep (not yet tried against landmarks) |
 | `0x02b7` | structure | 456 | re-run sweep as data grows |
-| `0x02ba` | structure | 355 | re-run sweep as data grows |
-| `0x02b0` | structure | 340 | re-run sweep as data grows |
+| `0x02ba` | structure | 357 | re-run sweep as data grows |
+| `0x02b0` | structure | 346 | re-run sweep as data grows |
 | `0x0077` | structure | 330 | re-run sweep (not yet tried against landmarks) |
-| `0x0020` | observed | 312 | re-run sweep (not yet tried against landmarks) |
-| `0x001d` | structure | 188 | re-run sweep (not yet tried against landmarks) |
+| `0x0020` | observed | 321 | re-run sweep (not yet tried against landmarks) |
+| `0x001d` | structure | 194 | re-run sweep (not yet tried against landmarks) |
 | `0x00b7` | structure | 178 | re-run sweep (not yet tried against landmarks) |
-| `0x0381` | observed | 156 | re-run sweep (not yet tried against landmarks) |
-| `0x018c` | observed | 129 | re-run sweep (not yet tried against landmarks) |
+| `0x0381` | observed | 160 | re-run sweep (not yet tried against landmarks) |
+| `0x018c` | observed | 135 | re-run sweep (not yet tried against landmarks) |
 | `0x0283` | structure | 93 | re-run sweep (not yet tried against landmarks) |
-| `0x062d` | observed | 89 | re-run sweep (not yet tried against landmarks) |
-| `0x062c` | observed | 58 | re-run sweep (not yet tried against landmarks) |
+| `0x062d` | observed | 93 | re-run sweep (not yet tried against landmarks) |
+| `0x062c` | observed | 62 | re-run sweep (not yet tried against landmarks) |
 | `0x05ac` | observed | 46 | re-run sweep (not yet tried against landmarks) |
 | `0x03e9` | structure | 42 | re-run sweep as data grows |
 | `0x0362` | observed | 40 | re-run sweep (not yet tried against landmarks) |
 | `0x03f3` | structure | 39 | re-run sweep as data grows |
 | `0x02b3` | structure | 32 | re-run sweep as data grows |
-| `0x0102` | observed | 22 | needs live trigger (too little passive data) |
+| `0x0102` | observed | 24 | needs live trigger (too little passive data) |
 | `0x008d` | structure | 19 | needs live trigger (too little passive data) |
 | `0x0270` | observed | 18 | needs live trigger (too little passive data) |
 | `0x00c1` | observed | 16 | needs live trigger (too little passive data) |

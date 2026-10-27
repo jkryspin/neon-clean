@@ -272,10 +272,12 @@ fn records_expand_and_layout_reports_every_explained_byte() {
     let mut p97 = p87.clone();
     p97.extend_from_slice(&[0; 10]);
     assert!(r.decode(Dir::In, &p97).is_none());
-    // layout: opcode (2) + char_id (4) + attacker_trait (1) + two position pairs (4 x 4) + record fields (4 + 4 each)
+    // layout: opcode (2) + char_id (4) + attacker_trait (1) + skill_id (4) + two position pairs (4 x 4)
+    //         + record fields (4 + 4 each)
     let spans = r.layout(Dir::In, &p111);
     let bytes: usize = spans.iter().map(|s| s.size).sum();
-    assert_eq!(bytes, 2 + 4 + 1 + 16 + 2 * (4 + 4));
+    assert_eq!(bytes, 2 + 4 + 1 + 4 + 16 + 2 * (4 + 4));
+    assert!(spans.iter().any(|s| s.name == "skill_id" && s.off == 8), "skill_id must be part of the layout");
     assert!(spans.iter().any(|s| s.name == "target[1].damage" && s.off == 63 + 24 + 8));
     // a mode byte counts as explained too
     let exp = plain(c["0x8b_exp"]["plain"].as_str().unwrap());
