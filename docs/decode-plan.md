@@ -96,6 +96,15 @@ gaps):
   behavioural test (named mob should be adjacent to the player) was run with wrong position extraction and is
   inconclusive, not negative. Re-run it with `neon-world`'s own `end_position` before trusting it.
 
+**Automated as `scripts/align-kinoko.py`** (report only, writes nothing). It places each unnamed opcode
+between its two nearest anchors and prints the Kinoko entries in that span. Crucially it shows how WIDE each
+candidate set is, so a one-candidate prediction is never confused with a 59-candidate shortlist.
+
+**The method compounds**, which is what makes it systematic rather than a one-off: every opcode confirmed
+becomes a new anchor that narrows its neighbours. Running with `--with-hypotheses` (which adds the four
+accepted so far) already narrows `0x02b9` to exactly one candidate and `0x02b0`/`0x02b7` from eleven to four.
+Confirm those four and the next ring narrows again.
+
 **Method to repeat for the remaining ~110:** place the unknown between its two nearest named anchors, read off
 the Kinoko entries in that span, and test the predicted payload shape against captures. Cheap, zero risk, and
 it does not need the client binary at all.
