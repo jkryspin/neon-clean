@@ -88,8 +88,8 @@
         <div id="ex-summary" style="margin-bottom:8px;font-size:12px;line-height:1.4"></div>
         <div id="ex-map"></div><div id="ex-meta" class="dim" style="margin-top:8px;font-size:12px"></div>
         <div id="ex-samples" class="hex" style="margin-top:8px;font:11px ui-monospace,monospace;color:var(--dim);white-space:pre-wrap"></div></div></div>
-    <div><h2>Map next <span class="dim" style="text-transform:none;letter-spacing:0">unexplained traffic first</span></h2>
-      <div class="box"><table><thead><tr><th>opcode</th><th>seen</th><th>left</th></tr></thead><tbody id="todo"></tbody></table></div></div>
+    <div><h2>Map next <span class="dim" style="text-transform:none;letter-spacing:0" title="ranked by count x unexplained-varying-bytes, so a high-traffic opcode with a few mystery bytes outranks a rare one with many - the same thing scripts/correlate.py checks systematically, so run that first">unexplained traffic first</span></h2>
+      <div class="box"><table><thead><tr><th>opcode</th><th>seen</th><th title="unexplained, varying bytes in the dominant-length form - see the opcode explorer's byte map for exactly which ones">left</th></tr></thead><tbody id="todo"></tbody></table></div></div>
   </div>
 </section>
 <script>
