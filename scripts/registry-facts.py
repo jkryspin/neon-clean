@@ -50,6 +50,29 @@ def ranges(offs):
         i = j + 1
     return out
 
+def best_ref(op):
+    """The single strongest (kind, offset) id-reference for this opcode's dominant-length packets, if any is strong enough to
+    promote an 'observed' entry to 'structure' with a field (the same 0.8-share threshold as the FACTS sentence)."""
+    rows = pk[op]
+    lens = collections.Counter(len(b) for t, b in rows)
+    if not lens:
+        return None
+    dom = lens.most_common(1)[0][0]
+    same = [b for t, b in rows if len(b) == dom]
+    if len(same) < 8 or dom < 6:
+        return None
+    best = None
+    for o in range(2, min(dom - 3, 120)):
+        vals = [struct.unpack_from("<I", b, o)[0] for b in same]
+        if len(set(vals)) < 3:
+            continue
+        for kind, known in (("player", players), ("mob", mobs)):
+            h = sum(1 for v in vals if v in known)
+            share = h / len(vals)
+            if share >= 0.8 and h >= 5 and (best is None or h > best[2]):
+                best = (kind, o, h, len(vals))
+    return best
+
 def facts(op):
     rows = pk[op]
     n = len(rows)
@@ -99,12 +122,19 @@ for b in parts:
             sm = re.search(r'^summary = "(.*)"\n', b, re.M)
             if sm:
                 body = re.sub(r" ?FACTS \(.*$", "", sm[1])
-                new = f'summary = "{body}{" " if body else ""}{f}"\n'.replace('\\"', '"').replace('"', '\\"', 0)
                 new = 'summary = "' + (body + " " if body else "") + f.replace('"', "'") + '"\n'
                 b = b[: sm.start()] + new + b[sm.end():]
             else:
                 stm = re.search(r'^status = "\w+"\n', b, re.M)
                 b = b[: stm.end()] + 'summary = "' + f.replace('"', "'") + '"\n' + b[stm.end():]
+            # an 'observed' entry with a strong, single id-reference and no field array yet: promote it, like a human would
+            if st[1] == "observed" and "field = [" not in b:
+                br = best_ref(op)
+                if br:
+                    kind, off, hits, total = br
+                    fname = "mob_oid" if kind == "mob" else "char_id"
+                    b = re.sub(r'^status = "observed"\n', 'status = "structure"\n', b, count=1, flags=re.M)
+                    b = b.rstrip("\n") + f'\nfield = [{{ name = "{fname}", ty = "u32", off = {off} }}]\n\n'
             changed += 1
     out.append(b)
 extra = ""
