@@ -163,6 +163,6 @@ missing is a confirmed MEANING for the ones that still say "Meaning not establis
 2. More live actions on jib01 with marks for opcodes that need a trigger nobody has done yet (trade needs a second account; most
    skills need levels this beginner character does not have).
 3. The avatar-look blob in `PlayerSpawn`/`AvatarModified` (lower priority: cosmetic, not needed for the bot's own logic).
-4. The movement fragment's stance/climbing byte layout - partly resolved tonight (2026-10-26, active climb on jib01): climbing uses the same `MoveSelf`/`0x00db` opcode and x@16/y@18 header as walking (x held constant at the ladder's x, y moves through its range); the per-fragment stance/foothold byte itself is still open.
+4. ~~The movement fragment's stance/climbing byte layout~~ - SOLVED tonight (2026-10-26, active climb on jib01): climbing uses the same `MoveSelf`/`0x00db` opcode and x@16/y@18 header as walking; the per-fragment stance byte is 15 exactly when foothold is -1 (no platform underneath - the ladder case), a clean separation across 152 real fragments, never seen on any of the 141 fragments with a real foothold. Also fixed an off-by-one in the opcode's own records table (`start` was an unverified 26, should be 25).
 5. Once the wire numbering is solved offline against recorded connections: NP12-T first, with `neon-cmd`'s `SafetyGate` and
    `ReconnectPolicy` enforced, per the approval in `docs/authorization.md`.
