@@ -210,6 +210,36 @@ POSITIONED, sized or typed wrongly and round-trip.
 What is still not possible: building a packet from nothing for an opcode whose bytes are not fully explained.
 That needs the decode work this plan tracks, not more encoder work.
 
+## WZ validation (2026-10-27): the client's own data files resolve id fields
+
+The client ships 676 MB of unencrypted game data at `Data/` in classic `PKG1` WZ format. `String_000.wz`
+carries the id->name tables (Mob, Skill, Consume, Eqp, Npc, Map). `neon-calib/tools/wzread.py` parses it:
+strings use the plain XOR-with-incrementing-mask scheme with a ZERO AES key, so no region key is needed; the
+stored 8-bit encrypted version matches many version numbers, so the right one is chosen by requiring every
+root-directory offset to land inside the file (version 779 here).
+
+This is an **independent source of truth for every id field in the protocol**, at zero risk and with no
+reverse engineering of the executable. It immediately did two things:
+
+**Confirmed `0x02b9` = UserEffectRemote, and corrected a wrong reading.** The registry recorded the large
+`u32@7` values as "item-id-range numbers" that matched no dropped item. They are not items - they are JOB
+SKILL ids, which is exactly why nothing matched. From the client's `Skill.img`: 1001=Recovery,
+1002=Nimble Feet (the beginner skills this very test character has), 1001000=Iron Body, 2001001=Magic Armor,
+3001000=Focus, 4101001=Haste. Every observed value resolves to a real skill and all are buff/self-enhancement
+skills. The long-open "skill use or emote display?" question is settled as SKILL USE from the client's own
+data.
+
+**Validated the parser itself.** `Mob.img` reproduces neon-view's existing mob-name table exactly (2=Snail,
+3=Blue Snail, 5=Red Snail, 6=Stump, 11=Dark Stump), and those are precisely the templates that dominate our
+captures - consistent with the bots being in beginner areas. Independent agreement with a table produced
+earlier by other means is good evidence the parser is right.
+
+Note this client numbers mobs with small sequential ids (2, 3, 5, 6, 11...), not the classic 100100-style ids.
+
+**Use it for any future id field**: `wzread.py lookup Skill.img 0001001`, `... names Mob.img`. Checking an id
+against the client's own data should be the first move whenever a field holds something id-shaped, before any
+statistical argument about what it might mean.
+
 ## Step 3 RESULT (2026-10-27): dynamic observation - how far it gets without touching the process
 
 Run on jib01 (test account) with the user monitoring. Cumulative ~2 minutes of profiling; **no adverse effect
