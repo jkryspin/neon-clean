@@ -5,7 +5,10 @@
 
 For each incoming opcode seen in the logs: packet count, number of logs, the commonest sizes, the typical gap and whether it is periodic
 (>= 70% of gaps within 15% of the median), the byte ranges that never change (at the dominant size), and u32 fields that hold ids
-of players/mobs seen in verified packets. The sentence starts with "FACTS (" and is replaced on re-runs, so the script is idempotent.
+of players/mobs seen in verified packets. EVERYTHING FROM THE FIRST "FACTS (" TO THE END OF THE STRING IS DELETED AND REPLACED on every
+re-run - any hand-written note must go BEFORE that point in the summary, never after, or the next run silently destroys it with no
+warning (lost this way once already, 2026-10-27: two scripts/correlate.py findings were appended after FACTS and wiped by the very next
+refresh; both had to be re-added, this time before the FACTS marker).
 Only the logs written since neon-stream decrypts exactly (2026-10-26 18:38) are meaningful: older ones were decoded with a heuristic.
 Opcodes missing from the registry are added as `observed`. Run scripts/test-headless.sh afterwards.
 """
