@@ -246,12 +246,13 @@ function renderOps(rows) {
   }).join('');
   knownOps = curOps;
   const inRows = rows.filter(r => r.dir === 'in');
+  const outRows = rows.filter(r => r.dir === 'out');
+  const order = ['verified', 'decoded', 'structure', 'observed'];
+  const breakdown = group => { const by = {}; for (const r of group) by[r.status] = (by[r.status] || 0) + 1; return order.filter(s => by[s]).map(s => by[s] + ' ' + s).join(', '); };
   if (inRows.length) {
-    const by = {};
-    for (const r of inRows) by[r.status] = (by[r.status] || 0) + 1;
-    const order = ['verified', 'decoded', 'structure', 'observed'];
-    document.getElementById('coverage').textContent = inRows.length + ' opcodes seen: ' +
-      order.filter(s => by[s]).map(s => by[s] + ' ' + s).join(', ');
+    let text = inRows.length + ' in: ' + breakdown(inRows);
+    if (outRows.length) text += '; ' + outRows.length + ' out: ' + breakdown(outRows);
+    document.getElementById('coverage').textContent = text;
   }
 }
 let exSel = null;
