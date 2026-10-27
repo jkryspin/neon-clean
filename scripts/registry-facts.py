@@ -139,11 +139,18 @@ for b in parts:
     out.append(b)
 extra = ""
 for op in sorted(pk):
-    if op not in seen_in and len(pk[op]) >= 2:
-        lens = collections.Counter(len(b) for t, b in pk[op])
-        lo, hi = min(lens), max(lens)
-        extra += f'[[opcode]]\nid = {op:#06x}\ndir = "in"\nstatus = "observed"\nsummary = "{facts(op).replace(chr(34), chr(39))}"\nlen_min = {lo}\nlen_max = {hi}\n\n'
-        added += 1
+    # A brand-new opcode needs more than a handful of bytes seen once: a framing/desync glitch can split a real packet into
+    # tiny leftover "packets" that happen to parse as a plausible-looking opcode, all at the exact same instant (seen once,
+    # 2026-10-26: five bare 2-byte "opcodes" all at one timestamp, sandwiched in otherwise normal traffic, never seen again).
+    # Require real temporal spread - at least 3 packets spanning more than 1 second - to rule that out.
+    rows = pk[op]
+    if op not in seen_in and len(rows) >= 3:
+        ts = sorted(t for t, b in rows)
+        if ts[-1] - ts[0] > 1.0:
+            lens = collections.Counter(len(b) for t, b in rows)
+            lo, hi = min(lens), max(lens)
+            extra += f'[[opcode]]\nid = {op:#06x}\ndir = "in"\nstatus = "observed"\nsummary = "{facts(op).replace(chr(34), chr(39))}"\nlen_min = {lo}\nlen_max = {hi}\n\n'
+            added += 1
 print(f"{changed} entries updated, {added} opcodes added")
 if not dry:
     res = "".join(out).rstrip("\n") + "\n\n" + extra.rstrip("\n") + ("\n" if extra else "")
