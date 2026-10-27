@@ -981,10 +981,14 @@ field = [{ name = "char_id", ty = "u32", off = 2 }]
 [[opcode]]
 id = 0x02b8
 dir = "in"
-status = "observed"
-summary = "FACTS (exact-decoded logs, 2026-10-26): 35 packets in 7 log(s); sizes 366 x11, 361 x9, 376 x4, 371 x3; median gap 231.3 s; constant bytes @5-6=00 01, @9-12=00 00 00 00, @15-16=00 00, @19-21=00 00 00, @24-25=00 00; u32@2 is a known player id in 11/11. Meaning not established."
+name = "AvatarModified"
+status = "structure"
+summary = "A player's full look/equip refresh: char_id@2 is a known player in 24 of 27 distinct senders (2026-10-26, shurella2 pool); a variable-length header (job/level/stats, not decoded) is followed by the SAME equip-list pattern as PlayerSpawn ([slot u8][item id u32] records, item ids in the 1-2 million range, terminated by 0xff, slot numbers matching PlayerSpawn's category mapping: 1 cap, 4 weapon, 5 top, 7 shoes, 8 gloves, 9/10 shield/cape, 11 seen too), then a second 0xff-terminated list (cash items, as in PlayerSpawn). 34 packets, median gap ~209 s, for many different players, so it is not a login-time one-off; the natural reading is a periodic or change-triggered resync of a player's appearance to nearby clients, sent in addition to PlayerSpawn. Header fields before the equip list are not decoded (parse_equips in neon-world assumes PlayerSpawn's name-then-equips layout and does not apply here as-is). FACTS (exact-decoded logs, 2026-10-26): 34 packets in 7 log(s); sizes 366 x10, 361 x9, 376 x4, 371 x3; median gap 209.2 s; constant bytes @5-6=00 01, @9-12=00 00 00 00, @15-16=00 00, @19-21=00 00 00, @24-25=00 00; u32@2 is a known player id in 10/10."
 len_min = 366
 len_max = 421
+field = [
+  { name = "char_id", ty = "u32", off = 2 },
+]
 
 [[opcode]]
 id = 0x02b9
