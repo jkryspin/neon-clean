@@ -35,6 +35,7 @@
 <body>
 <header>
   <b>Neon View</b>
+  <span id="dead-banner" style="display:none;background:var(--mob);color:#fff;font-weight:700;padding:1px 8px;border-radius:4px">&#9760; CHARACTER DEAD</span>
   <span id="map" class="dim">map: -</span><label class="dim">map id <input id="mapid" size="9" placeholder="e.g. 1010" style="background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 4px"></label>
   <span id="counts" class="dim"></span>
   <span id="coverage" class="dim" title="incoming opcodes by status"></span>
@@ -158,6 +159,7 @@ function render(s) {
     desync.textContent = (recent ? '⚠ ' : '') + s.heuristic_skipped + ' heuristic/unreadable packet(s)' + ratio + (agoMs != null ? (recent ? ', ongoing' : ', last ' + (agoMs / 1000).toFixed(0) + 's ago (likely just the startup sync)') : '');
   }
   const m = s.me, pct = (a, b) => a != null && b ? Math.round(100 * a / b) + '%' : '';
+  document.getElementById('dead-banner').style.display = m.dead ? '' : 'none';
   list('me', [
     '<span>Position</span><span>' + (m.x != null ? m.x + ', ' + m.y + (m.grounded === false ? ' (air)' : '') : '?') + '</span>',
     '<span>Level</span><span>' + (m.level ?? '?') + (m.job != null ? ' (job ' + m.job + ')' : '') + '</span>',
