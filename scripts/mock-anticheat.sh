@@ -43,7 +43,11 @@ case "${1:-status}" in
     ;;
   status)
     for r in grap64.dll nmcogame64.dll; do
-      if [ -f "$GAME/$r.orig" ]; then echo "$r: MOCKED"; else echo "$r: real"; fi
+      if [ -f "$GAME/$r.orig" ] && ! cmp -s "$GAME/$r" "$GAME/$r.orig"; then
+        echo "$r: MOCKED"
+      else
+        echo "$r: real"
+      fi
     done
     ;;
   token)
