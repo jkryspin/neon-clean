@@ -676,20 +676,51 @@ impl NetDecoder {
     }
 }
 
-/// Local ports of `pid`'s TCP connections to a game server port, from /proc (its socket inodes matched against
-/// /proc/<pid>/net/tcp). Server-to-client packets of this client arrive on these ports.
+/// Local ports of `pid`'s TCP connections to a game server port.
+/// Linux: /proc/<pid>/fd + /proc/<pid>/net/tcp
+/// macOS: lsof -i TCP -a -p PID
 pub fn game_ports_of(pid: u32) -> Vec<u16> {
-    let Ok(fds) = std::fs::read_dir(format!("/proc/{pid}/fd")) else { return vec![] };
-    let inodes: std::collections::HashSet<String> = fds
-        .filter_map(|e| std::fs::read_link(e.ok()?.path()).ok())
-        .filter_map(|l| l.to_str()?.strip_prefix("socket:[")?.strip_suffix(']').map(str::to_string))
-        .collect();
-    let mut out = vec![];
-    for table in ["tcp", "tcp6"] {
-        let Ok(text) = std::fs::read_to_string(format!("/proc/{pid}/net/{table}")) else { continue };
-        out.extend(game_ports_in(&text, &inodes));
+    #[cfg(target_os = "linux")]
+    {
+        let Ok(fds) = std::fs::read_dir(format!("/proc/{pid}/fd")) else { return vec![] };
+        let inodes: std::collections::HashSet<String> = fds
+            .filter_map(|e| std::fs::read_link(e.ok()?.path()).ok())
+            .filter_map(|l| l.to_str()?.strip_prefix("socket:[")?.strip_suffix(']').map(str::to_string))
+            .collect();
+        let mut out = vec![];
+        for table in ["tcp", "tcp6"] {
+            let Ok(text) = std::fs::read_to_string(format!("/proc/{pid}/net/{table}")) else { continue };
+            out.extend(game_ports_in(&text, &inodes));
+        }
+        out
     }
-    out
+    #[cfg(target_os = "macos")]
+    {
+        // lsof -i TCP -a -p PID -n -P -F n
+        let output = std::process::Command::new("lsof")
+            .args(["-i", "TCP", "-a", "-p", &pid.to_string(), "-n", "-P", "-F", "n"])
+            .output();
+        let Ok(output) = output else { return vec![] };
+        let text = String::from_utf8_lossy(&output.stdout);
+        let mut out = vec![];
+        for line in text.lines() {
+            // Lines like "n*:54321->1.2.3.4:8585" or "n192.168.1.1:54321->1.2.3.4:8585"
+            if let Some(rest) = line.strip_prefix('n') {
+                if let Some(arrow) = rest.find("->") {
+                    let local = &rest[..arrow];
+                    let remote = &rest[arrow + 2..];
+                    let local_port = local.rsplit(':').next().and_then(|p| p.parse::<u16>().ok());
+                    let remote_port = remote.rsplit(':').next().and_then(|p| p.parse::<u16>().ok());
+                    if let (Some(lp), Some(rp)) = (local_port, remote_port) {
+                        if (PORT_MIN..=PORT_MAX).contains(&rp) {
+                            out.push(lp);
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
 }
 
 fn game_ports_in(table: &str, inodes: &std::collections::HashSet<String>) -> Vec<u16> {

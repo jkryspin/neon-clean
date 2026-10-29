@@ -136,12 +136,27 @@ const VIEW: (i32, i32, f64, f64) = (28, 97, 1366.0, 768.0);
 
 impl Win {
     pub(crate) fn find() -> Result<Self, String> {
-        let ids = xdo(&["search", "--name", "MapleStory"])?;
-        let id = ids.lines().next().map(str::trim).filter(|s| !s.is_empty()).ok_or("game window not found")?.to_string();
-        let geo = xdo(&["getwindowgeometry", "--shell", &id])?;
-        let val = |k: &str| -> Option<f64> { geo.lines().find_map(|l| l.strip_prefix(&format!("{k}="))).and_then(|v| v.trim().parse().ok()) };
-        let (w, h) = (val("WIDTH").ok_or("no window width")?, val("HEIGHT").ok_or("no window height")?);
-        Ok(Self::sized(id, w, h))
+        #[cfg(target_os = "linux")]
+        {
+            let ids = xdo(&["search", "--name", "MapleStory"])?;
+            let id = ids.lines().next().map(str::trim).filter(|s| !s.is_empty()).ok_or("game window not found")?.to_string();
+            let geo = xdo(&["getwindowgeometry", "--shell", &id])?;
+            let val = |k: &str| -> Option<f64> { geo.lines().find_map(|l| l.strip_prefix(&format!("{k}="))).and_then(|v| v.trim().parse().ok()) };
+            let (w, h) = (val("WIDTH").ok_or("no window width")?, val("HEIGHT").ok_or("no window height")?);
+            Ok(Self::sized(id, w, h))
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let script = r#"tell application "System Events" to get {position, size} of first window of (first process whose name contains "MapleStory")"#;
+            let out = Command::new("osascript").args(["-e", script]).output().map_err(|e| format!("osascript: {e}"))?;
+            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let nums: Vec<f64> = text.split(|c: char| !c.is_ascii_digit() && c != '-' && c != '.').filter_map(|s| s.parse().ok()).collect();
+            if nums.len() >= 4 {
+                Ok(Self::sized("macos".to_string(), nums[2], nums[3]))
+            } else {
+                Err("MapleStory window not found".to_string())
+            }
+        }
     }
 
     pub(crate) fn sized(id: String, w: f64, h: f64) -> Self {
@@ -170,37 +185,61 @@ impl Win {
 
     /// Hash of the meso counter's pixels; it changes whenever the amount does.
     pub(crate) fn mesos_signature(&self) -> Option<String> {
-        let (x, y) = self.scale((MESOS_BOX.0, MESOS_BOX.1));
-        let (w, h) = self.size((MESOS_BOX.2, MESOS_BOX.3));
-        let out = Command::new("import").args(["-window", &self.id, "-crop", &format!("{w}x{h}+{x}+{y}"), "+repage", "-format", "%#", "info:"]).envs(x_env()).output().ok()?;
-        let sig = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        (!sig.is_empty()).then_some(sig)
+        #[cfg(target_os = "linux")]
+        {
+            let (x, y) = self.scale((MESOS_BOX.0, MESOS_BOX.1));
+            let (w, h) = self.size((MESOS_BOX.2, MESOS_BOX.3));
+            let out = Command::new("import").args(["-window", &self.id, "-crop", &format!("{w}x{h}+{x}+{y}"), "+repage", "-format", "%#", "info:"]).envs(x_env()).output().ok()?;
+            let sig = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            (!sig.is_empty()).then_some(sig)
+        }
+        #[cfg(target_os = "macos")]
+        {
+            // macOS: screencapture doesn't support per-window cropped hash; return a timestamp-based signature
+            // so each call returns a different value (shop automation will always assume mesos changed).
+            Some(format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)))
+        }
     }
 
     /// True if the 28x28 area at (x, y) (reference pixels) holds an icon rather than a flat slot colour.
     pub(crate) fn cell_occupied(&self, x: i32, y: i32) -> bool {
-        let (px, py) = self.scale((x, y));
-        let side = (28.0 * self.w / REF_W).round() as i32;
-        let out = Command::new("import")
-            .args(["-window", &self.id, "-crop", &format!("{side}x{side}+{px}+{py}"), "+repage", "-colorspace", "Gray", "-format", "%[fx:standard_deviation]", "info:"])
-            .envs(x_env())
-            .output();
-        match out {
-            Ok(o) => String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().map_or(true, |d| d > ICON_MIN_DEV),
-            Err(_) => true,
+        #[cfg(target_os = "linux")]
+        {
+            let (px, py) = self.scale((x, y));
+            let side = (28.0 * self.w / REF_W).round() as i32;
+            let out = Command::new("import")
+                .args(["-window", &self.id, "-crop", &format!("{side}x{side}+{px}+{py}"), "+repage", "-colorspace", "Gray", "-format", "%[fx:standard_deviation]", "info:"])
+                .envs(x_env())
+                .output();
+            match out {
+                Ok(o) => String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().map_or(true, |d| d > ICON_MIN_DEV),
+                Err(_) => true,
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            // Without per-window pixel reading, assume occupied (conservative: never sells an empty slot)
+            true
         }
     }
 
     /// True if the sell-list row `row` holds an item.
     fn row_occupied(&self, row: u32) -> bool {
-        let (x, y) = self.scale((ICON_X, ICON_Y + SLOT_PITCH * row as i32));
-        let out = Command::new("import")
-            .args(["-window", &self.id, "-crop", &format!("{}x{}+{x}+{y}", (28.0 * self.w / REF_W).round() as i32, (28.0 * self.h / REF_H).round() as i32), "+repage", "-colorspace", "Gray", "-format", "%[fx:standard_deviation]", "info:"])
-            .envs(x_env())
-            .output();
-        match out {
-            Ok(o) => String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().map_or(false, |d| d > ICON_MIN_DEV),
-            Err(_) => false,
+        #[cfg(target_os = "linux")]
+        {
+            let (x, y) = self.scale((ICON_X, ICON_Y + SLOT_PITCH * row as i32));
+            let out = Command::new("import")
+                .args(["-window", &self.id, "-crop", &format!("{}x{}+{x}+{y}", (28.0 * self.w / REF_W).round() as i32, (28.0 * self.h / REF_H).round() as i32), "+repage", "-colorspace", "Gray", "-format", "%[fx:standard_deviation]", "info:"])
+                .envs(x_env())
+                .output();
+            match out {
+                Ok(o) => String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().map_or(false, |d| d > ICON_MIN_DEV),
+                Err(_) => false,
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            true
         }
     }
 }
@@ -229,11 +268,19 @@ pub fn parse_item_spec(spec: &str) -> Option<(&'static str, u32, u32)> {
 impl Win {
     /// The inventory window is drawn in near-white; three white probes on its frame mean it is open.
     fn inventory_open(&self) -> bool {
-        [(100, 133), (200, 133), (150, 392)].iter().all(|&p| {
-            let (x, y) = self.scale(p);
-            let out = Command::new("import").args(["-window", &self.id, "-crop", &format!("6x6+{x}+{y}"), "+repage", "-colorspace", "Gray", "-format", "%[fx:mean]", "info:"]).envs(x_env()).output();
-            out.ok().and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().ok()).map_or(false, |m| m > 0.93)
-        })
+        #[cfg(target_os = "linux")]
+        {
+            [(100, 133), (200, 133), (150, 392)].iter().all(|&p| {
+                let (x, y) = self.scale(p);
+                let out = Command::new("import").args(["-window", &self.id, "-crop", &format!("6x6+{x}+{y}"), "+repage", "-colorspace", "Gray", "-format", "%[fx:mean]", "info:"]).envs(x_env()).output();
+                out.ok().and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().ok()).map_or(false, |m| m > 0.93)
+            })
+        }
+        #[cfg(target_os = "macos")]
+        {
+            // Without per-window pixel probing, assume not open (conservative: will try to open it)
+            false
+        }
     }
 }
 
@@ -363,11 +410,18 @@ pub fn bind_to_quickslot(spec: &str, slot: &str) -> Result<String, String> {
 impl Win {
     /// Hash of a 28x28 inventory cell's pixels (top-left in reference pixels): it changes when the item there does.
     fn cell_signature(&self, x: i32, y: i32) -> Option<String> {
-        let (px, py) = self.scale((x, y));
-        let side = (28.0 * self.w / REF_W).round() as i32;
-        let out = Command::new("import").args(["-window", &self.id, "-crop", &format!("{side}x{side}+{px}+{py}"), "+repage", "-format", "%#", "info:"]).envs(x_env()).output().ok()?;
-        let sig = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        (!sig.is_empty()).then_some(sig)
+        #[cfg(target_os = "linux")]
+        {
+            let (px, py) = self.scale((x, y));
+            let side = (28.0 * self.w / REF_W).round() as i32;
+            let out = Command::new("import").args(["-window", &self.id, "-crop", &format!("{side}x{side}+{px}+{py}"), "+repage", "-format", "%#", "info:"]).envs(x_env()).output().ok()?;
+            let sig = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            (!sig.is_empty()).then_some(sig)
+        }
+        #[cfg(target_os = "macos")]
+        {
+            Some(format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)))
+        }
     }
 }
 
@@ -409,14 +463,184 @@ pub fn equip(spec: &str) -> Result<bool, String> {
 }
 
 pub(crate) fn x_env() -> Vec<(String, String)> {
-    let display = std::env::var("DISPLAY").unwrap_or_else(|_| ":0".into());
-    let auth = std::env::var("XAUTHORITY").unwrap_or_default();
-    vec![("DISPLAY".into(), display), ("XAUTHORITY".into(), auth)]
+    #[cfg(target_os = "linux")]
+    {
+        let display = std::env::var("DISPLAY").unwrap_or_else(|_| ":0".into());
+        let auth = std::env::var("XAUTHORITY").unwrap_or_default();
+        vec![("DISPLAY".into(), display), ("XAUTHORITY".into(), auth)]
+    }
+    #[cfg(target_os = "macos")]
+    {
+        vec![]
+    }
 }
 
+/// Execute a UI automation command. On Linux this calls xdotool; on macOS it translates
+/// the xdotool command to cliclick/osascript equivalents.
 pub(crate) fn xdo(args: &[&str]) -> Result<String, String> {
-    let out = Command::new("xdotool").args(args).envs(x_env()).output().map_err(|e| format!("xdotool {args:?}: {e}"))?;
-    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+    #[cfg(target_os = "linux")]
+    {
+        let out = Command::new("xdotool").args(args).envs(x_env()).output().map_err(|e| format!("xdotool {args:?}: {e}"))?;
+        Ok(String::from_utf8_lossy(&out.stdout).to_string())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        xdo_macos(args)
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn xdo_macos(args: &[&str]) -> Result<String, String> {
+    if args.is_empty() { return Ok(String::new()); }
+
+    // Parse the xdotool command and translate to macOS equivalents.
+    // xdotool allows chaining: "mousemove ... sleep 0.15 click 1"
+    let mut i = 0;
+    let mut result = String::new();
+    while i < args.len() {
+        match args[i] {
+            "search" => {
+                // xdotool search --name "MapleStory" -> find window via osascript
+                let name = args.iter().skip(i).find(|a| !a.starts_with('-') && **a != "search" && **a != "--name").unwrap_or(&"MapleStory");
+                let script = format!(
+                    r#"tell application "System Events" to get id of first window of (first process whose name contains "{}")"#,
+                    name.replace('"', "\\\"")
+                );
+                let out = Command::new("osascript").args(["-e", &script]).output().map_err(|e| format!("osascript: {e}"))?;
+                result = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if result.is_empty() {
+                    result = "1".to_string(); // placeholder window id for macOS
+                }
+                break;
+            }
+            "getwindowgeometry" => {
+                // Return window geometry in a format the callers can parse
+                let script = r#"tell application "System Events" to get {position, size} of first window of (first process whose name contains "MapleStory")"#;
+                let out = Command::new("osascript").args(["-e", script]).output().map_err(|e| format!("osascript: {e}"))?;
+                let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                let nums: Vec<i32> = text.split(|c: char| !c.is_ascii_digit() && c != '-').filter_map(|s| s.parse().ok()).collect();
+                if nums.len() >= 4 {
+                    // --shell format: X=... Y=... WIDTH=... HEIGHT=...
+                    if args.contains(&"--shell") {
+                        result = format!("X={}\nY={}\nWIDTH={}\nHEIGHT={}\n", nums[0], nums[1], nums[2], nums[3]);
+                    } else {
+                        result = format!("{}x{}+{}+{}", nums[2], nums[3], nums[0], nums[1]);
+                    }
+                }
+                break;
+            }
+            "mousemove" => {
+                // Find coordinates, skip --window
+                let mut x = None;
+                let mut y = None;
+                let mut j = i + 1;
+                while j < args.len() && args[j] != "sleep" && args[j] != "click" && args[j] != "key" && args[j] != "keydown" && args[j] != "keyup" && args[j] != "type" {
+                    if args[j] == "--window" { j += 2; continue; }
+                    if x.is_none() { x = args[j].parse::<i32>().ok(); }
+                    else if y.is_none() { y = args[j].parse::<i32>().ok(); }
+                    j += 1;
+                }
+                if let (Some(x), Some(y)) = (x, y) {
+                    let _ = Command::new("cliclick").arg(format!("m:{},{}", x, y)).status();
+                }
+                i = j;
+                continue;
+            }
+            "sleep" => {
+                if let Some(secs) = args.get(i + 1).and_then(|s| s.parse::<f64>().ok()) {
+                    std::thread::sleep(std::time::Duration::from_millis((secs * 1000.0) as u64));
+                }
+                i += 2;
+                continue;
+            }
+            "click" => {
+                let mut j = i + 1;
+                let mut button = "1";
+                let mut repeat = 1u32;
+                while j < args.len() && args[j] != "mousemove" && args[j] != "sleep" && args[j] != "key" && args[j] != "search" {
+                    match args[j] {
+                        "--repeat" => { repeat = args.get(j + 1).and_then(|s| s.parse().ok()).unwrap_or(1); j += 2; continue; }
+                        "--delay" => { j += 2; continue; }
+                        "double" => { repeat = 2; }
+                        b @ ("1" | "3" | "5") => { button = b; }
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                for r in 0..repeat {
+                    if r > 0 { std::thread::sleep(std::time::Duration::from_millis(70)); }
+                    match button {
+                        "3" => { let _ = Command::new("cliclick").arg("rc:.").status(); }
+                        "5" => {
+                            // scroll down (mouse wheel)
+                            let script = r#"tell application "System Events" to scroll down"#;
+                            let _ = Command::new("osascript").args(["-e", script]).status();
+                        }
+                        _ => {
+                            // Use mousedown+mouseup for Wine/CrossOver compatibility
+                            let _ = Command::new("cliclick").arg("c:.").status();
+                        }
+                    }
+                }
+                i = j;
+                continue;
+            }
+            "key" => {
+                if let Some(key) = args.get(i + 1) {
+                    if let Some(xk) = crate::xkeys::XKeys::connect().ok() {
+                        // Handle combos like "ctrl+a"
+                        let parts: Vec<&str> = key.split('+').collect();
+                        if parts.len() > 1 {
+                            for p in &parts[..parts.len()-1] { let _ = xk.send(p, true); }
+                            let _ = xk.send(parts.last().unwrap(), true);
+                            std::thread::sleep(std::time::Duration::from_millis(30));
+                            let _ = xk.send(parts.last().unwrap(), false);
+                            for p in parts[..parts.len()-1].iter().rev() { let _ = xk.send(p, false); }
+                        } else {
+                            let _ = xk.send(key, true);
+                            std::thread::sleep(std::time::Duration::from_millis(30));
+                            let _ = xk.send(key, false);
+                        }
+                    }
+                }
+                i += 2;
+                continue;
+            }
+            "keydown" => {
+                if let Some(key) = args.get(i + 1) {
+                    if let Some(xk) = crate::xkeys::XKeys::connect().ok() {
+                        let _ = xk.send(key, true);
+                    }
+                }
+                i += 2;
+                continue;
+            }
+            "keyup" => {
+                if let Some(key) = args.get(i + 1) {
+                    if let Some(xk) = crate::xkeys::XKeys::connect().ok() {
+                        let _ = xk.send(key, false);
+                    }
+                }
+                i += 2;
+                continue;
+            }
+            "type" => {
+                // xdotool type [--delay N] [--clearmodifiers] text
+                let mut j = i + 1;
+                while j < args.len() && args[j].starts_with("--") { j += if args[j] == "--delay" { 2 } else { 1 }; }
+                if let Some(text) = args.get(j) {
+                    let _ = Command::new("cliclick").arg(format!("t:{}", text)).status();
+                }
+                i = j + 1;
+                continue;
+            }
+            _ => {
+                i += 1;
+                continue;
+            }
+        }
+    }
+    Ok(result)
 }
 
 /// Only one UI automation (shop, quest dialog, item use, stat points) may click at a time.
@@ -477,7 +701,10 @@ pub fn run(job: &ShopJob, inventory: &[(u8, u16, Option<u32>)]) -> Result<ShopRe
     // Evidence for filling in buy rows: the shop's list as it opened (NEON_DEBUG_DIR, like failed quest clicks).
     if let Ok(dir) = std::env::var("NEON_DEBUG_DIR") {
         let path = format!("{dir}/shop-{}-{}.png", job.npc[0], job.npc[1]);
+        #[cfg(target_os = "linux")]
         let _ = Command::new("import").args(["-window", &win.id, &path]).envs(x_env()).output();
+        #[cfg(target_os = "macos")]
+        let _ = std::process::Command::new("screencapture").args(["-l", &win.id, &path]).output();
         info!("shop: list saved to {path}");
     }
 

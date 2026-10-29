@@ -18,6 +18,7 @@ mod aes;
 mod rects;
 mod stackpos;
 mod scanner;
+mod packet_actuator;
 
 use chains::{Chains, Mem};
 use clap::Parser;
@@ -97,8 +98,8 @@ struct Args {
     #[arg(long)]
     net_replay: Option<PathBuf>,
 
-    /// tcpdump interface for --net
-    #[arg(long, default_value = "any")]
+    /// tcpdump interface for --net (Linux: "any", macOS: "en0")
+    #[arg(long, default_value_t = default_net_iface())]
     net_iface: String,
 
     /// Enable outgoing packet injection (experimental)
@@ -113,6 +114,39 @@ struct Args {
     /// Send a test packet (opcode in hex, e.g. 0001 for ping)
     #[arg(long, value_parser = parse_hex_u16)]
     send_test: Option<u16>,
+
+    /// Override the PE image base address (hex, e.g. 0x200000000). On macOS this is auto-detected
+    /// from vmmap; on Linux Wine it defaults to the chains.json value (usually 0x140000000).
+    #[arg(long, value_parser = parse_hex_u64)]
+    image_base: Option<u64>,
+}
+
+fn default_net_iface() -> String {
+    if cfg!(target_os = "macos") { "en0".into() } else { "any".into() }
+}
+
+/// Find the PE image base from WINE_RESERVE regions (macOS CrossOver).
+/// The vmmap "Load Address" is the Mach-O wrapper, not the PE. Wine maps the PE at its
+/// preferred base (0x140000000), which we detect as the smallest WINE_RESERVE region
+/// above 0x100000000 that starts on a 0x10000000 boundary and has r-x or r-- permission.
+#[cfg(target_os = "macos")]
+fn detect_image_base(pid: u32) -> Option<u64> {
+    let out = std::process::Command::new("vmmap")
+        .arg(pid.to_string())
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    for line in text.lines() {
+        if !line.contains("WINE_RESERVE") { continue; }
+        // "WINE_RESERVE                140000000-140001000    [    4K ..."
+        let addr_part = line.trim().strip_prefix("WINE_RESERVE")?.trim();
+        let dash = addr_part.find('-')?;
+        let start = u64::from_str_radix(&addr_part[..dash], 16).ok()?;
+        if start >= 0x100000000 && start & 0x0FFF_FFFF == 0 {
+            return Some(start);
+        }
+    }
+    None
 }
 
 fn main() {
@@ -133,7 +167,7 @@ fn main() {
         eprintln!("cannot read {:?}: {}", args.chains, e);
         std::process::exit(1);
     });
-    let chains = Chains::from_json(&text).unwrap_or_else(|e| {
+    let mut chains = Chains::from_json(&text).unwrap_or_else(|e| {
         eprintln!("bad chains file: {}", e);
         std::process::exit(1);
     });
@@ -145,6 +179,24 @@ fn main() {
 
     let pid = args.pid.unwrap_or_else(find_maplestory_pid);
     tracing::info!("Using PID {}", pid);
+
+    // Rebase chain roots if the live image base differs from chains.json (e.g. macOS CrossOver).
+    let live_base = args.image_base.or_else(|| {
+        #[cfg(target_os = "macos")]
+        { detect_image_base(pid) }
+        #[cfg(not(target_os = "macos"))]
+        { None }
+    });
+    if let Some(base) = live_base {
+        if chains.image_base != 0 && base != chains.image_base {
+            tracing::info!(
+                "rebasing chains: {:#x} -> {:#x} (delta {:#x})",
+                chains.image_base, base, base.wrapping_sub(chains.image_base)
+            );
+            chains.rebase(base);
+        }
+    }
+
     let scanner = scanner::MemoryScanner::new(pid).unwrap_or_else(|e| {
         eprintln!("{}", e);
         std::process::exit(1);
@@ -427,21 +479,49 @@ fn write_text(out: &mut impl Write, s: &GameState) -> std::io::Result<()> {
 }
 
 fn find_maplestory_pid() -> u32 {
-    let output = std::process::Command::new("pgrep")
-        .args(["-f", "MapleStory.exe"])
-        .output()
-        .expect("Failed to run pgrep");
-    for line in String::from_utf8_lossy(&output.stdout).lines() {
-        if let Ok(pid) = line.trim().parse::<u32>() {
-            // pgrep -f also matches shells whose command line merely mentions the name.
-            let ok = std::fs::read(format!("/proc/{}/cmdline", pid))
-                .map(|c| {
-                    let c = String::from_utf8_lossy(&c).replace('\0', " ");
-                    c.trim_start().starts_with("C:\\") && c.contains("MapleStory.exe")
-                })
-                .unwrap_or(false);
-            if ok {
-                return pid;
+    #[cfg(target_os = "linux")]
+    {
+        let output = std::process::Command::new("pgrep")
+            .args(["-f", "MapleStory.exe"])
+            .output()
+            .expect("Failed to run pgrep");
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            if let Ok(pid) = line.trim().parse::<u32>() {
+                let ok = std::fs::read(format!("/proc/{}/cmdline", pid))
+                    .map(|c| {
+                        let c = String::from_utf8_lossy(&c).replace('\0', " ");
+                        c.trim_start().starts_with("C:\\") && c.contains("MapleStory.exe")
+                    })
+                    .unwrap_or(false);
+                if ok {
+                    return pid;
+                }
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // CrossOver runs the game as a native macOS app
+        for pattern in &["MapleStory Classic World", "MapleStory.exe"] {
+            let output = std::process::Command::new("pgrep")
+                .args(["-f", pattern])
+                .output()
+                .expect("Failed to run pgrep");
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                if let Ok(pid) = line.trim().parse::<u32>() {
+                    // Verify it's actually the game, not a shell mentioning the name
+                    let ok = std::process::Command::new("ps")
+                        .args(["-p", &pid.to_string(), "-o", "comm="])
+                        .output()
+                        .map(|o| {
+                            let comm = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                            comm.contains("MapleStory") && !comm.contains("pgrep")
+                        })
+                        .unwrap_or(false);
+                    if ok {
+                        return pid;
+                    }
+                }
             }
         }
     }
@@ -841,6 +921,11 @@ struct NetOpts {
 fn parse_hex_u16(s: &str) -> Result<u16, String> {
     let t = s.trim().trim_start_matches("0x").trim_start_matches("0X");
     u16::from_str_radix(t, 16).map_err(|e| format!("not a hex opcode: {e}"))
+}
+
+fn parse_hex_u64(s: &str) -> Result<u64, String> {
+    let t = s.trim().trim_start_matches("0x").trim_start_matches("0X");
+    u64::from_str_radix(t, 16).map_err(|e| format!("not a hex address: {e}"))
 }
 
 fn pump_pcap<R: std::io::Read>(r: R, tx: std::sync::mpsc::Sender<NetMsg>, opts: NetOpts) -> (u64, u64) {

@@ -11,6 +11,10 @@ use std::collections::HashMap;
 pub trait Mem {
     fn read(&self, addr: u64, len: usize) -> Option<Vec<u8>>;
 
+    fn read_bytes(&self, addr: u64, len: usize) -> Option<Vec<u8>> {
+        self.read(addr, len)
+    }
+
     fn u32(&self, addr: u64) -> Option<u32> {
         Some(u32::from_le_bytes(self.read(addr, 4)?.try_into().ok()?))
     }
@@ -24,6 +28,8 @@ pub trait Mem {
 
 #[derive(Debug, Clone, Default)]
 pub struct Chains {
+    /// The image base the chains were calibrated against (from chains.json `image_base`).
+    pub image_base: u64,
     /// stats object: root + named u32 field offsets (hp, mp, level, max_hp, ...)
     pub stats_root: Option<u64>,
     pub stats_fields: HashMap<String, u64>,
@@ -76,6 +82,7 @@ impl Chains {
         let v: Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
         let c = v.get("chains").ok_or("missing \"chains\"")?;
         let mut out = Chains::default();
+        out.image_base = v.get("image_base").and_then(hex).unwrap_or(0);
 
         if let Some(s) = c.get("stats_object") {
             out.stats_root = s.get("root").and_then(hex);
@@ -127,6 +134,21 @@ impl Chains {
             }
         }
         Ok(out)
+    }
+
+    /// Shift every root address from the old image base to `new_base`.
+    /// Wine on Linux loads the PE at 0x140000000; CrossOver on macOS loads it at 0x200000000.
+    pub fn rebase(&mut self, new_base: u64) {
+        if self.image_base == 0 || new_base == self.image_base {
+            return;
+        }
+        let delta = new_base.wrapping_sub(self.image_base);
+        if let Some(r) = self.stats_root.as_mut() { *r = r.wrapping_add(delta); }
+        if let Some(r) = self.state_root.as_mut() { *r = r.wrapping_add(delta); }
+        for src in &mut self.pos_sources { src.root = src.root.wrapping_add(delta); }
+        for cam in &mut self.camera { cam.root = cam.root.wrapping_add(delta); }
+        for pf in &mut self.pos_f32 { pf.root = pf.root.wrapping_add(delta); }
+        self.image_base = new_base;
     }
 
     /// Follow `root` to the object it points at; reject implausible pointers.
@@ -448,6 +470,40 @@ pub mod tests {
         m.put_i32(0x109830 + 0xf8, 1088);
         m.put_i32(0x109830 + 0xfc, -25);
         assert_eq!(c.position(&m), Some((1088, -25)));
+    }
+
+    #[test]
+    fn rebase_shifts_all_roots_by_delta() {
+        let json = r#"{"image_base":"0x140000000","chains":{
+            "stats_object":{"root":"0x143bf8e78","fields":{"hp":{"offset":"0x360"}}},
+            "player_state":{"root":"0x143bf05a0","fields":{"grounded":{"offset":"-0x3e4"}}},
+            "player_position":{"root":"0x143bf05a0","x_offset":"0xf8","y_offset":"0xfc"},
+            "camera":{"chains":[{"root":"0x143ec8078","offsets":["0xc0","0xa4"]}]},
+            "player_position_f32":{"chains":[{"root":"0x143bd6788","offsets":["0x48","0x98"]}]}}}"#;
+        let mut c = Chains::from_json(json).unwrap();
+        assert_eq!(c.image_base, 0x140000000);
+        assert_eq!(c.stats_root, Some(0x143bf8e78));
+        c.rebase(0x200000000);
+        assert_eq!(c.image_base, 0x200000000);
+        let delta: u64 = 0x200000000 - 0x140000000; // 0xC0000000
+        assert_eq!(c.stats_root, Some(0x143bf8e78 + delta));
+        assert_eq!(c.state_root, Some(0x143bf05a0 + delta));
+        assert_eq!(c.pos_sources[0].root, 0x143bf05a0 + delta);
+        assert_eq!(c.camera[0].root, 0x143ec8078 + delta);
+        assert_eq!(c.pos_f32[0].root, 0x143bd6788 + delta);
+        // Field offsets are NOT rebased (they're relative to the object, not the image)
+        assert_eq!(c.stats_fields["hp"], 0x360);
+        assert_eq!(c.pos_sources[0].x, 0xf8);
+    }
+
+    #[test]
+    fn rebase_is_noop_when_base_matches() {
+        let json = r#"{"image_base":"0x140000000","chains":{
+            "stats_object":{"root":"0x143bf8e78","fields":{"hp":{"offset":"0x360"}}}}}"#;
+        let mut c = Chains::from_json(json).unwrap();
+        let orig = c.stats_root;
+        c.rebase(0x140000000);
+        assert_eq!(c.stats_root, orig);
     }
 
     #[test]

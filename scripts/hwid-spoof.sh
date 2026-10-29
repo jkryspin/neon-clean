@@ -1,28 +1,45 @@
 #!/usr/bin/env bash
 # HWID Spoofing for MapleStory Classic World
-# Generates unique hardware identifiers for each bot instance
+# Cross-platform: macOS (CrossOver) and Linux (Wine)
 # Usage: hwid-spoof.sh [instance_id] [action]
-#   action: init | apply | reset
+#   action: init | apply | reset | list
 
 set -e
 
 INSTANCE_ID="${1:-default}"
 ACTION="${2:-apply}"
-WINEPREFIX="${WINEPREFIX:-$HOME/.wine}"
 HWID_FILE="$HOME/.neon/hwid/${INSTANCE_ID}.json"
 
 # Create HWID directory
 mkdir -p "$HOME/.neon/hwid"
 
+# Detect platform and set Wine paths
+case "$(uname -s)" in
+    Darwin)
+        PLATFORM="macos"
+        WINE_BIN="/Applications/MapleStory Launcher.app/Contents/SharedSupport/maplestoryna/MapleStory Launcher/wine"
+        WINEPREFIX="${WINEPREFIX:-$HOME/Library/Application Support/MapleStoryNA/Bottles/maplestory}"
+        ;;
+    Linux)
+        PLATFORM="linux"
+        WINE_BIN="wine"
+        WINEPREFIX="${WINEPREFIX:-$HOME/.wine}"
+        ;;
+    *)
+        echo "ERROR: Unsupported platform: $(uname -s)"
+        exit 1
+        ;;
+esac
+export WINEPREFIX
+
 # Generate a random UUID
 generate_uuid() {
-    cat /proc/sys/kernel/random/uuid 2>/dev/null || \
+    uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' || \
     python3 -c "import uuid; print(uuid.uuid4())"
 }
 
 # Generate random hardware values
 generate_mac() {
-    # Generate a random MAC address (not multicast, locally administered)
     printf '%02x:%02x:%02x:%02x:%02x:%02x' \
         $((0x02 + (RANDOM % 0xFC))) \
         $((RANDOM % 256)) \
@@ -33,7 +50,6 @@ generate_mac() {
 }
 
 generate_disk_serial() {
-    # Generate a random disk serial number
     printf 'WD-%04X-%04X-%04X-%04X' \
         $((RANDOM % 65536)) \
         $((RANDOM % 65536)) \
@@ -42,7 +58,6 @@ generate_disk_serial() {
 }
 
 generate_cpu_id() {
-    # Generate a random CPU ID
     printf '%08X-%04X-%04X-%04X-%012X' \
         $((RANDOM * RANDOM % 4294967296)) \
         $((RANDOM % 65536)) \
@@ -51,14 +66,26 @@ generate_cpu_id() {
         $((RANDOM * RANDOM % 281474976710656))
 }
 
+# Portable sed -i
+sed_i() {
+    if [ "$PLATFORM" = "macos" ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
 # Initialize HWID for a new instance
 init_hwid() {
     echo "Initializing HWID for instance: $INSTANCE_ID"
 
+    local created
+    created=$(date -Iseconds 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%S%z)
+
     cat > "$HWID_FILE" << EOF
 {
     "instance_id": "$INSTANCE_ID",
-    "created": "$(date -Iseconds)",
+    "created": "$created",
     "hardware": {
         "mac_address": "$(generate_mac)",
         "disk_serial": "$(generate_disk_serial)",
@@ -84,7 +111,7 @@ apply_hwid() {
         exit 1
     fi
 
-    echo "Applying HWID for instance: $INSTANCE_ID"
+    echo "Applying HWID for instance: $INSTANCE_ID ($PLATFORM)"
 
     # Read HWID values
     MAC_ADDR=$(jq -r '.hardware.mac_address' "$HWID_FILE")
@@ -95,19 +122,21 @@ apply_hwid() {
     USERNAME=$(jq -r '.wine.username' "$HWID_FILE")
 
     # Set Wine registry values for computer name
-    if command -v wine &>/dev/null; then
-        wine reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\ComputerName\\ComputerName" \
+    if [ -x "$WINE_BIN" ] || command -v "$WINE_BIN" &>/dev/null; then
+        "$WINE_BIN" reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\ComputerName\\ComputerName" \
             /v "ComputerName" /t REG_SZ /d "$COMPUTER_NAME" /f 2>/dev/null || true
-        wine reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\ComputerName\\ActiveComputerName" \
+        "$WINE_BIN" reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\ComputerName\\ActiveComputerName" \
             /v "ActiveComputerName" /t REG_SZ /d "$COMPUTER_NAME" /f 2>/dev/null || true
     fi
 
     # Create Wine system.ini with computer name
-    SYSTEM_INI="$WINEPREFIX/system.ini"
+    SYSTEM_INI="$WINEPREFIX/dosdevices/c:/windows/system.ini"
+    if [ ! -f "$SYSTEM_INI" ]; then
+        SYSTEM_INI="$WINEPREFIX/drive_c/windows/system.ini"
+    fi
     if [ -f "$SYSTEM_INI" ]; then
-        # Backup and update
         cp "$SYSTEM_INI" "${SYSTEM_INI}.bak" 2>/dev/null || true
-        sed -i "s/^ComputerName=.*/ComputerName=$COMPUTER_NAME/" "$SYSTEM_INI" 2>/dev/null || true
+        sed_i "s/^ComputerName=.*/ComputerName=$COMPUTER_NAME/" "$SYSTEM_INI" 2>/dev/null || true
         if ! grep -q "^ComputerName=" "$SYSTEM_INI"; then
             echo "ComputerName=$COMPUTER_NAME" >> "$SYSTEM_INI"
         fi

@@ -286,15 +286,23 @@ struct Blob {
 
 impl Shot {
     pub(crate) fn take(win: &crate::shop::Win, region: (i32, i32, i32, i32)) -> Option<Shot> {
-        let (x, y) = win.scale((region.0, region.1));
-        let (w, h) = win.size((region.2, region.3));
-        let out = std::process::Command::new("import")
-            .args(["-window", &win.id, "-crop", &format!("{w}x{h}+{x}+{y}"), "+repage", "-depth", "8", "rgb:-"])
-            .envs(crate::shop::x_env())
-            .output()
-            .ok()?;
-        let (w, h) = (w as usize, h as usize);
-        (out.stdout.len() >= w * h * 3).then(|| Shot { w, h, k: 1422.0 / win.w, origin: (region.0, region.1), rgb: out.stdout })
+        #[cfg(target_os = "linux")]
+        {
+            let (x, y) = win.scale((region.0, region.1));
+            let (w, h) = win.size((region.2, region.3));
+            let out = std::process::Command::new("import")
+                .args(["-window", &win.id, "-crop", &format!("{w}x{h}+{x}+{y}"), "+repage", "-depth", "8", "rgb:-"])
+                .envs(crate::shop::x_env())
+                .output()
+                .ok()?;
+            let (w, h) = (w as usize, h as usize);
+            (out.stdout.len() >= w * h * 3).then(|| Shot { w, h, k: 1422.0 / win.w, origin: (region.0, region.1), rgb: out.stdout })
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let _ = (win, region);
+            None
+        }
     }
 
     /// How many pixels of the whole shot `f` says yes to.
@@ -508,7 +516,10 @@ pub fn run(job: &QuestJob) -> Result<String, String> {
     }
     // Leave evidence: what the screen looked like when the NPC could not be found.
     if let Ok(dir) = std::env::var("NEON_DEBUG_DIR") {
+        #[cfg(target_os = "linux")]
         let _ = std::process::Command::new("import").args(["-window", &win.id, &format!("{dir}/quest-{}-fail.png", job.quest)]).envs(crate::shop::x_env()).output();
+        #[cfg(target_os = "macos")]
+        let _ = std::process::Command::new("screencapture").args(["-l", &win.id, &format!("{dir}/quest-{}-fail.png", job.quest)]).output();
     }
     Err(format!("no dialog opened around {base:?} (player at {:?}): the NPC is not where the camera model says", job.player))
 }

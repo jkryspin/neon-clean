@@ -306,15 +306,22 @@ fn spend_skills(win: &Win, build: Option<&CharBuild>, p: Progress, spent: &mut S
 
 /// Hash of the level box: it changes when the level does.
 fn level_signature(win: &Win) -> Option<String> {
-    let (x, y) = win.scale((LEVEL_BOX.0, LEVEL_BOX.1));
-    let (w, h) = win.size((LEVEL_BOX.2, LEVEL_BOX.3));
-    let out = std::process::Command::new("import")
-        .args(["-window", &win.id, "-crop", &format!("{w}x{h}+{x}+{y}"), "+repage", "-format", "%#", "info:"])
-        .envs(crate::shop::x_env())
-        .output()
-        .ok()?;
-    let sig = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    (!sig.is_empty()).then_some(sig)
+    #[cfg(target_os = "linux")]
+    {
+        let (x, y) = win.scale((LEVEL_BOX.0, LEVEL_BOX.1));
+        let (w, h) = win.size((LEVEL_BOX.2, LEVEL_BOX.3));
+        let out = std::process::Command::new("import")
+            .args(["-window", &win.id, "-crop", &format!("{w}x{h}+{x}+{y}"), "+repage", "-format", "%#", "info:"])
+            .envs(crate::shop::x_env())
+            .output()
+            .ok()?;
+        let sig = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        (!sig.is_empty()).then_some(sig)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Some(format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)))
+    }
 }
 
 /// Spend points now, then again after every level-up. Runs on its own thread for the life of the process.

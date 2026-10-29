@@ -15,7 +15,10 @@ Tools for mapping wire opcodes to handler addresses in the MapleStory Classic Wo
 ## Building
 
 ```bash
-# Native build (Linux)
+# Windows injector + probe DLL (mingw-w64) - what you actually run
+make inject.exe probe_opcodes-win.dll
+
+# Native build (Linux, gcc)
 make
 
 # Cross-compile for Windows (requires mingw-w64)
@@ -23,6 +26,47 @@ make cross
 ```
 
 ## Usage
+
+### macOS (this Mac, "MapleStory Launcher.app")
+
+The bundled Wine is x86_64-on-ARM64: the unix side is native arm64, the PE side
+runs under Rosetta. There is no usable cross-process route through Mach APIs
+(x86 thread state is hidden from arm64 callers and the x86 address space is not
+reachable via mach_vm - the reason `inject-macos` and this morning's PE-scan
+tools hit a wall; `dump-regions.c` shows what a Rosetta task looks like from
+the host).
+
+The working path is the same as on Linux: run `inject.exe` as a Wine process in
+the same bottle and let wineserver do the work (OpenProcess, WriteProcessMemory,
+CreateRemoteThread are serviced internally - no debugger, no ptrace, nothing
+that changes the target's code bytes on the way in).
+
+```bash
+# 1. Launch the game from "MapleStory Launcher.app" (or it is already running).
+# 2. Inject:
+cd neon-probe
+./inject.sh MapleStory.exe C:\Neon\probe_opcodes-win.dll
+
+# 3. Watch the log
+tail -f "$HOME/Library/Application Support/MapleStoryNA/Bottles/maplestory/drive_c/tmp/neon-probe-opcodes."*.jsonl
+```
+
+`inject.sh` copies the dll to `C:\Neon` in the bottle and passes the Windows
+path through. Test the plumbing without the game first:
+
+```bash
+./inject.sh cmd.exe ./hello-win.dll     # writes C:\Neon\hello.log
+./inject.sh cmd.exe --unload hello-win.dll
+```
+
+Gotchas learned on this machine:
+- `LoadLibrary` refcounts: injecting a DLL that is already loaded returns the
+  existing HMODULE and does NOT run DllMain again. Repeat `--unload` until the
+  injector says the module is not found before expecting a fresh DllMain.
+- Win32 pids differ from macOS pids; pass the image name (`MapleStory.exe`) or
+  the pid shown by `inject.exe` (a `tasklist`-style number from wineserver).
+- `C:\Neon` in the bottle must be writable by the user, or a probe's log write
+  fails silently inside DllMain.
 
 ### 1. Launch the game
 

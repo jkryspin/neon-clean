@@ -7,7 +7,7 @@
 //! - Header seed: `a = ((iv[2] << 8) | iv[3]) ^ 0xdf00`
 //! - Payload: NOT yet solved (uniformly random per packet)
 
-use std::io::{Read, Seek};
+// std::io::{Read, Seek} no longer needed after read_iv_from_memory refactor
 
 /// The 256-byte shuffle table used by MapleStory for IV advancement.
 /// This is a permutation table that maps each byte value 0-255 to another value.
@@ -57,6 +57,36 @@ pub fn shuffle_iv(iv: &mut [u8; 4]) {
 pub fn compute_header_seed(iv: &[u8; 4]) -> u16 {
     let base = ((iv[2] as u16) << 8) | (iv[3] as u16);
     base ^ 0xdf00
+}
+
+/// Encode a raw client->server frame for direct socket send.
+/// This is a simplified version of `send::encode_frame` that takes the AES key directly.
+/// Used by `packet_actuator.rs` for one-off packet sends.
+pub fn encode_frame_raw(key: &[u8; 32], plain: &[u8], iv: &[u8; 4]) -> Vec<u8> {
+    use crate::aes::Aes256;
+
+    let a = compute_header_seed(iv);
+    let c = a ^ (plain.len() as u16).swap_bytes();
+
+    // Encrypt with AES-256-OFB
+    let aes = Aes256::new(key);
+    let block = [iv[0], iv[1], iv[2], iv[3], iv[0], iv[1], iv[2], iv[3], iv[0], iv[1], iv[2], iv[3], iv[0], iv[1], iv[2], iv[3]];
+    let mut encrypted = Vec::with_capacity(plain.len());
+    let mut pos = 0;
+    let mut first = true;
+    while pos < plain.len() {
+        let n = (plain.len() - pos).min(if first { 1456 } else { 1460 });
+        encrypted.extend(aes.ofb(block, &plain[pos..pos + n]));
+        pos += n;
+        first = false;
+    }
+
+    let mut out = Vec::with_capacity(4 + plain.len());
+    out.extend(a.to_be_bytes());
+    out.extend(c.to_be_bytes());
+    out.extend(encrypted);
+
+    out
 }
 
 /// Build a 4-byte header for an outgoing packet.
@@ -153,16 +183,13 @@ impl Default for PacketBuilder {
 
 /// Read the current send IV from the game process memory.
 /// Location: 0x2c44c90 (build-specific, may need to be re-found).
+/// NOTE: this address is below the PE image base so it is NOT rebased by --image-base;
+/// it may be a Wine/heap address that needs separate calibration on macOS.
 pub fn read_iv_from_memory(pid: u32) -> Option<[u8; 4]> {
-    // Read 4 bytes from the known IV location
-    let path = format!("/proc/{}/mem", pid);
-    let mut file = std::fs::File::open(&path).ok()?;
-    let mut buf = [0u8; 4];
-    // The address is in the process's virtual address space
+    let scanner = crate::scanner::MemoryScanner::new(pid).ok()?;
     let addr: u64 = 0x2c44c90;
-    file.seek(std::io::SeekFrom::Start(addr)).ok()?;
-    file.read_exact(&mut buf).ok()?;
-    Some(buf)
+    let data = crate::chains::Mem::read(&scanner, addr, 4)?;
+    data.try_into().ok()
 }
 
 // There is deliberately no table of outgoing opcode constants here. The constants that used to be here (PING 0x0001,
