@@ -1,0 +1,8 @@
+LIBRARY mock-nmcogame64
+EXPORTS
+    NMCO_CallNMFunction
+    NMCO_MemoryFree
+    NMCO_SetLocaleAndRegion
+    NMCO_SetPatchOption
+    NMCO_SetVersionFileUrlA
+    NMCO_SetVersionFileUrlW

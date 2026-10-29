@@ -1,0 +1,3 @@
+LIBRARY mock-grap64
+EXPORTS
+    grap_entry @9

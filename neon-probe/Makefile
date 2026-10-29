@@ -17,7 +17,8 @@ hello-win.dll: hello-win.c
 inject_ud.exe: inject-undetectable.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
-cross: inject-win.exe inject_ud-win.exe probe-win.dll probe_opcodes-win.dll
+cross: inject-win.exe inject_ud-win.exe probe-win.dll probe_opcodes-win.dll \
+	mock-grap64-win.dll mock-nmcogame64-win.dll hook-session-win.dll
 
 inject-win.exe: inject.c
 	$(CROSS_CC) $(CFLAGS) -o $@ $< $(CROSS_LDFLAGS)
@@ -36,6 +37,16 @@ probe-win.dll: probe.c
 
 probe_opcodes-win.dll: probe-opcodes.c
 	$(CROSS_CC) $(CFLAGS) -shared -o $@ $<
+
+# ── Anti-cheat mocks + create-process hook (see docs/anticheat-mock.md) ──
+mock-grap64-win.dll: mock-grap64.c mock-grap64.def
+	$(CROSS_CC) $(CFLAGS) -shared -o $@ mock-grap64.c mock-grap64.def
+
+mock-nmcogame64-win.dll: mock-nmcogame64.c mock-nmcogame64.def
+	$(CROSS_CC) $(CFLAGS) -shared -o $@ mock-nmcogame64.c mock-nmcogame64.def
+
+hook-session-win.dll: hook-session.c
+	$(CROSS_CC) $(CFLAGS) -shared -o $@ $< -lpsapi -lkernel32
 
 # ── macOS native injector (ARM64 host) ──
 # NOTE: the bundled Wine ("MapleStory Launcher.app") is x86_64-on-ARM64 (native

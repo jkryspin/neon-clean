@@ -13,6 +13,9 @@
    (what exists, how to run it: `scripts/view.sh NAME` opens **Neon View** on port 8765+), `docs/mapping-workflow.md` (tools, evidence
    rules, status), `docs/opcodes.md` (generated). Tests: `scripts/test-headless.sh`. Outgoing captures: `scripts/capture-out.sh`
    (guarded; attaching a debugger cost sessions, see the risk notes).
+7. Disable the anti-cheat before injecting (2026-10-29): `scripts/mock-anticheat.sh install|inject|restore`,
+   details in `docs/anticheat-mock.md`. Mocks `grap64.dll`/`nmcogame64.dll` and IAT-hooks the launcher for the
+   session token. The client's real anti-cheat is GRAP (not classic NGS/BlackCipher).
 
 ## Authorization
 

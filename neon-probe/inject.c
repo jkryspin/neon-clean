@@ -48,16 +48,45 @@ static int remote_call(HANDLE proc, const char *fn, const wchar_t *arg) {
     return w == WAIT_OBJECT_0 ? 0 : 1;
 }
 
-int main(int argc, char **argv) {
-    if (argc < 3) { fprintf(stderr, "usage: %s <pid|name> <dll> | %s <pid|name> --unload <module>\n", argv[0], argv[0]); return 2; }
-    DWORD pid = find_pid(argv[1]);
-    if (!pid) { fprintf(stderr, "no such process: %s\n", argv[1]); return 1; }
+static int inject_pid(DWORD pid, const wchar_t *dll) {
     HANDLE proc = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION |
                               PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, pid);
     if (!proc) { fprintf(stderr, "OpenProcess(%lu) failed: %lu\n", pid, GetLastError()); return 1; }
     printf("target pid %lu\n", pid);
+    int r = remote_call(proc, "LoadLibraryW", dll);
+    CloseHandle(proc);
+    return r;
+}
+
+/* --all <image-name> <dll> : inject into every process with that exact name. */
+static int inject_all(const char *name, const wchar_t *dll) {
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) { fprintf(stderr, "snapshot failed\n"); return 1; }
+    PROCESSENTRY32 pe = { sizeof pe };
+    int n = 0, rc = 0;
+    for (BOOL ok = Process32First(snap, &pe); ok; ok = Process32Next(snap, &pe))
+        if (!_stricmp(pe.szExeFile, name)) { rc |= inject_pid(pe.th32ProcessID, dll); n++; }
+    CloseHandle(snap);
+    if (!n) { fprintf(stderr, "no process named %s\n", name); return 1; }
+    printf("injected into %d %s process(es)\n", n, name);
+    return rc;
+}
+
+int main(int argc, char **argv) {
+    if (argc >= 4 && !strcmp(argv[1], "--all")) {
+        wchar_t arg[MAX_PATH];
+        MultiByteToWideChar(CP_ACP, 0, argv[3], -1, arg, MAX_PATH);
+        return inject_all(argv[2], arg);
+    }
+    if (argc < 3) { fprintf(stderr, "usage: %s <pid|name> <dll> | %s <pid|name> --unload <module> | %s --all <name> <dll>\n", argv[0], argv[0], argv[0]); return 2; }
+    DWORD pid = find_pid(argv[1]);
+    if (!pid) { fprintf(stderr, "no such process: %s\n", argv[1]); return 1; }
     wchar_t arg[MAX_PATH];
     if (!strcmp(argv[2], "--unload")) {
+        HANDLE proc = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION |
+                                  PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, pid);
+        if (!proc) { fprintf(stderr, "OpenProcess(%lu) failed: %lu\n", pid, GetLastError()); return 1; }
+        printf("target pid %lu\n", pid);
         /* FreeLibrary wants an HMODULE, not a name. Resolve it in the TARGET by walking its module list. */
         if (argc < 4) return 2;
         MultiByteToWideChar(CP_ACP, 0, argv[3], -1, arg, MAX_PATH);
@@ -74,7 +103,5 @@ int main(int argc, char **argv) {
         fprintf(stderr, "module %s not found in target\n", argv[3]); return 1;
     }
     MultiByteToWideChar(CP_ACP, 0, argv[2], -1, arg, MAX_PATH);
-    int r = remote_call(proc, "LoadLibraryW", arg);
-    CloseHandle(proc);
-    return r;
+    return inject_pid(pid, arg);
 }

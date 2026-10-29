@@ -10,6 +10,8 @@ Tools for mapping wire opcodes to handler addresses in the MapleStory Classic Wo
 - `inject-undetectable.c` - Undetectable injector (thread hijacking + manual PE mapping)
 - `probe.c` - Basic observer DLL (logs memory regions)
 - `probe-opcodes.c` - Opcode mapping DLL (logs opcode → handler mappings)
+- `mock-grap64.c` / `mock-nmcogame64.c` - anti-cheat mocks (see `docs/anticheat-mock.md`)
+- `hook-session.c` - IAT hook on `CreateProcessW` in `nexon_client.exe` (session token)
 - `Makefile` - Build system for native and cross-compiled targets
 
 ## Building

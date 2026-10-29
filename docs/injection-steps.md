@@ -20,37 +20,39 @@ Each step gets a checkmark (✅) once fully tested.
 
 ## Phase 2: Mock Anti-Cheat DLL
 
-**Status:** ✅ NOT NEEDED — Anti-cheat is GRAP (not NGS/BlackCipher). Under Wine/CrossOver,
-kernel components (`BlackCat64.sys`, `NGService.exe`) can't load. The real `grap64.dll`,
-`grap-communicator64.aes`, and `grap-core64.aes` load but run degraded. Game stable with
-injected probe DLLs (tested 2026-10-29, 9+ min, no kicks).
+**Status:** ✅ IMPLEMENTED (2026-10-29) — see `docs/anticheat-mock.md`
 
-Loaded anti-cheat modules (99 total modules in process):
+The client's anti-cheat is GRAP (not classic NGS/BlackCipher). `MapleStory.exe` imports
+exactly two anti-cheat symbols, so mocks are small: `grap64.dll` ordinal 9 and
+`nmcogame64.dll!NMCO_MemoryFree`. Dropping the mocks in removes the protector from the
+process. (The earlier "not needed" note still holds — the real modules load degraded under
+Wine with no kicks — but the mocks make it explicit and unprotect the code.)
+
+Loaded anti-cheat modules when REAL (99 total modules in process):
 - `grap64.dll` at `0x6FFFFBF60000` — 9 ordinal-only exports (Themida-packed)
 - `grap-communicator64.aes` at `0x6FFFEDC00000` — DLL, 1 ordinal export, no names
 - `grap-core64.aes` — separate process (Wine PID ~2124), 1 named export: `GfnGetGameModStorageQuota`
 - `nmcogame64.dll`, `nmconew64.dll` — Nexon protection modules (loaded, passive)
 
-- [x] Enumerate game's expected anti-cheat module names (GRAP, not NGS/BlackCipher)
-- [x] Assess: mocks not needed — real modules load under Wine but kernel enforcement absent
-- [x] Test: game runs with injected probe DLLs, no kicks (9+ min observed)
+- [x] Enumerate game's expected anti-cheat imports (GRAP ordinal 9; nmcogame NMCO_MemoryFree)
+- [x] `neon-probe/mock-grap64.c` + `.def` (ordinal 9 export)
+- [x] `neon-probe/mock-nmcogame64.c` + `.def` (inert `NMCO_*` stubs)
+- [x] `scripts/mock-anticheat.sh install|restore|status|inject`
+- [ ] Test: game starts and reaches login with mocks in place; ordinal-9 return may need tuning
 
 ## Phase 3: Session Token Capture
 
 **File:** `neon-probe/hook-session.c`
-**Status:** ⚠️ FRAMEWORK — Hook is a placeholder (no real detour installed)
+**Status:** ✅ IMPLEMENTED (2026-10-29) — real IAT hook, awaiting live test
 
-- [x] Implement process-monitoring token capture (macOS `ps` approach documented)
-- [x] Create `hook-session.c` DLL for `CreateProcessW` hook in `nexon_client.exe`
+- [x] DLL for `CreateProcessW`/`A` detour in `nexon_client.exe` (IAT patch, no code bytes)
+- [x] Hooks every module in the injected process that imports `CreateProcessW`/`A`
 - [x] Token stored in shared memory (`NeonSessionToken` named mapping) — never written to disk
 - [x] Export `neon_get_session_token()` for `neon-cmd` to read the token
 - [x] Export `neon_clear_session_token()` for token cleanup
-- [x] Token extraction: supports `--token=`, `--session=`, `?token=`, `?session=`, `session_token=`, `access_token=` patterns
-- [x] Fallback: long hex string detection (32+ contiguous hex chars)
-- [ ] **TODO:** Install real CreateProcessW detour (MinHook or Microsoft Detours)
-  - `hook-session.c` line `install_hook()` sets `g_hooked = TRUE` but doesn't patch IAT
-  - Add MinHook: `MH_Initialize()`, `MH_CreateHook(GetProcAddress("CreateProcessW"), hooked_CreateProcessW, &g_orig_create_process)`, `MH_EnableHook()`
-- [ ] Test: token captured on game launch (requires live testing + real hook installed)
+- [x] Token extraction: `--token=`, `--session=`, `token=`, `session=`, `session_token=`, `access_token=`, `nxToken=`, plus a 32+ hex fallback
+- [x] Inject with `inject.exe --all` into every `nexon_*` process (`scripts/mock-anticheat.sh inject`)
+- [ ] Test: token captured on PLAY (watch `drive_c/tmp/neon-session-hook.*.log` + shared memory)
 - [ ] Test: token used for headless connection via `neon-cmd`
 
 ## Phase 4: God Mode (iframe Timer)
@@ -226,8 +228,8 @@ Phase 7 (Pixel Features) ──────────────────�
 | Phase | Code Complete | Live Tested |
 |-------|:---:|:---:|
 | 1: Injector | ✅ | ✅ |
-| 2: Anti-Cheat | N/A | ✅ |
-| 3: Session Token | ⚠️ Hook placeholder | ❌ |
+| 2: Anti-Cheat | ✅ | ❌ |
+| 3: Session Token | ✅ Real IAT hook | ❌ |
 | 4: God Mode | ⚠️ Freeze placeholder | ❌ |
 | 5: Opcode Probe | ✅ | ❌ |
 | 6: Packet Features | ⚠️ Socket missing | ❌ |

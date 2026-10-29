@@ -83,15 +83,19 @@ Flow: local image prep (sections + relocations + imports) → `WriteProcessMemor
 
 ## Phase 2: Mock Anti-Cheat DLL
 
-**Status:** ✅ NOT NEEDED (2026-10-29)
+**Status:** ✅ IMPLEMENTED (2026-10-29) — see `docs/anticheat-mock.md`
 
-Anti-cheat is GRAP, not NGS/BlackCipher. Under Wine/CrossOver, kernel components
-(`BlackCat64.sys`, `NGService.exe`) can't load. The real `grap64.dll` (9 ordinal exports,
-Themida-packed), `grap-communicator64.aes` (1 ordinal export), and `grap-core64.aes`
-(1 export: `GfnGetGameModStorageQuota`) all load but run in degraded mode. Game is stable
-with injected probe DLLs — no kicks observed (9+ min tested).
+Anti-cheat is GRAP, not NGS/BlackCipher. `MapleStory.exe` imports exactly two anti-cheat
+symbols (`grap64.dll` ordinal 9, `nmcogame64.dll!NMCO_MemoryFree`); mocks for those two
+remove the protector from the process. Under Wine/CrossOver the real kernel components
+(`BlackCat64.sys`, `NGService.exe`) can't load and the real `grap64.dll`,
+`grap-communicator64.aes`, `grap-core64.aes` load degraded — stable with probe DLLs
+(9+ min, no kicks) — so the mocks are an explicit unprotect on top of that.
 
-Loaded anti-cheat modules (99 total modules in process):
+Files: `neon-probe/mock-grap64.c`(+`.def`), `neon-probe/mock-nmcogame64.c`(+`.def`),
+installed/restored by `scripts/mock-anticheat.sh`.
+
+Loaded anti-cheat modules (when real, 99 total modules in process):
 - `grap64.dll` at `0x6FFFFBF60000` — 9 ordinal-only exports (Themida-packed)
 - `grap-communicator64.aes` at `0x6FFFEDC00000` — DLL, 1 ordinal export, no names
 - `grap-core64.aes` — separate process (Wine PID ~2124), 1 named export
@@ -118,19 +122,15 @@ passed when the launcher spawns `MapleStory.exe`.
 - `neon_get_session_token(char *out, size_t out_size)` — read the token
 - `neon_clear_session_token(void)` — clear the token from memory
 
-**Compile:** `x86_64-w64-mingw32-gcc -shared -o hook-session.dll hook-session.c -lws2_32`
+**Compile:** `make -C neon-probe hook-session-win.dll`
 
-### Note: Hook is a placeholder
+### Real detour (implemented)
 
-The `install_hook()` function in `hook-session.c` sets `g_hooked = TRUE` but does not
-install a real detour (no Microsoft Detours or MinHook dependency). A real inline hook
-on `CreateProcessW` requires either:
-- **Microsoft Detours** (`DetourAttach(&g_orig_create_process, hooked_CreateProcessW)`)
-- **MinHook** (`MH_Initialize()`, `MH_CreateHook()`, `MH_EnableHook()`)
-- **Manual rel32 patch** of the IAT entry in `nexon_client.exe`
-
-The shared memory infrastructure (`g_token_map`, `g_token_ptr`, `neon_get_session_token`)
-is complete and ready for the hook to be wired in.
+The hook is a real IAT patch: it enumerates every module in the injected process and
+rewrites import slots that point at `kernel32`/`kernelbase` `CreateProcessW`/`A`, then
+trampolines to the original. No code bytes are patched. Inject with
+`inject.exe --all nexon_client.exe` (also `nexon_runtime.exe`, `nexon_launcher.exe`) via
+`scripts/mock-anticheat.sh inject`.
 
 ### Alternative: macOS `ps` Approach
 ```bash
@@ -414,8 +414,8 @@ Iron Body on End, Recovery on PgUp.
 | Phase | Status | Code Complete | Live Tested |
 |-------|--------|:---:|:---:|
 | 1: Injector | ✅ Done | ✅ | ✅ |
-| 2: Anti-Cheat | ✅ Not needed | N/A | ✅ |
-| 3: Session Token | ⚠️ Framework | ⚠️ Hook is placeholder | ❌ |
+| 2: Anti-Cheat | ✅ Mock | ✅ | ❌ |
+| 3: Session Token | ✅ Hook | ✅ (IAT) | ❌ |
 | 4: God Mode | ⚠️ Framework | ⚠️ Freeze is placeholder | ❌ |
 | 5: Opcode Probe | ✅ Done | ✅ | ❌ |
 | 6: Packet Features | ⚠️ Framework | ⚠️ Socket discovery missing | ❌ |
@@ -424,7 +424,7 @@ Iron Body on End, Recovery on PgUp.
 
 ## Next Steps (in order)
 
-1. **Install real hook in `hook-session.c`** — add MinHook dependency for `CreateProcessW` detour
+1. **Anti-cheat mocks + launcher hook** — `scripts/mock-anticheat.sh install|inject`; live-test both
 2. **Live-test Phase 5** — inject `probe_opcodes-win.dll`, capture wire log, run `wiremap-probe.py`
 3. **Implement socket discovery** — connect `PacketActuator` to the game's TCP connection
 4. **Live-test Phase 6** — send keepalive, kami, skill injection (requires wiremap from step 2)
