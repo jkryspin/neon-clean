@@ -20,6 +20,7 @@ mod stats;
 mod ui;
 mod xkeys;
 mod status;
+mod token;
 
 use clap::Parser;
 use neon_state::GameState;
@@ -198,6 +199,9 @@ struct Args {
     /// One-shot: answer the NPC dialog that is open right now (NEXT / ACCEPT / OK, never DECLINE) and exit
     #[arg(long)]
     quest_dialog: bool,
+    /// One-shot: print the running game's one-time launch token (read from its command line) and exit
+    #[arg(long)]
+    print_token: bool,
     /// Trusted player names (never trigger evasion)
     #[arg(long = "trust")]
     trusted: Vec<String>,
@@ -205,6 +209,13 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
+    if args.print_token {
+        match token::game_token() {
+            Some(t) => println!("{t}"),
+            None => die("no running MapleStory.exe with a -nxl token"),
+        }
+        return;
+    }
     if let Some(v) = &args.nav_check {
         let map = v[0].parse::<u32>().unwrap_or_else(|_| die("MAP must be a map id"));
         let geom = nav::MapGeom::load(&args.maps_dir, map).unwrap_or_else(|| die("no geometry for that map"));

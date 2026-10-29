@@ -72,7 +72,8 @@ launcher's own import slots (reversible, no code bytes touched).
   `MapleStory Classic World.app`, which then runs `wine MapleStory.exe` with the token
   on the command line as `-nxl NP12:us:0:<n>:<token>`. So on macOS the
   `CreateProcessW` hook may not fire for the game — `scripts/mock-anticheat.sh token`
-  reads it from the game process instead. The hook still matches the Linux/WineCharm path.
+  and `neon-loader --print-token` read it from the game process instead. The hook still
+  matches the Linux/WineCharm path.
 - MapleStory.exe is **Themida-packed** and validates its imports. A `grap64.dll` mock
   with the wrong export shape fails at startup with
   `Themida / An Error has occured while loading imports. Wrong DLL present.`.

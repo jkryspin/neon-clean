@@ -52,6 +52,9 @@ Loaded anti-cheat modules when REAL (99 total modules in process):
 - [x] Export `neon_clear_session_token()` for token cleanup
 - [x] Token extraction: `--token=`, `--session=`, `token=`, `session=`, `session_token=`, `access_token=`, `nxToken=`, plus a 32+ hex fallback
 - [x] Inject with `inject.exe --all` into every `nexon_*` process (`scripts/mock-anticheat.sh inject`)
+- [x] Loader-side fallback: `neon-loader --print-token` reads `-nxl <token>` from the game's
+      command line (macOS/Linux, where the native `.app` stub launches the game so the
+      hook may not fire); `neon-loader/src/token.rs`
 - [ ] Test: token captured on PLAY (watch `drive_c/tmp/neon-session-hook.*.log` + shared memory)
 - [ ] Test: token used for headless connection via `neon-cmd`
 
