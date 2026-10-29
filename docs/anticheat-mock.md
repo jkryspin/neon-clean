@@ -62,6 +62,24 @@ Same reason as `neon-probe/DESIGN.md`: no ptrace, no thread stopping. The
 anti-cheat mock removes protection; the launcher hook only rewrites the
 launcher's own import slots (reversible, no code bytes touched).
 
+## Reproduce / launch (macOS)
+
+The launcher registers an `nxl:` URL scheme. Launch the Classic World product directly
+instead of clicking PLAY (the click is flaky when other windows overlap):
+
+```bash
+open "nxl://launch/59813"     # 59813 = MapleStory Classic World (productId)
+```
+
+(seen product ids: `10100` = MapleStory, `59813` = MapleStory Classic World.)
+
+Reproduce the current state: game closed, `scripts/mock-anticheat.sh install`, then the
+`open` above. The game starts and shows its NGSX "game file has been damaged" dialog
+(the dialog text is blank until the wz string table loads). Clicking OK currently exits
+the client; baseline (both DLLs real) is clean. `scripts/lib-macos-ui.sh` needed fixes
+for this launcher: the owning app is **"MapleStory Launcher"**, and a resident
+`MapleStory Classic World.app` helper must not be mistaken for the game process.
+
 ## Live findings (2026-10-29)
 
 - The launcher is **32-bit**, the game is **64-bit**. Injecting a 64-bit DLL into the
@@ -83,8 +101,12 @@ launcher's own import slots (reversible, no code bytes touched).
 - With the grap mock in place the game shows its own "the game file has been damaged"
   check (file-integrity) at login. Still to resolve — likely a hash check against the
   patch manifest.
-- With `nmcogame64.dll` also mocked the process has been seen to exit before login;
-  needs more work.
+- The "damaged" dialog is an **NGSX** result: the client contains `CSecurityNGSX`,
+  `NGS_Detect`, `NGS_Process`, `ngshash`/`ngshwid` strings and `GC:NGSXInitFailed`.
+  A mock changes whatever NGS hashes, so the check fires.
+- With both mocks the game stays up and shows the dialog; clicking OK currently exits
+  the client. (An earlier "exits before login" was a launcher-timing artifact, not the
+  mocks.)
 
 ## Status
 
