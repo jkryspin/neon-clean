@@ -6,6 +6,13 @@ LDFLAGS = -lpsapi -lkernel32
 CROSS_CC = x86_64-w64-mingw32-gcc
 CROSS_LDFLAGS = -lpsapi -lkernel32
 
+# The Nexon launcher (nexon_client.exe / nexon_runtime.exe) is 32-bit; the game
+# (MapleStory.exe) is 64-bit. Injecting a 64-bit DLL into a 32-bit process fails
+# (LoadLibraryW resolves to the wrong-arch kernel32), so launcher-side DLLs get a
+# 32-bit build.
+CROSS32_CC = i686-w64-mingw32-gcc
+CROSS32_LDFLAGS = -lpsapi -lkernel32
+
 all: inject.exe inject_ud.exe probe.dll probe_opcodes.dll
 
 inject.exe: inject.c
@@ -18,7 +25,8 @@ inject_ud.exe: inject-undetectable.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 cross: inject-win.exe inject_ud-win.exe probe-win.dll probe_opcodes-win.dll \
-	mock-grap64-win.dll mock-nmcogame64-win.dll hook-session-win.dll
+	mock-grap64-win.dll mock-nmcogame64-win.dll hook-session-win.dll \
+	inject32.exe hook-session32.dll
 
 inject-win.exe: inject.c
 	$(CROSS_CC) $(CFLAGS) -o $@ $< $(CROSS_LDFLAGS)
@@ -47,6 +55,13 @@ mock-nmcogame64-win.dll: mock-nmcogame64.c mock-nmcogame64.def
 
 hook-session-win.dll: hook-session.c
 	$(CROSS_CC) $(CFLAGS) -shared -o $@ $< -lpsapi -lkernel32
+
+# ── 32-bit builds for the (32-bit) Nexon launcher processes ──
+inject32.exe: inject.c
+	$(CROSS32_CC) $(CFLAGS) -o $@ $< $(CROSS32_LDFLAGS)
+
+hook-session32.dll: hook-session.c
+	$(CROSS32_CC) $(CFLAGS) -shared -o $@ $< -lpsapi -lkernel32
 
 # ── macOS native injector (ARM64 host) ──
 # NOTE: the bundled Wine ("MapleStory Launcher.app") is x86_64-on-ARM64 (native

@@ -1,20 +1,17 @@
 /* neon-probe: mock grap64.dll - disable the GRAP anti-cheat before injecting.
  *
- * MapleStory.exe statically imports exactly one symbol from grap64.dll: ORDINAL 9
- * (grap64.dll has no named exports; see docs/anticheat-mock.md). Dropping this
- * stub in as grap64.dll makes the game launch with no Themida/GRAP protector:
- * no virtualised region, no self-integrity checks, no protector watching our
- * injected pages. The game's own packet code is plain .text, so the hook/probe
- * work becomes "easy, same as 20 years ago".
+ * MapleStory.exe statically imports exactly one symbol from grap64.dll: ORDINAL 9.
+ * The real grap64.dll is Themida-packed, exports 9 functions with NO names and
+ * export base 1, and MapleStory.exe's own Themida stub validates its imports -
+ * replacing grap64 with a mock that has a different export layout (base 9, one
+ * named export) makes Themida abort with "An Error has occured while loading
+ * imports. Wrong DLL present." So this mock reproduces the export shape: base 1,
+ * nine NONAME ordinals, ordinal 9 being the entry point the game calls.
  *
- * The real grap64.dll is backed up as grap64.dll.orig by scripts/mock-anticheat.sh.
+ * See docs/anticheat-mock.md. The real grap64.dll is backed up as
+ * grap64.dll.orig by scripts/mock-anticheat.sh.
  *
  * Build: make mock-grap64-win.dll   (x86_64-w64-mingw32-gcc + mock-grap64.def)
- * Compile standalone:
- *   x86_64-w64-mingw32-gcc -Wall -O2 -shared -o grap64.dll mock-grap64.c mock-grap64.def
- *
- * The ordinal-9 stub returns 1 (success). If the game is seen to dereference a
- * pointer from it, change the return type - the log will show it was called.
  */
 #include <windows.h>
 #include <stdio.h>
@@ -29,12 +26,16 @@ static void logmsg(const char *m) {
     }
 }
 
-/* Exported as ordinal 9 by mock-grap64.def. */
-long long grap_entry(void);
-long long grap_entry(void) {
-    logmsg("grap ordinal 9 called");
-    return 1;
-}
+/* Nine ordinal-only exports (mock-grap64.def maps them to ordinals 1..9). */
+long long grap_ord1(void) { return 1; }
+long long grap_ord2(void) { return 1; }
+long long grap_ord3(void) { return 1; }
+long long grap_ord4(void) { return 1; }
+long long grap_ord5(void) { return 1; }
+long long grap_ord6(void) { return 1; }
+long long grap_ord7(void) { return 1; }
+long long grap_ord8(void) { return 1; }
+long long grap_ord9(void) { logmsg("grap ordinal 9 called"); return 1; }
 
 BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
     (void)reserved;

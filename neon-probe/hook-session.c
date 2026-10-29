@@ -53,6 +53,12 @@ static ULONG_PTR g_a_addrs[4];
 static int g_w_count = 0, g_a_count = 0;
 static BOOL g_installed = FALSE;
 
+/* Slots we patched, with their original values, so unload can restore them. */
+#define MAX_HOOKED 256
+static ULONG_PTR *g_hooked_slot[MAX_HOOKED];
+static ULONG_PTR  g_hooked_orig[MAX_HOOKED];
+static int g_hooked_n = 0;
+
 static void logmsg(const char *fmt, ...) {
     if (!g_log) return;
     va_list ap;
@@ -75,6 +81,17 @@ static int contains_ci(const char *hay, const char *needle) {
 
 /* ── Token extraction: named params, then a long-hex fallback ── */
 static void extract_token(const char *narrow, char *out, size_t out_size) {
+    /* The launcher passes the token as: MapleStory.exe "" -nxl NP12:us:0:<n>:<hex>
+     * Take the whole non-space argument after "-nxl". */
+    const char *nxl = strstr(narrow, "-nxl ");
+    if (nxl) {
+        nxl += 5;
+        size_t j = 0;
+        while (nxl[j] && nxl[j] != ' ' && j < out_size - 1) { out[j] = nxl[j]; j++; }
+        out[j] = '\0';
+        if (j > 0) return;
+    }
+
     static const char *patterns[] = {
         "--token=", "-token=", "token=", "--session=", "-session=", "session=",
         "?token=", "&token=", "session_token=", "access_token=", "nxToken="
@@ -165,7 +182,7 @@ static BOOL WINAPI hooked_CreateProcessA(
 }
 
 /* ── IAT patching ── */
-static void hook_module(HMODULE mod, const char *name) {
+static void hook_module(HMODULE mod, const char *name, int is_kernel) {
     BYTE *b = (BYTE *)mod;
     if (!b || b[0] != 'M' || b[1] != 'Z') return;
     IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)b;
@@ -175,6 +192,12 @@ static void hook_module(HMODULE mod, const char *name) {
     IMAGE_DATA_DIRECTORY imp =
         nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
     if (!imp.VirtualAddress) return;
+
+    /* kernel32/kernelbase implement CreateProcessW by forwarding through their
+     * own IAT entry. If we patched that entry, calling the original (the
+     * forwarder) would bounce straight back into the hook -> infinite recursion.
+     * Leave those two modules' own slots alone and trampoline to the real body. */
+    if (is_kernel) return;
 
     IMAGE_IMPORT_DESCRIPTOR *d = (IMAGE_IMPORT_DESCRIPTOR *)(b + imp.VirtualAddress);
     int patched = 0;
@@ -188,6 +211,11 @@ static void hook_module(HMODULE mod, const char *name) {
             if (want) {
                 DWORD old;
                 if (VirtualProtect(slot, sizeof(void *), PAGE_READWRITE, &old)) {
+                    if (g_hooked_n < MAX_HOOKED) {
+                        g_hooked_slot[g_hooked_n] = slot;
+                        g_hooked_orig[g_hooked_n] = *slot;
+                        g_hooked_n++;
+                    }
                     *slot = (ULONG_PTR)want;
                     VirtualProtect(slot, sizeof(void *), old, &old);
                     patched++;
@@ -196,6 +224,17 @@ static void hook_module(HMODULE mod, const char *name) {
         }
     }
     if (patched) logmsg("iat-hooked %d slot(s) in %s", patched, name ? name : "?");
+}
+
+static void unhook_all(void) {
+    for (int i = 0; i < g_hooked_n; i++) {
+        DWORD old;
+        if (VirtualProtect(g_hooked_slot[i], sizeof(void *), PAGE_READWRITE, &old)) {
+            *g_hooked_slot[i] = g_hooked_orig[i];
+            VirtualProtect(g_hooked_slot[i], sizeof(void *), old, &old);
+        }
+    }
+    logmsg("restored %d slot(s)", g_hooked_n);
 }
 
 static void add_addr(ULONG_PTR *arr, int *count, HMODULE mod, const char *fn) {
@@ -209,13 +248,16 @@ static void install_hooks(void) {
     g_installed = TRUE;
 
     HMODULE k32 = GetModuleHandleA("kernel32.dll");
-    HMODULE kbase = LoadLibraryA("kernelbase.dll");
+    /* kernelbase is already loaded on modern Wine; GetModuleHandle avoids a
+     * LoadLibrary call while we may still be inside the loader lock. */
+    HMODULE kbase = GetModuleHandleA("kernelbase.dll");
     add_addr(g_w_addrs, &g_w_count, k32, "CreateProcessW");
     add_addr(g_w_addrs, &g_w_count, kbase, "CreateProcessW");
     add_addr(g_a_addrs, &g_a_count, k32, "CreateProcessA");
     add_addr(g_a_addrs, &g_a_count, kbase, "CreateProcessA");
-    g_orig_w = (CreateProcessW_fn)GetProcAddress(k32, "CreateProcessW");
-    g_orig_a = (CreateProcessA_fn)GetProcAddress(k32, "CreateProcessA");
+    /* Trampoline to the real implementation, not kernel32's forwarder. */
+    g_orig_w = (CreateProcessW_fn)GetProcAddress(kbase ? kbase : k32, "CreateProcessW");
+    g_orig_a = (CreateProcessA_fn)GetProcAddress(kbase ? kbase : k32, "CreateProcessA");
 
     HMODULE mods[1024];
     DWORD need = 0;
@@ -226,9 +268,18 @@ static void install_hooks(void) {
     for (DWORD i = 0; i < need / sizeof(HMODULE); i++) {
         char nm[MAX_PATH] = {0};
         GetModuleBaseNameA(GetCurrentProcess(), mods[i], nm, sizeof nm);
-        hook_module(mods[i], nm);
+        int is_kernel = !_stricmp(nm, "kernel32.dll") || !_stricmp(nm, "kernelbase.dll");
+        hook_module(mods[i], nm, is_kernel);
     }
     logmsg("install complete (w=%d a=%d)", g_w_count, g_a_count);
+}
+
+/* Run the install on its own thread: EnumProcessModules/psapi can load DLLs,
+ * which is unsafe from inside DllMain's loader lock. */
+static DWORD WINAPI install_thread(LPVOID p) {
+    (void)p;
+    install_hooks();
+    return 0;
 }
 
 /* ── DllMain ── */
@@ -248,8 +299,9 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
             g_token_ptr = (char *)MapViewOfFile(g_token_map, FILE_MAP_ALL_ACCESS, 0, 0, TOKEN_SIZE);
         InitializeCriticalSection(&g_cs);
 
-        install_hooks();
+        CreateThread(NULL, 0, install_thread, NULL, 0, NULL);
     } else if (reason == DLL_PROCESS_DETACH) {
+        if (g_installed) unhook_all();
         if (g_token_ptr) { UnmapViewOfFile(g_token_ptr); g_token_ptr = NULL; }
         if (g_token_map) { CloseHandle(g_token_map); g_token_map = NULL; }
         if (g_log) { logmsg("hook-session detached"); fclose(g_log); g_log = NULL; }

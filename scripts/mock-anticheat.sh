@@ -5,6 +5,7 @@
 #   scripts/mock-anticheat.sh restore   put the real DLLs back
 #   scripts/mock-anticheat.sh status    show which files are mocked
 #   scripts/mock-anticheat.sh inject    IAT-hook hook-session.dll into the launcher
+#   scripts/mock-anticheat.sh token     print the game's launch token (macOS fallback)
 #
 # MapleStory.exe imports exactly two anti-cheat symbols (grap64.dll ordinal 9,
 # nmcogame64.dll!NMCO_MemoryFree). The mocks satisfy those and nothing else, so
@@ -22,7 +23,7 @@ PROBE="$ROOT/neon-probe"
 GAME="$DRIVE/Nexon/Library/maplestorycw/appdata"
 
 dput() { cp "$1" "$2" 2>/dev/null || sudo -n cp "$1" "$2" 2>/dev/null || { echo "copy failed: $2"; exit 1; }; }
-build() { make -C "$PROBE" mock-grap64-win.dll mock-nmcogame64-win.dll hook-session-win.dll >/dev/null; }
+build() { make -C "$PROBE" mock-grap64-win.dll mock-nmcogame64-win.dll inject32.exe hook-session32.dll >/dev/null; }
 
 case "${1:-status}" in
   install)
@@ -45,19 +46,28 @@ case "${1:-status}" in
       if [ -f "$GAME/$r.orig" ]; then echo "$r: MOCKED"; else echo "$r: real"; fi
     done
     ;;
+  token)
+    # macOS fallback: the launcher starts the game via the native .app stub, so the
+    # CreateProcessW hook (which fires on Wine/Linux) may not see it. Read the game's
+    # command line instead: MapleStory.exe "" -nxl NP12:...:<token>
+    for p in $(pgrep -f 'MapleStory.exe'); do
+      t=$(ps -p "$p" -o command= | sed -n 's/.*-nxl \([^ ]*\).*/\1/p')
+      [ -n "$t" ] && { printf '%s\n' "$t"; exit 0; }
+    done
+    exit 1
+    ;;
   inject)
     build
-    x86_64-w64-mingw32-gcc -Wall -O2 -D_WIN32_WINNT=0x0600 -o "$PROBE/inject.exe" \
-      "$PROBE/inject.c" -lpsapi -lkernel32
     mkdir -p "$DRIVE/Neon"
-    dput "$PROBE/hook-session-win.dll" "$DRIVE/Neon/"
-    dput "$PROBE/inject.exe" "$DRIVE/"
-    for n in nexon_client.exe nexon_runtime.exe nexon_launcher.exe; do
+    dput "$PROBE/hook-session32.dll" "$DRIVE/Neon/"
+    dput "$PROBE/inject32.exe" "$DRIVE/Neon/"
+    for n in nexon_client.exe nexon_runtime.exe; do
       echo "-- $n"
-      "$APP/bin/wine" --bottle default --wait-children "$DRIVE/inject.exe" \
-        --all "$n" 'C:\Neon\hook-session-win.dll' || true
+      "$APP/bin/wine" --bottle default --wait-children "$DRIVE/Neon/inject32.exe" \
+        --all "$n" 'C:\Neon\hook-session32.dll' || true
     done
-    echo "watch: tail -f \"$DRIVE/tmp/neon-session-hook.\"*.log"
+    echo "watch: tail -f /tmp/neon-session-hook.*.log"
+    echo "NOTE: the launcher is 32-bit; the game is 64-bit. Inject before PLAY."
     ;;
-  *) echo "usage: $0 install|restore|status|inject"; exit 2;;
+  *) echo "usage: $0 install|restore|status|inject|token"; exit 2;;
 esac

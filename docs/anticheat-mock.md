@@ -62,15 +62,34 @@ Same reason as `neon-probe/DESIGN.md`: no ptrace, no thread stopping. The
 anti-cheat mock removes protection; the launcher hook only rewrites the
 launcher's own import slots (reversible, no code bytes touched).
 
-## Status / what to verify live
+## Live findings (2026-10-29)
 
-- [ ] `grap64.dll` mock: game starts and reaches login (ordinal-9 return value
-      may need adjusting — the log shows whether it is called and how often).
-- [ ] `nmcogame64.dll` mock: no `NMCO_*` crash; game reaches login.
+- The launcher is **32-bit**, the game is **64-bit**. Injecting a 64-bit DLL into the
+  launcher's `nexon_client.exe`/`nexon_runtime.exe` fails (wrong-arch `kernel32`
+  `LoadLibraryW` -> access violation). Use the `inject32.exe`/`hook-session32.dll`
+  builds; `scripts/mock-anticheat.sh inject` does.
+- The launcher launches the game through the native macOS helper
+  `MapleStory Classic World.app`, which then runs `wine MapleStory.exe` with the token
+  on the command line as `-nxl NP12:us:0:<n>:<token>`. So on macOS the
+  `CreateProcessW` hook may not fire for the game — `scripts/mock-anticheat.sh token`
+  reads it from the game process instead. The hook still matches the Linux/WineCharm path.
+- MapleStory.exe is **Themida-packed** and validates its imports. A `grap64.dll` mock
+  with the wrong export shape fails at startup with
+  `Themida / An Error has occured while loading imports. Wrong DLL present.`.
+  The mock must reproduce the real shape: export **base 1, nine NONAME ordinals**
+  (ordinal 9 is the one the game imports). Fixed in `mock-grap64.def`; the game then
+  reaches the login screen.
+- With the grap mock in place the game shows its own "the game file has been damaged"
+  check (file-integrity) at login. Still to resolve — likely a hash check against the
+  patch manifest.
+- With `nmcogame64.dll` also mocked the process has been seen to exit before login;
+  needs more work.
+
+## Status
+
+- [x] `grap64.dll` mock passes Themida; game reaches login.
+- [ ] Game-side "file damaged" check with a mock present — dismiss/accept or satisfy it.
+- [ ] `nmcogame64.dll` mock: game stays up.
 - [ ] No kick over a long session with the mocks + a probe injected.
-- [ ] `hook-session.dll` in `nexon_client.exe`: token captured on PLAY
-      (`NeonSessionToken` / the session-hook log).
-
-If the game refuses to start with a mock, the first suspect is the ordinal-9
-stub's return value; the real `grap64.dll` export table is unreadable statically
-(Themida), so this is a live-iterate value.
+- [x] `hook-session32.dll` loads and installs in all `nexon_*` processes without recursion.
+- [ ] Token captured via `scripts/mock-anticheat.sh token` / shared memory on a real launch.

@@ -1,3 +1,11 @@
 LIBRARY mock-grap64
 EXPORTS
-    grap_entry @9
+    grap_ord1 @1 NONAME
+    grap_ord2 @2 NONAME
+    grap_ord3 @3 NONAME
+    grap_ord4 @4 NONAME
+    grap_ord5 @5 NONAME
+    grap_ord6 @6 NONAME
+    grap_ord7 @7 NONAME
+    grap_ord8 @8 NONAME
+    grap_ord9 @9 NONAME

@@ -37,7 +37,7 @@ for w in windows {
     let b = w["kCGWindowBounds"] as? [String: Any] ?? [:]
     let width = b["Width"] as? Int ?? 0
     let height = b["Height"] as? Int ?? 0
-    if owner == "Nexon Launcher" && name == "Nexon Global Launcher" && width > 900 && height > 600 {
+    if (owner == "Nexon Launcher" || owner == "MapleStory Launcher") && width > 900 && height > 600 {
         let wid = w["kCGWindowNumber"] as? Int ?? 0
         let x = b["X"] as? Double ?? 0
         let y = b["Y"] as? Double ?? 0
@@ -80,7 +80,7 @@ for w in windows {
     let b = w["kCGWindowBounds"] as? [String: Any] ?? [:]
     let width = b["Width"] as? Int ?? 0
     let height = b["Height"] as? Int ?? 0
-    if owner == "Nexon Launcher" && width > 750 && width < 850 && height > 480 && height < 570 {
+    if (owner == "Nexon Launcher" || owner == "MapleStory Launcher") && width > 750 && width < 850 && height > 480 && height < 570 {
         let wid = w["kCGWindowNumber"] as? Int ?? 0
         let x = b["X"] as? Double ?? 0
         let y = b["Y"] as? Double ?? 0
@@ -106,7 +106,7 @@ macos_click_window() {
     local abs_x=$(( win_x + rel_x ))
     local abs_y=$(( win_y + rel_y ))
 
-    osascript -e 'tell application "System Events" to set frontmost of process "Nexon Launcher" to true' 2>/dev/null
+    osascript -e 'tell application "System Events" to set frontmost of process "MapleStory Launcher" to true' -e 'tell application "System Events" to set frontmost of process "Nexon Launcher" to true' 2>/dev/null
     sleep 0.3
     # Wine/CrossOver windows need mousedown+mouseup; instant click often doesn't register
     cliclick dd:"$abs_x","$abs_y"
@@ -150,7 +150,8 @@ macos_start_launcher() {
 }
 
 # Check if MapleStory game process is running (CrossOver runs it as a native macOS app)
+# NOTE: the bundle also keeps a resident helper called "MapleStory Classic World.app";
+# match the wine process ("MapleStory.exe") so the helper is not mistaken for the game.
 macos_game_pid() {
-    pgrep -f "MapleStory Classic World" 2>/dev/null | head -1 ||
     pgrep -f "MapleStory.exe" 2>/dev/null | head -1
 }
