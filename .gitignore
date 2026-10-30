@@ -56,3 +56,11 @@ neon-calib/seen-max*.json
 # Local secrets: never commit
 nexon-credentials.json
 *.nsr
+
+# ngsx live runs, backups and MSVC intermediates
+/builds/ngsx-runs/
+/builds/ngsx-backup/
+neon-probe/*.obj
+neon-probe/*.exp
+neon-probe/*.lib
+__pycache__/

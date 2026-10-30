@@ -1,0 +1,16 @@
+{
+  "builds": [
+    {
+      "sha256": "1942a7b31be7c3e582d00561c6dc41a5ea163df8ee65554859da7a3339f18f65",
+      "size": 77813232,
+      "build": "live 2026-10-30 (NGS-X 1.5.3.0, grap64!ordinal9)",
+      "patched_sha256": "0e9169d9fc0e322451ad13df16647b8d62f7c6683d23deadc17b47c5c2eefaf4"
+    },
+    {
+      "sha256": "4384087a6df1991cb59fea6d1ef086dbe746c7a5af0705bfc39769f4cc56e276",
+      "size": 77362160,
+      "build": "mscwserver copy (grap64!ordinal2, matches MapleStory.patched.bak)",
+      "patched_sha256": "59b94dfa212b96e30530ba4f340e584e6d33a7997a128c9f909640d29e79f47e"
+    }
+  ]
+}
