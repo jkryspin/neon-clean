@@ -73,6 +73,18 @@ scanout <pid> peek|peek64|write|diffcheck <listfile>
 Useful and cheap: `neon-win/hackctl.py <pid> force <addr> <value>` writes every 100 ms
 from inside the game (this is the godmode write path once the address is known).
 
+### Strong candidate found (7:00, session pid 52860)
+
+`findchain 0x360 0x364 100 120 0 3000` on a damaged character returned a heap object
+referenced by **6** image pointers (more than any other candidate) whose `+0x360`
+tracked the bar (bar 108, field 104 two seconds later) while the bar animated. Freezing
+it with `hackctl force <obj+0x360> 162` held the bar at 162/162 for 60 s. It is not yet
+proven: mobs in this map stopped hitting before the unfrozen control could run, and
+`+0x364` read 3 (not the MP 69), so treat it as *the best candidate*, not confirmed.
+
+Ranking rule that worked to isolate it: among pointers from the game image, prefer the
+object with the most references and `level (obj+0x160) == 0`.
+
 ### Recommended next step
 
 1. Take the character somewhere that damages reliably ("A Hill West of Henesys", the
