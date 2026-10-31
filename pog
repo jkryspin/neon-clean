@@ -1,0 +1,1 @@
+Already bypassed it, just create a mock dll that mimics ngs/blackchiper. Hook into nexon_client which launches the game with the session token from the launcher. The rest is [removed] easy, same as 20 years ago. Godmode, find iframe timer. I'm sure there's some guides laying around the ole cheatengine forum/mpg from back then

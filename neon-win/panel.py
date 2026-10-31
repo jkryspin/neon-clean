@@ -197,6 +197,7 @@ class Panel(tk.Tk):
         self.force_val = ttk.Entry(r2, width=8)
         self.force_val.pack(side="left", padx=4)
         ttk.Button(r2, text="Force", command=self.force).pack(side="left", padx=4)
+        ttk.Button(r2, text="Find HP address", command=self.open_finder).pack(side="right")
 
         st = ttk.LabelFrame(self, text="Status", padding=8)
         st.pack(fill="both", expand=True, padx=8, pady=(0, 8))
@@ -323,6 +324,9 @@ class Panel(tk.Tk):
         self.state.cmd = 2
         self.hack_btn.config(text="Disable")
         self.logline(f"force {a:#x} = {v}")
+
+    def open_finder(self):
+        subprocess.Popen([sys.executable, str(ROOT / "neon-win" / "hpfind.py")])
 
     def verify(self):
         pid = self.pid

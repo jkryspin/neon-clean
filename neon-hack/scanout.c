@@ -196,31 +196,45 @@ static int cmpull(const void *x, const void *y) {
     return a < b ? -1 : a > b;
 }
 
+static int g_rangepriv = 0;
+
+typedef struct { unsigned long long addr; unsigned val; } HIT;
+
+static int cmphit(const void *x, const void *y) {
+    unsigned long long a = ((const HIT *)x)->addr, b = ((const HIT *)y)->addr;
+    return a < b ? -1 : a > b;
+}
+
+#define MAXHIT 2000000
+
 static void do_findrange4(HANDLE p, unsigned lo, unsigned hi) {
     unsigned char *buf = malloc((1 << 20) + 8);
     ULONGLONG cur = 0x10000;
-    unsigned long long *hit = malloc(8 << 20);
+    HIT *hit = malloc((size_t)MAXHIT * sizeof(HIT));
     int n = 0;
-    while (cur < 0x00007FFFFFFEFFFFull && n < (int)((8 << 20) / 8)) {
+    while (cur < 0x00007FFFFFFEFFFFull && n < MAXHIT) {
         MEMORY_BASIC_INFORMATION m;
         if (VirtualQueryEx(p, (void *)cur, &m, sizeof m) != sizeof m) break;
         ULONGLONG next = (ULONGLONG)m.BaseAddress + m.RegionSize;
-        if (readable(&m) && (!g_privonly || m.Type == MEM_PRIVATE)) {
-            for (ULONGLONG off = 0; off < m.RegionSize; off += (1 << 20)) {
+        if (readable(&m) && (!g_rangepriv || m.Type == MEM_PRIVATE)) {
+            for (ULONGLONG off = 0; off < m.RegionSize && n < MAXHIT; off += (1 << 20)) {
                 SIZE_T sz = (SIZE_T)(m.RegionSize - off > (1 << 20) ? (1 << 20) : m.RegionSize - off);
                 read_into(p, (char *)m.BaseAddress + off, buf, sz);
-                for (SIZE_T i = 0; i + 4 <= sz; i += 4) {
+                for (SIZE_T i = 0; i + 4 <= sz && n < MAXHIT; i += 4) {
                     unsigned x;
                     memcpy(&x, buf + i, 4);
-                    if (x >= lo && x <= hi && n < (int)((8 << 20) / 8))
-                        hit[n++] = (unsigned long long)((char *)m.BaseAddress + off + i);
+                    if (x >= lo && x <= hi) {
+                        hit[n].addr = (unsigned long long)((char *)m.BaseAddress + off + i);
+                        hit[n].val = x;
+                        n++;
+                    }
                 }
             }
         }
         if (next <= cur) cur += 0x1000; else cur = next;
     }
-    qsort(hit, n, 8, cmpull);
-    for (int i = 0; i < n; i++) printf("%llX\n", hit[i]);
+    qsort(hit, n, sizeof(HIT), cmphit);
+    for (int i = 0; i < n; i++) printf("%llX %u\n", hit[i].addr, hit[i].val);
     fprintf(stderr, "n=%d\n", n);
 }
 
@@ -336,6 +350,7 @@ int main(int argc, char **argv) {
     else if (!strcmp(argv[2], "bigregions")) do_bigregions(p);
     else if (!strcmp(argv[2], "findchain") && argc >= 9) do_findchain(p, strtoull(argv[3],0,0), strtoull(argv[4],0,0), strtoul(argv[5],0,0), strtoul(argv[6],0,0), strtoul(argv[7],0,0), strtoul(argv[8],0,0));
     else if (!strcmp(argv[2], "findrange") && argc >= 5) do_findrange4(p, strtoul(argv[3],0,0), strtoul(argv[4],0,0));
+    else if (!strcmp(argv[2], "findrangep") && argc >= 5) { g_rangepriv = 1; do_findrange4(p, strtoul(argv[3],0,0), strtoul(argv[4],0,0)); }
     else if (!strcmp(argv[2], "diffcheck") && argc >= 4) do_diffcheck(p, argv[3]);
     else if (!strcmp(argv[2], "findseq") && argc >= 7) do_findseq4(p, strtoul(argv[3],0,0), strtoul(argv[4],0,0), strtoul(argv[5],0,0), strtoul(argv[6],0,0));
     else if (!strcmp(argv[2], "findv") && argc >= 4) do_findv(p, strtoul(argv[3], NULL, 0));
