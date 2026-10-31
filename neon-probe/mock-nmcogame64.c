@@ -19,15 +19,19 @@
  */
 #include <windows.h>
 #include <stdio.h>
+#include <intrin.h>
 
 static FILE *g_log;
 
-static void logmsg(const char *m) {
-    if (g_log) {
-        fprintf(g_log, "{\"t\":%llu,\"m\":\"%s\"}\n",
-                (unsigned long long)GetTickCount64(), m);
-        fflush(g_log);
-    }
+static void logmsg(const char *fmt, ...) {
+    if (!g_log) return;
+    fprintf(g_log, "{\"t\":%llu,\"m\":\"", (unsigned long long)GetTickCount64());
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(g_log, fmt, ap);
+    va_end(ap);
+    fprintf(g_log, "\"}\n");
+    fflush(g_log);
 }
 
 /* ── NMCO_* stubs (signatures are deliberately permissive) ── */
@@ -36,9 +40,30 @@ void NMCO_MemoryFree(void *p) {
     logmsg("NMCO_MemoryFree called");
 }
 
+static void sniff(const char *tag, unsigned __int64 p, int n) {
+    char hex[129];
+    int k = 0;
+    MEMORY_BASIC_INFORMATION m;
+    if (!p || !VirtualQuery((void *)(ULONG_PTR)p, &m, sizeof m)) return;
+    if (m.State != MEM_COMMIT || (m.Protect & 0xFF) == PAGE_NOACCESS ||
+        (m.Protect & 0xFF) == PAGE_GUARD) return;
+    __try {
+        const unsigned char *q = (const unsigned char *)(ULONG_PTR)p;
+        for (int i = 0; i < n && i < 64; i++)
+            k += sprintf(hex + k, "%02x", q[i]);
+        hex[k] = 0;
+        logmsg("%s %p: %s", tag, (void *)(ULONG_PTR)p, hex);
+    } __except (EXCEPTION_EXECUTE_HANDLER) { }
+}
+
 long long NMCO_CallNMFunction(void *a, void *b, void *c, void *d, void *e) {
-    (void)a; (void)b; (void)c; (void)d; (void)e;
-    logmsg("NMCO_CallNMFunction called");
+    void *ret = _ReturnAddress();
+    logmsg("NMCO_CallNMFunction a=%p b=%p c=%p d=%p e=%p ret=%p",
+           a, b, c, d, e, ret);
+    sniff(" a", (unsigned __int64)(ULONG_PTR)a, 32);
+    sniff(" b", (unsigned __int64)(ULONG_PTR)b, 32);
+    sniff(" c", (unsigned __int64)(ULONG_PTR)c, 32);
+    sniff(" d", (unsigned __int64)(ULONG_PTR)d, 32);
     return 0;
 }
 
@@ -52,7 +77,9 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(h);
         char path[MAX_PATH];
-        snprintf(path, sizeof path, "Z:\\tmp\\neon-mock-nmcogame64.%lu.log",
+        CreateDirectoryW(L"C:\\Neon", NULL);
+        CreateDirectoryW(L"C:\\Neon\\logs", NULL);
+        snprintf(path, sizeof path, "C:\\Neon\\logs\\mock-nmcogame64.%lu.log",
                  (unsigned long)GetCurrentProcessId());
         g_log = fopen(path, "a");
         logmsg("mock nmcogame64 attached");
