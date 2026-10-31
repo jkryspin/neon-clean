@@ -1,5 +1,8 @@
 # Disabling the anti-cheat (GRAP + NGS) before injecting
 
+> Default now is B1: real `grap64.dll`/`nmcogame64.dll` with `BlackCat1` running. The mocks
+> below remain available for b2 and are kept in `apps/loader/payload/probe`.
+
 Goal: launch MapleStory Classic World with **no anti-cheat in the process** so the
 injected probe/hook runs against plain, unprotected code ("same as 20 years ago").
 

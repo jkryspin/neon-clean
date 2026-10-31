@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/ce",
+    "apps/loader",
+    "crates/neon-bot",
+    "crates/neon-capture",
+    "crates/neon-cmd",
+    "crates/neon-core",
+    "crates/neon-protocol",
+    "crates/neon-state",
+    "crates/neon-view",
+    "crates/neon-win",
+    "crates/neon-world",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[profile.release]
+opt-level = 3
+lto = "thin"

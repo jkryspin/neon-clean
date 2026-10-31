@@ -164,7 +164,7 @@ IOCTLs `GET_PID`, `GET_BASE`, `READ`, `WRITE` (`KeStackAttachProcess`+`MmCopyVir
 `ObRegisterCallbacks` at altitude 100000 for `PsProcessType`/`PsThreadType`: for protected
 requesters OR back stripped rights; process notify maintains the list. Self-hide: unlink
 `DriverSection`, blank `KLDR_DATA_TABLE_ENTRY` names, random device/service name.
-Add `neon-stream/src/mem_win.rs` so the bot reads through the IOCTL (no `OpenProcess`).
+Add `neon-capture/src/mem_win.rs` so the bot reads through the IOCTL (no `OpenProcess`).
 Soak 30+ min with real NGS, canary, probe, input.
 
 ## Phase 5 — compare, harden, document

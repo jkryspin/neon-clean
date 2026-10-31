@@ -5,8 +5,8 @@ Plan: `docs/headless-plan.md`. This page is the "where are we" companion: what r
 ```
  game server
      |  (TCP, passive tcpdump)
- neon-stream --net  ---->  stamped packet log  (NEON_DUMP_OPS=all, run/view.NAME.log)
- neon-stream (memory) --->  latest state line   (position, HP/MP, level, map id; run/view.NAME.mem.json)
+ neon-capture --net  ---->  stamped packet log  (NEON_DUMP_OPS=all, run/view.NAME.log)
+ neon-capture (memory) --->  latest state line   (position, HP/MP, level, map id; run/view.NAME.mem.json)
                                  |
                           neon-protocol   registry (opcodes.toml) + generic field decoder + constraints
                                  |
@@ -24,7 +24,7 @@ Plan: `docs/headless-plan.md`. This page is the "where are we" companion: what r
 | `neon-protocol` | `opcodes.toml` (165 opcodes; 13 with tested field layouts), strict validation (no names without evidence), `Registry::decode` with min/max/charset constraints | real captured packets decoded to independently recorded values; rejects a real garbage packet |
 | `neon-world` | `Event`s from packets, `World::apply`, `apply_mem`, log replay, JSON snapshot, inspector, view server + page | real packets, real stat/party/pickup captures, real-socket HTTP test, path-traversal test |
 | `neon-cmd` | typed `Command`s, `SafetyGate` (+-25% jitter, rate cap, breaks every 45-90 min, 6 h cap, named pauses), `XtestActuator`, `Executor` (confirm / time out), `StaffRules`, `ReconnectPolicy` | offline, scripted worlds |
-| `neon-stream` | existing passive reader; fixed this session (it did not build: invented shuffle table) | 78 tests incl. real IV chain from a connection start |
+| `neon-capture` | existing passive reader; fixed this session (it did not build: invented shuffle table) | 78 tests incl. real IV chain from a connection start |
 
 `scripts/test-headless.sh` runs all four.
 
@@ -38,7 +38,7 @@ scripts/view.sh stop jib01
 cd neon-world && cargo run --release --bin neon-view -- --log some.log --speed 1   # replay a capture
 ```
 
-Page: map with the client's real platforms/ladders (`neon-calib/maps/<id>.json`, picked automatically from the map id read
+Page: map with the client's real platforms/ladders (`data/maps/<id>.json`, picked automatically from the map id read
 from memory, or typed in the box), mobs by template id, players with names, our character, HP/MP/level/position, party,
 packet inspector (opcode, registry name, status, decoded fields, bytes; "hide verified" to see only what is not understood yet).
 

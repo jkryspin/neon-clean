@@ -1,20 +1,20 @@
 # Where the bot's data comes from
 
-Everything the bot sees arrives as one JSON line per tick (`neon_state::GameState`) from
-`neon-stream`. This page records what each field is read from, how far it has been
+Everything the bot sees is built into `neon_state::GameState` by `neon-capture` and the
+Live worker in neon-ce. This page records what each field is read from, how far it has been
 verified, and what is still missing. Last verified: 2026-10-24, client MapleStory Classic
-World v1.0.1 under WineCharm, 64-bit, fixed image base `0x140000000`.
+World v1.0.1 on 64-bit Windows, fixed image base `0x140000000`.
 
-Roots and offsets live in `neon-calib/chains.json`. A "chain" is: read the 8-byte pointer
+Roots and offsets live in `data/chains.json`. A "chain" is: read the 8-byte pointer
 at `root` (an address inside the exe image), add a field offset, read the value.
 
 ## Re-verify after any restart or client patch
 
-```bash
-nice -n 19 ./neon-stream/target/release/neon-stream --chains neon-calib/chains.json --verify
+```
+target\debug\neon-ce.exe --pid <game pid>
 ```
 
-It prints what every chain reads. Compare against the on-screen HP/MP/level/position.
+The Live tab prints what every chain reads. Compare against the on-screen HP/MP/level/position.
 If a root reads `UNREADABLE`, the client was patched and the roots must be re-found.
 
 ## Status of each field
@@ -22,14 +22,14 @@ If a root reads `UNREADABLE`, the client was patched and the roots must be re-fo
 | Field | How | Verified |
 |---|---|---|
 | Position (x, y) | chain `0x143bf05a0` +0xF8/+0xFC | Across a restart and several map changes. **Flickers** to garbage (e.g. `(50858304, 0)`); the reader needs two agreeing reads and holds the last good value 400 ms |
-| Position, per frame (f32) | chain `0x143bd6788` +0x48 +0x120 +0x98 (f32 x, y) | The client's own position, a frame fresher than the i32 copy. Used **only when it agrees with the i32 read within 40 px**. Verified in Lith Harbor, through a map change and back, and after a re-login (`neon-calib/tools/possources.py`). Four other chains found the same day matched in one map, froze after leaving a shop and read (0, 0) in the next map; they outvoted the right one and the bot walked on a frozen position. They are listed as `rejected` in chains.json |
+| Position, per frame (f32) | chain `0x143bd6788` +0x48 +0x120 +0x98 (f32 x, y) | The client's own position, a frame fresher than the i32 copy. Used **only when it agrees with the i32 read within 40 px**. Verified in Lith Harbor, through a map change and back, and after a re-login (`data/tools/possources.py`). Four other chains found the same day matched in one map, froze after leaving a shop and read (0, 0) in the next map; they outvoted the right one and the bot walked on a frozen position. They are listed as `rejected` in chains.json |
 | HP, MP, level | chain `0x143bf8e78` +0x360/+0x364/+0x160 | Across a restart. MP checked against a live change. Level not yet seen across a level-up |
 | Grounded | chain `0x143bf05a0` −0x3E4 | Jump and rope. 1 on a foothold; 0 in the air **and on a rope** (cannot tell them apart). Flickers; needs two agreeing 0/1 reads |
 | Map ID | chain `0x143bf05a0` −0xC98 | Three maps (10001000 Henesys, 10001020 Hill West, 10001030 Forest West). Reads garbage while loading; the stream debounces it over 5 frames |
-| Footholds, ladders/ropes, portals | **client data files** (`neon-calib/tools/wzmap.py` -> `neon-calib/maps/<id>.json`, see `docs/navigation.md`); the memory signature scan remains as a fallback | Heights and portals match live measurements. Exact, no scanning |
-| Mobs (id + position), other players (name + position) | **network capture** (`--net`, see `docs/network-protocol.md`): passive `sudo tcpdump`, decoded in Rust | Verified live: mob types/positions and player names match the screen. No static root exists or was found |
-| Entities without the network | hitbox-rect signature scan (`--mobs rects`) | Fallback only; not classified (mob vs player vs NPC) |
-| Max HP, max MP | remembered per level in `neon-calib/seen-max.json` | Heuristic. Wrong if the stream first runs below max at a level it has never seen full |
+| Footholds, ladders/ropes, portals | **client data files** (`data/tools/wzmap.py` -> `data/maps/<id>.json`, see `docs/navigation.md`); the memory signature scan remains as a fallback | Heights and portals match live measurements. Exact, no scanning |
+| Mobs, other players, drops | **memory**: collision-rectangle signature scan filtered by footholds in neon-ce | Contacts only; no template classification yet. The `data/entities.json` roots are the open R&D item. Packet capture is optional |
+| Entity templates / player names | packet decode (`neon-capture/src/net.rs`, Packets tab) | Optional; not required for movement |
+| Max HP, max MP | remembered per level in `data/seen-max.json` | Heuristic. Wrong if the stream first runs below max at a level it has never seen full |
 | EXP | **network** (`0x007e` stat update, bit `0x10000`), verified over three kills | Not in memory as a plain/float value. `exp_needed` = 560 at level 7 (matches 78 -> 13.93%) |
 | AP, max HP/MP | network stat update (same packet), unverified | Needs a level-up to capture; max HP/MP otherwise remembered per level |
 | Drops (own kills) | network (`0x0471`/`0x0472`) | Verified: position, owner, source mob |
@@ -59,7 +59,7 @@ Things that looked like roots and were not (do not rediscover them):
 
 ## Mob IDs (from meowdb.com/msclassic)
 
-`neon-calib/mob-ids.json`. Classic World mob ids are small decimals (Snail 2, Blue Snail 3, Red Snail 5,
+`data/mob-ids.json`. Classic World mob ids are small decimals (Snail 2, Blue Snail 3, Red Snail 5,
 Stump 6, Slime 7, Pig 8, Orange Mushroom 9 ...). In memory the client keeps an id -> resource-path table
 (UTF-16 `Mob/0000009.img`); verified, but spawned mobs do not point at it, so it does not yet give a mob list.
 Sprite layers reach resource paths in ~3 pointer hops (`Character/Hair/...`, `UI/...`) and the avatar layers are
@@ -74,7 +74,7 @@ The brain pauses ("position source or map data is wrong") when the character sta
 Lith Harbor and 95.6% in Thicket Around the Beach I lie on a floor or ladder of the map file; the rest are single landing
 frames and `(0, 0)` read glitches. The map files (from the client's own `Map.wz`) were right; the one apparent mismatch
 (the Lith Harbor Department Store) was the frozen position chain above. Check any source with
-`neon-calib/tools/possources.py <pid>`: it prints every position source, the map id, and whether each stands on a floor.
+`data/tools/possources.py <pid>`: it prints every position source, the map id, and whether each stands on a floor.
 
 ## Method that worked, and what to avoid
 

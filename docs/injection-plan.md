@@ -148,7 +148,7 @@ for headless connection authentication.
 
 ### Differential Memory Scanning
 
-**File:** `neon-stream/src/scanner.rs`
+**File:** `neon-capture/src/scanner.rs`
 
 Extended with `GodModeScanner` — a differential scanner that finds the iframe timer
 by observing memory changes around damage events.
@@ -164,7 +164,7 @@ by observing memory changes around damage events.
 
 ### Platform-Specific Freeze
 
-**File:** `neon-stream/src/scanner.rs` → `GodModeFreezer::tick()`
+**File:** `neon-capture/src/scanner.rs` → `GodModeFreezer::tick()`
 
 - **macOS:** `mach_vm_write` via task port (requires debug privileges)
   - Needs `task_for_pid()` + `mach_vm_write()` on the game's task port
@@ -190,7 +190,7 @@ The `GodMode` struct processes damage packets and blocks/lets through based on c
 
 The freeze loop needs to be wired into the main game loop:
 ```rust
-// In neon-stream main loop:
+// In neon-capture main loop:
 if god_mode.confirmed {
     let freezer = GodModeFreezer::new(confirmed_addr, 0x7FFFFFFF, 5); // freeze every 5 ticks
     if freezer.tick(&scanner) {
@@ -225,11 +225,11 @@ Uses inline hooking on the packet send function at `0x141660360`:
 
 ### Wire Correlation (`wiremap-probe.py`)
 
-**File:** `neon-calib/tools/wiremap-probe.py`
+**File:** `data/tools/wiremap-probe.py`
 
 **Algorithm:**
 1. Read probe JSONL (internal opcodes with timestamps)
-2. Read wire log (wire opcodes with timestamps from `neon-stream --opcode-log`)
+2. Read wire log (wire opcodes with timestamps from `neon-capture --opcode-log`)
 3. For each probe entry, find wire entries within `WINDOW_MS` (500ms)
 4. Match by exact packet length (most reliable discriminator)
 5. Build mapping: wire_op → internal_op
@@ -239,8 +239,8 @@ Uses inline hooking on the packet send function at `0x141660360`:
 # 1. Inject opcode probe DLL
 ./inject_ud-win.exe --pid <game_pid> --dll probe_opcodes-win.dll
 
-# 2. Run neon-stream with opcode logging
-neon-stream --net --opcode-log /tmp/wire.log
+# 2. Run neon-capture with opcode logging
+neon-capture --net --opcode-log /tmp/wire.log
 
 # 3. Correlate
 python3 wiremap-probe.py /tmp/neon-probe-opcodes.<pid>.jsonl /tmp/wire.log -o wiremap.json
@@ -264,7 +264,7 @@ From `docs/opcodes.md` (passive capture):
 - `0x001b`: 48-byte periodic (5.2s median gap) — server challenge hypothesis
 - `0x001d`: 22-byte periodic (147.9s gap) — client answers with 0xfc6b
 - `0x005c`: SeqRequest (144/144 matched with 0x00c5)
-- `0x0072`: InventoryChange (124 seen, decoded in neon-stream)
+- `0x0072`: InventoryChange (124 seen, decoded in neon-capture)
 - `0x007e`: StatUpdate (1115 seen, verified — bitmask of stats)
 - `0x00a7`: PartyLeft (40 seen, verified — char id)
 - `0x00ae`: Chat (880 seen, verified — kind byte + text)
@@ -280,7 +280,7 @@ From `docs/opcodes.md` (passive capture):
 
 ### PacketActuator
 
-**File:** `neon-stream/src/packet_actuator.rs`
+**File:** `neon-capture/src/packet_actuator.rs`
 
 The `PacketActuator` connects the `outgoing::PacketBuilder` to the actual TCP socket:
 
@@ -306,7 +306,7 @@ PacketActuator
 
 ### Encoding
 
-**File:** `neon-stream/src/outgoing.rs`
+**File:** `neon-capture/src/outgoing.rs`
 
 Added `encode_frame_raw()` for direct socket sends:
 - Computes header: `a = ((iv[2] << 8) | iv[3]) ^ 0xdf00`, `c = a ^ swap16(len)`
@@ -324,7 +324,7 @@ per-connection wire opcodes before sending.
 
 ### Implementation Gap: Socket Discovery
 
-**File:** `neon-stream/src/packet_actuator.rs` → `connect()`
+**File:** `neon-capture/src/packet_actuator.rs` → `connect()`
 
 The `connect()` method is a placeholder — it finds game ports via `net::game_ports_of(pid)`
 but does not establish a socket connection. The actual implementation needs to:

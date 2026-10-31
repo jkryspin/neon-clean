@@ -15,11 +15,11 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 ## Capturing
 
 * **Incoming, passive (safe):** (since 2026-10-26 evening the log carries each packet's real capture time from tcpdump, not the time it was printed; older logs are quantised to ~1 s, so request/reply delays measured from them have about a second of slack)
-   `scripts/view.sh INSTANCE` runs `neon-stream --net` through `tcpdump` into `run/view.INSTANCE.log`.
+   `scripts/view.sh INSTANCE` runs `neon-capture --net` through `tcpdump` into `run/view.INSTANCE.log`.
   Nothing touches the game process.
 * **Outgoing, short attach (opt-in):** the opcode and plaintext are read from the client's packet object just before encryption,
-  not by breaking the cipher. `neon-calib/tools/outraw.py` (via `sudo gdb -p PID`, about 12 s) logs the raw object and the wire
-  length of each send; `neon-calib/tools/outbuild.py raw.jsonl out.nsr` turns it into exact plaintext (length at `+0x428`,
+  not by breaking the cipher. `data/tools/outraw.py` (via `sudo gdb -p PID`, about 12 s) logs the raw object and the wire
+  length of each send; `data/tools/outbuild.py raw.jsonl out.nsr` turns it into exact plaintext (length at `+0x428`,
   validated 41/41 against the sends). **Treat every attach as able to cost the session.** Tally for 2026-10-26 (short attaches of 12-34 s each, taken with a few minutes between them): 2 of 5 were followed, a few minutes later, by a disconnect to the login screen ("Unable to connect to the game server"; one on a test account after a 34 s attach, one on the main account after a 20 s attach), and the very first, much longer sessions (60-150 s) dropped both test clients. The memory reader still showed the character as alive right after the capture each time, so the drop is delayed. Recovery works (`scripts/instance-launch.sh NAME`, one attempt, then back off) but costs a minute or two and some risk. So: test accounts only, one capture per action set, keep the numbers of attaches low, never unattended, and prefer re-using the committed fixtures over capturing again. Addresses are specific to Classic World v1.0.1.
 
 ## Finding structure (tools, in the order they pay off)
@@ -27,16 +27,16 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 | Tool | Question it answers | Example result |
 |---|---|---|
 | Explorer (in the page, `/explore`, `/todo`) | Which bytes vary, which are constant, which hold known ids, what is still unexplained? | ranked `PlayerMove` first, so movement became the next job |
-| `neon-calib/tools/recfind.py` | Is it `header + count byte + n fixed records`? (the count byte is a checksum chance cannot satisfy) | rediscovered MobMove/PlayerMove, found PetMove and NpcMove |
-| `neon-calib/tools/idscan.py` | Which fields hold ids of mobs / players / drops we already know? | attack broadcasts: player at `@2`, mob at `@63` |
+| `data/tools/recfind.py` | Is it `header + count byte + n fixed records`? (the count byte is a checksum chance cannot satisfy) | rediscovered MobMove/PlayerMove, found PetMove and NpcMove |
+| `data/tools/idscan.py` | Which fields hold ids of mobs / players / drops we already know? | attack broadcasts: player at `@2`, mob at `@63` |
 | `scripts/registry-refs.py LOG` | Write what `idscan` found into the registry (fields `char_id` / `mob_oid` on still-unexplored entries; never touches verified ones) | `0x02b0`, `0x02b7`, `0x02ba`, `0x02bd`, `0x047b` reference players |
 | `neon-protocol/examples/validate.rs` | Does this registry file pass validation? `cargo run --example validate -- path` | catches a script writing an out-of-bounds field |
-| `neon-calib/tools/lifecycle.py` | Does a packet mark the start or end of an entity's presence (its movement packets before vs after, against random times)? | found `PlayerLeave 0x0209`; `0x02bb` is arrival-like; re-finds mob kill/hit and `PetSpawn` |
+| `data/tools/lifecycle.py` | Does a packet mark the start or end of an entity's presence (its movement packets before vs after, against random times)? | found `PlayerLeave 0x0209`; `0x02bb` is arrival-like; re-finds mob kill/hit and `PetSpawn` |
 | `scripts/correlate.py LOG...` (2026-10-27) | **Run this first, systematically, over every still-open opcode** rather than picking one by eye: for each opcode's best id-bearing field, does it line up in time with a mob kill (`0x03d4`), PlayerSpawn (`0x022d`), or PlayerLeave (`0x0209`) for that SAME id, at least half the time? Generalizes the one-off checks already done by hand for `0x0441` and the `0x0279` family into a repeatable sweep. Report only, writes nothing; a hit is a LEAD, not a proof - always follow up with the direction check (strictly before/after, like `0x02b3`'s) before trusting it, since a merely-frequent packet can look correlated with a landmark by base-rate alone (`0x02b7` looked like a leave-triggered broadcast at 83% co-occurrence, but a mixed before/after split showed it's not). | first run found `0x03e9` (100% near a kill, same strength as `0x0441`) and `0x02b3` (confirmed a likely sixth member of the post-spawn `0x0279` family); second run (after adding the leave landmark) found `0x02b7` looked promising but didn't hold up, and incidentally flagged `0x022e` as a false "new" candidate purely because its already-thorough hand analysis didn't use phrasing the tool's crude text-match recognized - broadened that match instead of re-deriving anything |
-| `neon-calib/tools/poscorr.py` | Does a field hold the position of the entity the packet refers to? | attacker position pairs in `0x02a8` (77% within 30 px) |
-| `neon-calib/tools/actlab.py` | Which opcodes does one isolated action produce (baseline + repeats)? | party create/leave |
-| Map geometry (`neon-calib/maps/<id>.json`) | Do decoded positions lie on real platforms / at real NPC positions? | spawns 383/384, NPC moves vs the NPC list |
-| **Marks** + `neon-calib/tools/marklab.py MARKS LOG...` | Which opcodes follow a hand-made action? Type a label into the page's Mark box (stored in `run/marks.jsonl`, `POST /mark?label=`) when you do something in the game; `marklab.py run/marks.jsonl run/sessions/X.log` lists, per mark, the opcodes whose count in the next 15 s is far above their background rate. Repeat the action: an opcode that follows every repeat is the candidate (then confirm with the evidence rules). | needs logs with real capture times |
+| `data/tools/poscorr.py` | Does a field hold the position of the entity the packet refers to? | attacker position pairs in `0x02a8` (77% within 30 px) |
+| `data/tools/actlab.py` | Which opcodes does one isolated action produce (baseline + repeats)? | party create/leave |
+| Map geometry (`data/maps/<id>.json`) | Do decoded positions lie on real platforms / at real NPC positions? | spawns 383/384, NPC moves vs the NPC list |
+| **Marks** + `data/tools/marklab.py MARKS LOG...` | Which opcodes follow a hand-made action? Type a label into the page's Mark box (stored in `run/marks.jsonl`, `POST /mark?label=`) when you do something in the game; `marklab.py run/marks.jsonl run/sessions/X.log` lists, per mark, the opcodes whose count in the next 15 s is far above their background rate. Repeat the action: an opcode that follows every repeat is the candidate (then confirm with the evidence rules). | needs logs with real capture times |
 | Aligned outgoing capture | Which sent packet belongs to which key press? | attack `0x00e1` at each `ctrl`; movement `0x00db` |
 
 **Marks pitfall (seen 2026-10-26):** never run an action loop whose period is a round number (60 s) without checking the periodicity first: `periodic.py` showed `0x004f` fires every 60 s, which phase-locked with a 60 s test loop and looked like "3/3 repeats" of opening the stats window. Vary the gaps (random 5-20 s) and run `periodic.py` on candidates before trusting them.
@@ -52,7 +52,7 @@ Goal: every opcode, incoming and outgoing, described in `neon-protocol/opcodes.t
 **Negative result 2:** after walking jib01 next to the Amherst mailbox, 4 clicks on it (random 6-15 s gaps) opened no window and produced no repeating opcode (candidates appeared in at most 1 of 4 windows and were ordinary town traffic). Walking by held arrow key (`xdotool keydown Left`, 3.2 s) works on the test account.
 
 **Contamination check (added 2026-10-26, after a real incident):** `scripts/registry-facts.py` trusts whatever log files it is given.
-A disconnected account's `neon-stream` can keep running and its connection flap, falling back to the old per-block heuristic, which
+A disconnected account's `neon-capture` can keep running and its connection flap, falling back to the old per-block heuristic, which
 silently produces garbage packets under MANY unrelated opcodes at once (not just one) - this happened once (jib02, 5861 garbage
 packets) and inflated or invented 23 registry entries before it was caught. **After every `registry-facts.py` run**, rebuild an
 independent pool from the same file list and check each FACTS sentence's claimed packet count against it; an entry whose count is
@@ -96,7 +96,7 @@ Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRe
 | `0x02a8`/`0x02a9`/`0x02aa` target-record `damage` field | summed over a mob's attacks, it is 0.7-1.6x the mob's (independently verified) spawn HP in 71%/56%/49% of kills; every other offset tried gives ~0% |
 | Chat (`0x00ae`) kind 2 trailer | matches `Whisper`'s schema exactly (name+message duplicated, same constants) - a buddy/party-adjacent shout, not the plain public kind 3/8 |
 | Climbing a rope/ladder | confirmed via the memory reader (grounded: false, y goes negative, x pinned to the ladder's recorded x); the `MoveSelf` fragment layout that explains ordinary walking does NOT fit the climbing frames - not solved, flagged as the next concrete step |
-| `scripts/registry-facts.py` contamination (self-found and fixed) | a disconnected account's (jib02) `neon-stream` kept running and its flapping connection fell back to the old heuristic, producing 5861 garbage packets that inflated or invented 23 registry entries in the first automated FACTS pass; all 23 traced to 0% support in verified exact-decoded data and were reverted/removed; `registry-facts.py` now auto-promotes `observed` to `structure` with a field when a single id-reference is strong (>=80%, >=5 hits) |
+| `scripts/registry-facts.py` contamination (self-found and fixed) | a disconnected account's (jib02) `neon-capture` kept running and its flapping connection fell back to the old heuristic, producing 5861 garbage packets that inflated or invented 23 registry entries in the first automated FACTS pass; all 23 traced to 0% support in verified exact-decoded data and were reverted/removed; `registry-facts.py` now auto-promotes `observed` to `structure` with a field when a single id-reference is strong (>=80%, >=5 hits) |
 
 ### Later overnight additions (2026-10-26 22:30-23:00, passive-only - organic multiplayer traffic, no further live actions)
 
@@ -106,12 +106,12 @@ Named outgoing: Attack, AttackSkill, KeepAlive, MoveMob, MoveSelf, PartyCreateRe
 | `0x022e` is a lighter, temporary drop from render range | NOT the same event as the confirmed `0x0209` `PlayerLeave`: that player's own packet gap jumps from a 0 s median (as active as baseline) to a 16.8 s median right at this event, and exceeds 10 s in 65.0% of cases vs 0.9% baseline (795029-gap baseline, 1759 events) - weaker/shorter than 0x0209's near-total silence + 76/275 re-spawn pattern, so it got a careful unnamed note instead of reusing that name (briefly double-named it `PlayerLeave` by mistake and caught it via a duplicate in the live `/opcodes` listing) |
 | `0x00ae` `Chat` kind 32 is not chat text | bigger pool (290 packets): the "text" field is always a well-formed player name, not "Name: msg"; a u32 nine bytes after a 100%-constant `0x004faed4` marker takes only 7 distinct values across all 290 packets, every one shaped like a classic equip id - a name-keyed per-player broadcast carrying one item id, not the coincidental "IP fragment" guess from the first look |
 | Self-inflicted build break, found and fixed | a prior `git add -A neon-protocol docs` picked up a stray empty `neon-protocol/src/main.rs` scaffold file (never referenced by anything) sitting in that directory and committed it, which broke `cargo build` for the whole crate at HEAD; `scripts/test-headless.sh` caught it immediately on the next run and it was removed in the following commit |
-| `neon-view` improvements (the jib02-contamination root cause, closed) | a live page never showed `World::reactors` (a Reactors panel next to Mobs/Drops), never summarized registry coverage (a header stat: opcodes seen this session by verified/decoded/structure/observed), and never color-coded `Chat` by kind (whisper/shop now stand out). More importantly: `neon-stream` now marks a heuristic-decoded line distinctly (`len N heuristic:` instead of `len N:`), which every existing pool-building regex already excludes automatically (confirmed against `registry-facts.py`'s own pattern); `neon-world::parse_log_line` rejects those lines outright, and a new `Snapshot::heuristic_skipped` counter plus a red header warning in `neon-view` means a flapping/desynced connection (exactly what jib02 did, silently, before tonight) is now visible within seconds instead of discovered after the fact by auditing a contaminated pool |
+| `neon-view` improvements (the jib02-contamination root cause, closed) | a live page never showed `World::reactors` (a Reactors panel next to Mobs/Drops), never summarized registry coverage (a header stat: opcodes seen this session by verified/decoded/structure/observed), and never color-coded `Chat` by kind (whisper/shop now stand out). More importantly: `neon-capture` now marks a heuristic-decoded line distinctly (`len N heuristic:` instead of `len N:`), which every existing pool-building regex already excludes automatically (confirmed against `registry-facts.py`'s own pattern); `neon-world::parse_log_line` rejects those lines outright, and a new `Snapshot::heuristic_skipped` counter plus a red header warning in `neon-view` means a flapping/desynced connection (exactly what jib02 did, silently, before tonight) is now visible within seconds instead of discovered after the fact by auditing a contaminated pool |
 
 ### Stage B (approved by the user, 2026-10-26; recorded in `docs/authorization.md`)
 
 Approval covers headless packet injection, test server NP12-T first, then NP12; exponential reconnect backoff; no tokens in
-repo/logs; the Sunday maintenance pause; all earlier rate/timing terms. Work so far stayed **entirely offline**: `neon-stream/src/send.rs::encode_frame`
+repo/logs; the Sunday maintenance pause; all earlier rate/timing terms. Work so far stayed **entirely offline**: `neon-capture/src/send.rs::encode_frame`
 builds a correct client->server frame (header, IV chain, AES-256-OFB) and reproduces two real captured frames byte for byte.
 **Blocker found and not yet solved:** the per-connection wire opcode numbering (the number a packet carries on the wire differs
 from the client's internal opcode, and differs again on every connection: four connections checked, four different keepalive
@@ -149,7 +149,7 @@ connects to NP12-T or sends anything live; this is the one item genuinely blocki
 * `0x02fe` was first read as movement; it is the mob-movement report (`0x00db` is our movement).
 * `0x0456` "sequential ids" were x coordinates; it is NPC movement.
 * `0x03d5` "respawn" is a control assignment (26/26 are for mobs already announced).
-* The `neon-stream` shuffle table in `outgoing.rs` was invented; replaced by the real table and the verified shuffle.
+* The `neon-capture` shuffle table in `outgoing.rs` was invented; replaced by the real table and the verified shuffle.
 * The first attach-based capture's wire-length pairing was approximate; the exact length lives at `+0x428`.
 
 Biggest remaining unexplained traffic as of 2026-10-26 overnight (92 incoming opcodes are still bare `observed`, mostly low-count):

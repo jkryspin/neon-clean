@@ -1,22 +1,12 @@
 # Rust
 /target
+**/target
 **/*.rs.bk
-
-# .NET
-/neon-server/bin
-/neon-server/obj
-/neon-server/**/*.user
--neon-server/**/*.suo
--neon-server/**/*.userosscache
 
 # Node
 /neon-web/node_modules
 /neon-web/dist
--neon-web/.vite
-
-# Database
--neon-server/*.db
--neon-server/*.db-journal
+/neon-web/.vite
 
 # IDE
 .vscode
@@ -36,31 +26,29 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+
+# per-run state
 run/
 logs/
 history/
 neon-status*.json
 neon-control*.json
 profiles/
-neon-calib/captures/
+data/captures/
+data/seen-max*.json
 *.pcap
-
-# build output
-target/
-**/target/
-node_modules/
-
-# per-run state
-neon-calib/seen-max*.json
+*.nsr
 
 # Local secrets: never commit
 nexon-credentials.json
-*.nsr
 
-# ngsx live runs, backups and MSVC intermediates
+# NGS-X live runs and backups
 /builds/ngsx-runs/
 /builds/ngsx-backup/
-neon-probe/*.obj
-neon-probe/*.exp
-neon-probe/*.lib
+
+# C payload intermediates
+/apps/loader/payload/probe/*.obj
+/apps/loader/payload/probe/*.exp
+/apps/loader/payload/probe/*.lib
+/apps/loader/payload/hack/*.obj
 __pycache__/

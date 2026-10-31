@@ -1,113 +1,49 @@
 # Neon - MapleStory Bot Suite
 
+Two components only: **neon-loader** (launch, patch, inject, verify) and **neon-ce** (workbench
+and bot). **neon-web** is a read-only browser monitor. Architecture: `docs/architecture.md`.
+
 ## Quick Start
 
-1. Read `CONTEXT.md` for project background
-2. Check `PLAN.md` for current status and next steps
-3. MapleStory runs on john-box under Wine
-4. Read `docs/data-sources.md` for what the bot can actually read from the game, what is
-   verified, and what is still missing. The "61 features" in PLAN.md are code that exists,
-   not features proven against the live client; only the data pipeline below is.
-5. Restarting the client: `docs/launching.md` (`scripts/launch-game.sh`)
-6. Headless / own-UI architecture and opcode mapping (2026-10-26): `docs/headless-plan.md` (plan), `docs/headless-architecture.md`
-   (what exists, how to run it: `scripts/view.sh NAME` opens **Neon View** on port 8765+), `docs/mapping-workflow.md` (tools, evidence
-   rules, status), `docs/opcodes.md` (generated). Tests: `scripts/test-headless.sh`. Outgoing captures: `scripts/capture-out.sh`
-   (guarded; attaching a debugger cost sessions, see the risk notes).
-7. Disable the anti-cheat before injecting (2026-10-29): `scripts/mock-anticheat.sh install|inject|restore`,
-   details in `docs/anticheat-mock.md`. Mocks `grap64.dll`/`nmcogame64.dll` and IAT-hooks the launcher for the
-   session token. The client's real anti-cheat is GRAP (not classic NGS/BlackCipher).
+```powershell
+cargo build --workspace
+target\debug\neon-loader.exe        # elevated; opens neon-ce after a verified injection
+target\debug\neon-ce.exe --pid N    # or attach from inside the window
+```
+
+Log in manually. `neon-loader --headless` prints the step log instead of showing a window.
+`neon-ce serve` runs the API without a UI; `neon-ce mcp` is the MCP bridge.
+
+## Where things are
+
+- `apps/loader` - launch chain, C payloads in `payload/`, injection status UI
+- `apps/ce` - Live, Entities, Map, Bot, Cheat, Packets, Logs tabs
+- `crates/neon-bot` - brain, plans, navigation, safety, Windows input
+- `crates/neon-capture` - chains, footholds, contact scan, packet codec
+- `crates/neon-win` - process, SendInput, window capture
+- `data/` - chains, maps, mob/quest/name tables, tools (formerly `neon-calib`)
+- `neon-web` - `npm install && npm run dev`, monitor only, localhost by default
 
 ## Authorization
 
-Nexon approved up to 5 bot instances on MapleStory Classic World for price data gathering (feeds MapleWatch).
+Nexon approved up to 5 bot instances on MapleStory Classic World for price data gathering
+(feeds MapleWatch). Reference MSCW-BOT-AUTH-2026-1023-KS. See `docs/authorization.md`.
 
-**Reference:** MSCW-BOT-AUTH-2026-1023-KS  
-**Date:** September 3, 2026  
-**From:** Kevin Song, Game Operations Manager, Nexon Korea
+## Current status
 
-See `docs/authorization.md` for the full email thread.
+- B1 launch path is proven live: clean stock client, real anti-cheat DLLs
+  (`grap64`/`nmcogame64`), `BlackCat1` running, stealth payload mapped. b2 (mocks + NGS-skip)
+  remains an alternative.
+- Live reads: HP/MP/level/position/map/grounded/footholds. Entities are unclassified contact
+  rectangles; packet capture is optional.
+- Bot executes in-process from CE with the safety gate, anti-detect, plans, navigation and
+  shop clicks. Manual login; Windows input through SendInput.
+- No packets are sent. Lie detector, GM evasion and outgoing packets remain incomplete.
 
-## Current Status (2026-10-24)
+## Rules of thumb
 
-Rewritten after live testing; the earlier "MVP complete" list overstated what was proven.
-Details and evidence: `docs/data-sources.md`.
-
-**Working and tested (unit tests + live read-only runs):**
-- `neon-stream`: reads position, HP/MP, level, grounded, map ID through static roots that
-  survived a client restart and map changes; map geometry (footholds) and entity hitboxes by
-  bounded signature scan. 41 unit tests (incl. real captured packets).
-- `neon-loader` brain (`brain.rs`): pure state-in/actions-out decision logic with tests for
-  grinding, potions with cooldowns, AP on level-up, map change, stranger pause, low-HP stop,
-  and looting (walk to a same-floor drop, press the pickup key, give up on stuck drops). 28 unit tests. Dry-run against the live stream works; it has **not** been run sending keys.
-- Client relaunch/login automation: `scripts/launch-game.sh`, `docs/launching.md`.
-
-**Network ciphers (solved 2026-10-26, passive only):** `neon-stream --net` now decrypts server->client packets exactly (no heuristic, header-verified) and client->server packets (AES-256-OFB), see
-`docs/network-protocol.md`. Client->server opcode numbers are scrambled per connection (`neon_protocol::WireMap`, `neon-calib/tools/wiremap.py`). Nothing is ever sent.
-
-**Not working / not proven:**
-- Mobs (with template ids) and other players (with names) now come from the network (`--net`), verified live; they have no memory root. EXP and own drops are decoded too (stat update `0x007e`, drops `0x0471`); AP, max HP/MP, player removal, and packets sent *to* the server are not verified.
-- No EXP, AP, drops, other-player names, or rope flag; max HP/MP only remembered per level.
-- Navigation (platform graph from the client's map data, ladders/ropes, drop-through), 64 px punch range, XTEST key input, 50 fps stream: live-tested on Forest West of Henesys (see docs/navigation.md).
-- Lie detector, player evasion data, buffs, skills, teleport/"kami", rusher: code exists in
-  `neon-core` but is not wired to real data or tested live.
-- A level-7 test character died during map-change testing. The brain now stops fighting below 30% HP; keep that guard on for any live run.
-
-## Control panel and features
-
-`docs/features.md` lists every feature, the Violet comparison, the control files/API and the plan format.
-`cd neon-web && npm run dev` serves the panel on http://127.0.0.1:3000 (Start/Pause/Stop, live settings, map rusher,
-scheduler, history, profiles). Start the bot from there or with `scripts/run-bot.sh --supervise`.
-
-## Running (current pipeline)
-
-```bash
-# Spin up a single bot with HWID spoofing
-./scripts/spinup-bot.sh bot1 40 --supervise
-
-# Spin up all 5 bots
-./scripts/spinup-all-bots.sh 40 --supervise
-
-# Or manually:
-# 1. Apply HWID
-./scripts/hwid-spoof-advanced.sh bot1 apply
-
-# 2. Launch game
-./scripts/launch-game.sh 40 bot1
-
-# 3. Run bot pipeline
-./scripts/run-bot.sh --session bot1 --instance bot1 --supervise
-```
-
-Legacy commands (older architecture, kept for reference):
-
-```bash
-# Start server
-cd neon-server && dotnet run --urls "http://0.0.0.0:5001"
-
-# Start web UI  
-cd neon-web && npm run dev
-
-# Run bot (needs DISPLAY for xdotool)
-export DISPLAY=:0
-cd neon-loader && cargo run --release -- --session <SESSION_ID>
-```
-
-## Key Files
-
-- `neon-loader/src/` - Memory scanner, input controller, bot logic
-- `neon-core/src/` - Feature modules (combat, movement, inventory, etc.)
-- `neon-server/` - .NET 8 API with SQLite
-- `neon-web/src/` - React 19 web UI
-
-## Anti-Detection Features
-
-The bot includes anti-detection features for extended unattended runs:
-- Randomized timing to avoid spamming server packets
-- Idle breaks every 50 actions (30s-3min)
-- Session limits (5 hours max)
-- Occasional "mistakes" (5% chance) to appear human-like
-- GM reaction: pause when staff is detected on the map (Phase 8)
-- Lie detector solver: automatically answer anti-macro checks (Phase 6)
-- Outgoing packet support: send packets for features like chat and emotes (Phase 9)
-
-These features are authorized under MSCW-BOT-AUTH-2026-1023-KS.
+- Run elevated; the process DACL blocks memory access otherwise.
+- Re-verify `data/chains.json` after any client patch: `neon-ce` Live tab plus
+  `docs/data-sources.md`. Unreadable roots mean the client changed.
+- gdb attaches cost sessions; prefer passive reads.
+- The web API is read-only. Start/stop spawns or kills neon-ce.

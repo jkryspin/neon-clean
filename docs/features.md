@@ -6,22 +6,16 @@ against the live client and/or covered by tests; see the last column.
 
 ## Running it
 
-```bash
-cd neon-web && npm install && npm run dev        # control panel on http://127.0.0.1:3000
+```
+target\debug\neon-loader.exe      # elevated
 ```
 
-Open the panel and press **Start bot** (it launches `scripts/run-bot.sh --supervise`), or run the pipeline yourself:
+The launcher restores the clean client and real anti-cheat DLLs, triggers PLAY, injects the payload,
+verifies the mapping and opens neon-ce. Log in manually. In neon-ce, the Bot tab starts the bot; the Live tab shows
+HP/MP/level/position/map and the contact list.
 
-```bash
-scripts/run-bot.sh --supervise --session main -- --mobs 2,3,5 --home-map 10001030 --auto-revive --max-deaths 5 --stop-at-level 10
-```
-
-`run-bot.sh` starts `neon-stream` (reads the game: memory + passive packet capture) piped into `neon-loader`
-(decides and presses keys). Anything after `--` goes to `neon-loader` (`neon-loader --help` lists everything).
-Supervised mode restarts the pipeline if it crashes (max 5 per hour), relaunches the game through
-`scripts/relaunch.sh` if it is gone, and does not restart after a deliberate stop.
-`NEON_WEB_HOST=0.0.0.0` exposes the panel on your network; it is bound to localhost by default because it can start
-and stop the bot.
+The browser monitor is read-only: `cd neon-web && npm install && npm run dev`. `NEON_WEB_HOST=0.0.0.0`
+exposes it on your network; it is bound to localhost by default.
 
 ## Feature matrix
 
@@ -30,13 +24,13 @@ and stop the bot.
 | Auto Farm (fights, monitors HP/MP/potions) | **Yes** | Route planning over the real map graph (walk, fall, drop-through, ropes, jumps), mob priority by cost, 64 px punch range from meowdb, flee-to-rope recovery, potion thresholds. `docs/navigation.md` |
 | "Follows you across maps" | **Partly** | Grind step `"follow": true` keeps grinding on the map the character is moved to by hand (timer, kill count and level goal carry over; a retreat to `safe_map` is not followed). Unit-tested only |
 | Map Rusher (travel to any map) | **Yes** | Portal graph over 334 maps from the client's own data; panel has a searchable map list with each map's mobs. Verified live: Henesys -> Forest West |
-| Rusher "best map for your level" | **Yes** | `GET /api/best-maps?level=N&from=MAP` and the panel's "Suggest maps" button: scores each map by EXP-per-HP of mobs weaker than you (levels, HP, EXP from meowdb in `neon-calib/mob-info.json`), penalises mobs that out-level you, and only lists maps reachable by portal, nearest first. For level 7 it ranks Forest West first, matching what worked in play, and shows The Hill East of Henesys (one hop) as a nearby alternative |
+| Rusher "best map for your level" | **Yes** | `GET /api/best-maps?level=N&from=MAP` and the panel's "Suggest maps" button: scores each map by EXP-per-HP of mobs weaker than you (levels, HP, EXP from meowdb in `data/mob-info.json`), penalises mobs that out-level you, and only lists maps reachable by portal, nearest first. For level 7 it ranks Forest West first, matching what worked in play, and shows The Hill East of Henesys (one hop) as a nearby alternative |
 | Route safety check | **Yes** (extra) | `GET /api/route?level=&from=&to=` and a banner in the panel list the maps a rush crosses whose mobs out-level the character (for level 7, Henesys to Forest West flags Hunting Ground I and Hill West: the maps that killed it). The bot still only walks; the warning is for you to decide |
 | Task Scheduler (+ share codes) | **Yes** | Steps (travel / grind until level, minutes or kills / rest / shop trip), daily time windows with weekdays and overnight spans, repeat, `NEON1:` share codes. 7 unit tests |
 | Auto Lie Detector | **Solver in progress** | Detect, pause and alert is built. Phase 6 implements the solver to auto-answer anti-macro checks |
 | Party Sync | **Partly** | Party list from the network (`0x00a7`, see network-protocol.md): `GameState.party` holds the members' names, verified live for create and leave; a party member nearby is not a stranger. `--party-dir DIR`: bots on one machine share the mob each is after (lowest session name wins a tie), unit-tested only. No shared loot or coordinated map moves |
 | Keep stocked / shop trips, auto sell | **Yes, by UI clicks** | Plan step `shop`: travels to the shop's map, clicks the NPC, sells whole inventory tabs (equip / use / set-up / etc) and buys by shop row, then leaves. Verified live in the Henesys Department Store: 5 Etc stacks sold (110 -> 233 mesos), 3 Red Potions bought (1 -> 4, 233 -> 83 mesos). Purchases are checked by the meso counter changing. Authorised by the account owner; no packets are sent, only mouse clicks on the client's own windows |
-| Item filter (keep some items) | **Partly** | `keep` leaves the top N rows of each sell list alone; `keep_items` protects item ids, set from a field in the shop step with a keep/sell preview. No name matching until `neon-calib/items.json` is generated |
+| Item filter (keep some items) | **Partly** | `keep` leaves the top N rows of each sell list alone; `keep_items` protects item ids, set from a field in the shop step with a keep/sell preview. No name matching until `data/items.json` is generated |
 | Auto Starforce / Cube / Flame / Inner Ability | **N/A on this client** | Classic World is a v83-style client; its Game Menu has no such windows (checked live). Plan step `ui` (a calibrated click sequence, `repeat` capped at 200) exists for any other window |
 | IGN Spoofer | No | Modifies the client's display; out of scope (read-only principle) |
 | Rotation Builder | **Partly** | Attack-skill rotation with cooldowns and MP floors, plus timed macros for buffs. No generator from spawn data |
@@ -51,7 +45,7 @@ and stop the bot.
 | Live game view | **Yes** (extra) | `GET /api/stream` (MJPEG, `?fps=1-8&scale=50/75/100`), `GET /api/frame.jpg`, `GET /api/stream/status`. Screen grabs of the client window with ImageMagick `import` (niced, one shared capture loop that runs only while someone watches; nothing is sent to the game). Dashboard card and a "Live game" page with play/pause, rate, quality, screenshot and fullscreen; paused by default on phones. `neon-web/server/stream.mjs` |
 | Auto Login & Relaunch | **Partly** | Relaunch of the game through the saved launcher login (`scripts/relaunch.sh`) when supervised; no credential handling |
 | Script marketplace | **Partly** | Named settings profiles, `NEONP1:` share codes, and a Library page that keeps named `NEON1:` / `NEONP1:` codes in the browser and applies them to the bot. No online store |
-| Lua scripting API, packet hooks | **Rules instead** | A JSON rules engine ("when X, do Y"): 10 triggers (HP/MP, level, map, mobs nearby, empty spot, stranger, timer) and actions (press key, pause, stop, alert, change settings), edge or repeating, with cooldowns; editable live in the panel (Rules page) or `--rules file.json`. No code execution, so no Lua. Incoming packets are decoded in `neon-stream` (`docs/network-protocol.md`); sending packets is not implemented |
+| Lua scripting API, packet hooks | **Rules instead** | A JSON rules engine ("when X, do Y"): 10 triggers (HP/MP, level, map, mobs nearby, empty spot, stranger, timer) and actions (press key, pause, stop, alert, change settings), edge or repeating, with cooldowns; editable live in the panel (Rules page) or `--rules file.json`. No code execution, so no Lua. Incoming packets are decoded in `neon-capture` (`docs/network-protocol.md`); sending packets is not implemented |
 | Out packets (`out_packet(...):send()`) | **In progress** | Phase 9: find outgoing payload key, implement packet construction/encryption, add to rules engine |
 
 Extras Violet's page does not list: exact map geometry from the client's data files (platforms, ropes, portals, spawn
@@ -117,11 +111,11 @@ Blue Potion on Home, HP refilled by key presses during a Thicket II run.
 `npc` is where to click the NPC in the 1422x900 reference window (Luna of the Henesys Department Store is at 452,518).
 `sell` lists inventory tabs, `keep` skips that many top rows of each list (used when an item's id isn't known yet),
 `keep_items` protects specific item ids wherever they sit in the list — the bot already knows every slot's item id from
-the server's own inventory updates (`neon-stream`'s `0x0072`/`0x01a9` decoding), so a quest item or a kept drop survives
-a sell trip regardless of its row. `neon-calib/tools/wzitems.py <String_000.wz> neon-calib/items.json` extracts item
+the server's own inventory updates (`neon-capture`'s `0x0072`/`0x01a9` decoding), so a quest item or a kept drop survives
+a sell trip regardless of its row. `data/tools/wzitems.py <String_000.wz> data/items.json` extracts item
 names -> the ids go in `keep_items` (the bot itself only ever sees ids, never names). `buy[].slot` is the row of the
-shop's own list (row 0 is Red Potion in Luna's shop). NPC and map ids come from `neon-calib/maps/*.json` (`npcs`) and
-`neon-calib/npc-names.json`. Use `--no-evasion` for town trips; towns are full of strangers. Dry runs skip the clicks.
+shop's own list (row 0 is Red Potion in Luna's shop). NPC and map ids come from `data/maps/*.json` (`npcs`) and
+`data/npc-names.json`. Use `--no-evasion` for town trips; towns are full of strangers. Dry runs skip the clicks.
 
 Unit-tested (`neon-loader/src/shop.rs`): keeping by position reproduces the old fixed-row behaviour exactly, and
 keeping by id protects an item wherever it moves in the list as others are sold. Not yet verified live.
@@ -133,9 +127,9 @@ keeping by id protects an item wherever it moves in the list as others are sold.
 {"kind":"quest","quest":10001,"complete":true}      // hand it in
 ```
 
-Only the quest id is needed. `neon-calib/tools/wzquests.py <QuestData_000.wz> neon-calib/quests.json` extracts every
+Only the quest id is needed. `data/tools/wzquests.py <QuestData_000.wz> data/quests.json` extracts every
 quest from the client (343): start/end NPC, level range, prerequisite quests, kills and items to collect, and the
-rewards (mesos, EXP, items). The loader finds the NPC in `neon-calib/maps/*.json` (re-run `wzmap.py` to refresh;
+rewards (mesos, EXP, items). The loader finds the NPC in `data/maps/*.json` (re-run `wzmap.py` to refresh;
 it records `npcs`), travels to that map, walks to the NPC with the platform graph (`walk_to` in the brain), then clicks
 it where the camera puts it (`quest::click_point`: the view follows the player, clamped to the map's view rectangle)
 and answers the dialog. The panel's "Quest (talk to the NPC)" step lists quests that pay mesos

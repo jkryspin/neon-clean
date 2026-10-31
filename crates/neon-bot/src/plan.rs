@@ -1,0 +1,2263 @@
+//! Task scheduler: a plan is a list of steps run in order, optionally limited to time-of-day windows.
+//!
+//! * `travel`  walk to a map through portals (the map rusher) and stop there;
+//! * `grind`   go to a map and fight until a level / duration / kill count is reached;
+//! * `rest`    stand still for a while;
+//! * `shop`    go to a shop's map, sell inventory tabs to the NPC and buy supplies;
+//! * `kill`    grind a map until given numbers of given mobs are dead (the kills a quest asks for);
+//! * `goto`    go to a map and walk to a world position (platform navigation, no fighting);
+//! * `quest`   walk to a quest's NPC and start or complete the quest by answering its dialog.
+//!
+//! The runner is pure: it only changes the brain's config (`home_map`, `kami`) and says whether the bot
+//! should be active right now, so every rule is unit-tested with fake clocks.
+
+use crate::brain::BrainConfig;
+use crate::quest::QuestJob;
+use crate::shop::{Buy, ShopJob};
+use serde::{Deserialize, Serialize};
+
+const SHOP_SETTLE_MS: u64 = 2500;
+/// A `goto` is done within this many px horizontally of its spot.
+const GOTO_TOL: i32 = 24;
+/// Standing this close to the NPC counts as arrived (the NPC is clickable from anywhere on screen).
+const QUEST_STAND_PX: i32 = 120;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Step {
+    Travel {
+        map: u32,
+        /// Town to rest in when out of potions from this step on (see Grind).
+        #[serde(default)]
+        safe_map: Option<u32>,
+    },
+    Grind {
+        map: u32,
+        #[serde(default)]
+        until_level: Option<u16>,
+        #[serde(default)]
+        minutes: Option<u32>,
+        #[serde(default)]
+        kills: Option<u32>,
+        /// Only these mobs are fought (template ids), e.g. the snails of a map whose mushrooms are too strong yet.
+        #[serde(default)]
+        mobs: Option<Vec<u32>>,
+        /// Town to rest in when out of potions while grinding here (sets the bot's safe map from this step on).
+        #[serde(default)]
+        safe_map: Option<u32>,
+        /// Steps to run when the potions run out here (a shop trip), instead of the plan's `resupply`; `[]` = none.
+        #[serde(default)]
+        resupply: Option<Vec<Step>>,
+        /// Follow the character: when it is moved to another map by hand (not a retreat to `safe_map`) once the
+        /// grind has begun, keep grinding there, with the step's timer, kill count and level goal carried over.
+        #[serde(default)]
+        follow: bool,
+        /// Go to whatever map this other bot (its `--session` name, see `--party-dir`) is in and grind there.
+        #[serde(default)]
+        follow_peer: Option<String>,
+    },
+    Rest {
+        minutes: u32,
+    },
+    /// Go to a map and walk to the world position (x, y), then finish. Used to test and measure navigation.
+    Goto {
+        map: u32,
+        x: i32,
+        y: i32,
+    },
+    /// Go to a map and fight until every listed mob has been killed that many times since the step began.
+    /// Only mobs still missing are attacked.
+    Kill {
+        map: u32,
+        mobs: Vec<MobCount>,
+        /// Items to collect as well (picked up since the step began), e.g. a quest's Tree Branches.
+        #[serde(default)]
+        items: Vec<ItemCount>,
+        #[serde(default)]
+        resupply: Option<Vec<Step>>,
+    },
+    /// Equip an item from the Equip inventory tab (double-click it), e.g. a weapon a shop step just bought.
+    Equip {
+        /// `inv:equip:<row>:<col>`.
+        item: String,
+        /// Skip unless the shop step before this one bought something.
+        #[serde(default)]
+        if_bought: bool,
+    },
+    /// Run a calibrated click sequence on an open game window (item enhancement: Starforce, Cube, Flame, Inner
+    /// Ability). The window must already be open and the character standing where it works.
+    Ui {
+        /// Shown in the log and the panel.
+        name: String,
+        clicks: Vec<crate::ui::UiClick>,
+        #[serde(default = "crate::ui::one")]
+        repeat: u32,
+    },
+    /// Travel to the shop's map, then click the NPC, sell the listed inventory tabs and buy. The NPC is either a fixed
+    /// click position (`npc`, reference-window pixels) or an NPC id (`npc_id`): then the bot walks up to it and clicks
+    /// where the camera shows it, like a quest NPC (its map and position come from the map data).
+    Shop {
+        #[serde(default)]
+        map: u32,
+        #[serde(default)]
+        npc: [i32; 2],
+        #[serde(default)]
+        npc_id: u32,
+        #[serde(default)]
+        at: [i32; 2],
+        #[serde(default)]
+        bounds: [i32; 4],
+        #[serde(default)]
+        sell: Vec<String>,
+        #[serde(default)]
+        keep: u32,
+        /// Item ids never sold, wherever they sit in the sell list (ids from `neon-calib/items.json`,
+        /// generated by `neon-calib/tools/wzitems.py`).
+        #[serde(default)]
+        keep_items: Vec<u32>,
+        #[serde(default)]
+        buy: Vec<Buy>,
+        /// Mesos to keep: buy only what leaves at least this many (each `buy` needs its `price`), e.g. 150 for
+        /// Shanks's boat off Maple Island.
+        #[serde(default)]
+        reserve: u32,
+    },
+    /// Walk to the quest's NPC and talk to it. Only `quest` is needed: the NPC and its map come from the
+    /// client's quest data (`quest::resolve`); `map` may be named to pick between maps that share the NPC.
+    /// `quest: 0` with `npc` (and `map`) just talks to that NPC, e.g. Shanks for the boat off Maple Island.
+    Quest {
+        quest: u32,
+        /// False = accept the quest, true = hand it in.
+        #[serde(default)]
+        complete: bool,
+        #[serde(default)]
+        map: u32,
+        #[serde(default)]
+        npc: u32,
+        #[serde(default)]
+        at: [i32; 2],
+        #[serde(default)]
+        bounds: [i32; 4],
+        /// Answer a YES / NO question with YES (paying for the boat). Without it such questions are refused.
+        #[serde(default)]
+        yes: bool,
+        /// A job advancement: the step is done once the server reports this job (100 = Warrior).
+        #[serde(default)]
+        until_job: Option<u16>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct MobCount {
+    pub id: u32,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ItemCount {
+    pub id: u32,
+    pub count: u32,
+}
+
+/// A daily time window in the plan's local time. `days` are 0 = Monday .. 6 = Sunday (empty = every day).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Window {
+    #[serde(default)]
+    pub days: Vec<u8>,
+    pub start: String,
+    pub end: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Plan {
+    pub name: String,
+    pub steps: Vec<Step>,
+    /// Start over after the last step instead of finishing.
+    pub repeat: bool,
+    pub windows: Vec<Window>,
+    /// Minutes east of UTC for the windows (e.g. -300 = UTC-5).
+    pub utc_offset_min: i32,
+    /// Step to begin with (0-based): resume a plan after a restart without redoing finished steps.
+    pub start: usize,
+    /// Town to rest in when out of potions until a step names another (a character without potions that stops
+    /// to recover in a mob map dies there).
+    pub safe_map: Option<u32>,
+    /// Steps run when the potions run out during a grind or kill step (a shop trip), then the step goes on.
+    pub resupply: Vec<Step>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PlanOutput {
+    /// False while outside a window or when the plan is finished: the bot must stand still.
+    pub active: bool,
+    pub finished: bool,
+    pub reason: String,
+    /// Human-readable progress events ("step 2/3: grinding ...").
+    pub notes: Vec<String>,
+    pub step: usize,
+    /// A shop trip the bot must run now (blocking), then report with `shop_finished`.
+    pub shop: Option<ShopJob>,
+    /// A quest conversation the bot must run now (blocking), then report with `quest_finished`.
+    pub quest: Option<QuestJob>,
+    /// The plan cannot go on (a quest step failed every retry): the bot stops and says why.
+    pub failed: Option<String>,
+    /// An inventory cell (`inv:equip:r:c`) to equip now (blocking), then report with `equip_finished`.
+    pub equip: Option<String>,
+    /// A click sequence to run now (blocking), then report with `ui_finished`.
+    pub ui: Option<crate::ui::UiJob>,
+    /// A resupply trip finished: the bot may look for potions again.
+    pub resupplied: bool,
+}
+
+pub struct PlanRunner {
+    plan: Plan,
+    idx: usize,
+    step_started: Option<u64>,
+    base_kills: u32,
+    announced: Option<usize>,
+    done: bool,
+    shop_issued: bool,
+    shop_done: bool,
+    quest_issued: bool,
+    quest_done: bool,
+    player: Option<(i32, i32)>,
+    camera: Option<(i32, i32)>,
+    /// Lifetime kills per mob template, from the brain.
+    kills_by_mob: std::collections::BTreeMap<u32, u32>,
+    /// Kills per mob when the current kill step began, and the mob filter the user had before it.
+    kill_base: Option<std::collections::BTreeMap<u32, u32>>,
+    saved_mobs: Option<Option<std::collections::HashSet<u32>>>,
+    /// Our (level, EXP), for confirming hand-ins.
+    exp: (Option<u16>, Option<u64>),
+    /// The conversation's outcome from the bot (it ran, ACCEPT was clicked), handled on the next tick.
+    quest_result: Option<(bool, bool)>,
+    /// A hand-in waiting for our EXP to move away from this (level, EXP) before this time.
+    quest_verify: Option<((Option<u16>, Option<u64>), u64)>,
+    quest_failures: u32,
+    quest_retry_at: u64,
+    /// Our quests as the server reports them: the authority on what is accepted, done and how many kills count.
+    quests: Vec<neon_state::QuestRecord>,
+    /// Kills each quest asks for (from the quest data), looked up once.
+    required: std::collections::HashMap<u32, Vec<(u32, u32)>>,
+    /// Our job as the server reports it.
+    job: Option<u16>,
+    /// A job advancement conversation ran: wait until this time for the server's job change.
+    job_wait: Option<u64>,
+    /// Items picked up since the stream started, and their counts when the current kill step began.
+    items: std::collections::BTreeMap<u32, u32>,
+    item_base: Option<std::collections::BTreeMap<u32, u32>>,
+    /// Items the last shop trip bought (for `equip` with `if_bought`).
+    last_bought: u32,
+    equip_issued: bool,
+    equip_done: bool,
+    ui_issued: bool,
+    ui_done: bool,
+    /// The map a following grind step moved to (see `Step::Grind::follow`).
+    follow_map: Option<u32>,
+    /// The maps other bots reported (see `party`), by session name.
+    peer_maps: std::collections::HashMap<String, u32>,
+    /// Out of potions (from the bot), and a resupply trip spliced into the plan that has not finished yet.
+    pots_empty: bool,
+    resupplying: bool,
+    /// Our mesos (server), for shop steps with a reserve.
+    mesos: Option<u64>,
+    /// Said once that the mesos buy nothing on a resupply (until they do).
+    resupply_poor_said: bool,
+    /// The kill step whose "the server says done" note was given (once per step, not every tick).
+    announced_quest_kills: Option<usize>,
+}
+
+/// A quest step is tried this many times before the plan gives up.
+const QUEST_TRIES: u32 = 3;
+const QUEST_RETRY_MS: u64 = 10_000;
+/// A hand-in pays its EXP within this long of the conversation.
+const QUEST_VERIFY_MS: u64 = 8_000;
+
+/// What a shop step may buy: only what the mesos above the reserve pay for (by each item's price, in order). With the
+/// mesos unknown, or an item's price unknown, nothing under a reserve and everything as written without one.
+fn affordable(buy: &[Buy], reserve: u32, mesos: Option<u64>) -> Vec<Buy> {
+    let Some(m) = mesos else {
+        return if reserve == 0 { buy.to_vec() } else { vec![] };
+    };
+    let mut budget = m.saturating_sub(reserve as u64);
+    buy.iter()
+        .map(|b| {
+            let qty = if b.price == 0 {
+                if reserve == 0 {
+                    b.qty
+                } else {
+                    0
+                }
+            } else {
+                (b.qty as u64).min(budget / b.price as u64) as u32
+            };
+            budget = budget.saturating_sub(qty as u64 * b.price as u64);
+            Buy { qty, ..b.clone() }
+        })
+        .filter(|b| b.qty > 0)
+        .collect()
+}
+
+fn parse_hhmm(s: &str) -> Option<u32> {
+    let (h, m) = s.trim().split_once(':')?;
+    let (h, m): (u32, u32) = (h.parse().ok()?, m.parse().ok()?);
+    (h < 24 && m < 60).then_some(h * 60 + m)
+}
+
+impl Plan {
+    /// Is `now_ms` (UTC) inside one of the windows? No windows = always.
+    pub fn in_window(&self, now_ms: u64) -> bool {
+        if self.windows.is_empty() {
+            return true;
+        }
+        let local_min = (now_ms / 60_000) as i64 + self.utc_offset_min as i64;
+        let day = local_min.div_euclid(1440);
+        let tod = local_min.rem_euclid(1440) as u32;
+        let weekday = ((day + 3).rem_euclid(7)) as u8; // 1970-01-01 was a Thursday
+        self.windows.iter().any(|w| {
+            let (Some(a), Some(b)) = (parse_hhmm(&w.start), parse_hhmm(&w.end)) else {
+                return false;
+            };
+            let on = |d: u8| w.days.is_empty() || w.days.contains(&d);
+            if a <= b {
+                on(weekday) && tod >= a && tod < b
+            } else {
+                // Crosses midnight: the evening part belongs to today's entry, the morning part to yesterday's.
+                (on(weekday) && tod >= a) || (on((weekday + 6) % 7) && tod < b)
+            }
+        })
+    }
+}
+
+impl PlanRunner {
+    pub fn new(mut plan: Plan) -> Self {
+        for w in crate::quest::resolve(&mut plan) {
+            tracing::warn!("{w}");
+        }
+        let idx = plan.start.min(plan.steps.len().saturating_sub(1));
+        Self {
+            plan,
+            idx,
+            step_started: None,
+            base_kills: 0,
+            announced: None,
+            done: false,
+            shop_issued: false,
+            shop_done: false,
+            quest_issued: false,
+            quest_done: false,
+            player: None,
+            camera: None,
+            kills_by_mob: Default::default(),
+            kill_base: None,
+            saved_mobs: None,
+            exp: (None, None),
+            quest_result: None,
+            quest_verify: None,
+            quest_failures: 0,
+            quest_retry_at: 0,
+            quests: vec![],
+            required: Default::default(),
+            job: None,
+            job_wait: None,
+            items: Default::default(),
+            item_base: None,
+            last_bought: 0,
+            equip_issued: false,
+            equip_done: false,
+            ui_issued: false,
+            ui_done: false,
+            follow_map: None,
+            peer_maps: Default::default(),
+            pots_empty: false,
+            resupplying: false,
+            announced_quest_kills: None,
+            mesos: None,
+            resupply_poor_said: false,
+        }
+    }
+
+    pub fn plan(&self) -> &Plan {
+        &self.plan
+    }
+
+    /// (name, current step number 1-based, total, description) for the panel.
+    pub fn summary(&self) -> (String, usize, usize, String) {
+        let total = self.plan.steps.len();
+        let i = self.idx.min(total.saturating_sub(1));
+        let what = if self.done {
+            "finished".to_string()
+        } else {
+            self.plan.steps.get(i).map(describe).unwrap_or_default()
+        };
+        (
+            self.plan.name.clone(),
+            if self.done { total } else { i + 1 },
+            total,
+            what,
+        )
+    }
+
+    /// The bot finished (or gave up on) the shop trip it was handed; `bought` items came of it.
+    pub fn shop_finished(&mut self, bought: u32) {
+        self.shop_done = true;
+        self.last_bought = bought;
+    }
+
+    /// The maps the other bots in the party directory are in.
+    pub fn set_peer_maps(&mut self, maps: std::collections::HashMap<String, u32>) {
+        self.peer_maps = maps;
+    }
+
+    /// The bot finished (or failed) the click sequence it was handed.
+    pub fn ui_finished(&mut self) {
+        self.ui_done = true;
+    }
+
+    /// The bot finished (or failed) the equip it was handed.
+    pub fn equip_finished(&mut self) {
+        self.equip_done = true;
+    }
+
+    /// Our job (server), items picked up so far (server), and whether the bot is out of potions.
+    pub fn set_job(&mut self, job: Option<u16>) {
+        self.job = job;
+    }
+
+    /// Our mesos as the server last reported them.
+    pub fn set_mesos(&mut self, m: Option<u64>) {
+        self.mesos = m;
+    }
+
+    pub fn set_items(&mut self, items: std::collections::BTreeMap<u32, u32>) {
+        // The stream restarted (its counts start again from zero): count this step from here.
+        if self.item_base.as_ref().is_some_and(|b| {
+            b.iter()
+                .any(|(id, n)| items.get(id).copied().unwrap_or(0) < *n)
+        }) {
+            self.item_base = Some(items.clone());
+        }
+        self.items = items;
+    }
+
+    pub fn set_pots_empty(&mut self, empty: bool) {
+        self.pots_empty = empty;
+    }
+
+    /// Splice the resupply steps in front of the current grind/kill step when the potions run out there.
+    fn maybe_resupply(&mut self, out: &mut PlanOutput) {
+        if !self.pots_empty || self.resupplying {
+            return;
+        }
+        let steps = match &self.plan.steps[self.idx] {
+            Step::Grind { resupply, .. } | Step::Kill { resupply, .. } => resupply
+                .clone()
+                .unwrap_or_else(|| self.plan.resupply.clone()),
+            _ => return,
+        };
+        if steps.is_empty() {
+            return;
+        }
+        // A trip that could not buy anything (mesos at or under a shop's reserve) would end out of potions again and
+        // start over at once: wait until the mesos pay for something.
+        let buys_something = steps.iter().any(|st| match st {
+            Step::Shop { buy, reserve, .. } => !affordable(buy, *reserve, self.mesos).is_empty(),
+            _ => false,
+        });
+        if !buys_something {
+            if !self.resupply_poor_said {
+                self.resupply_poor_said = true;
+                out.notes.push(format!("out of potions, but {} meso(s) buy nothing above the reserve: going on without", self.mesos.map_or("unknown".to_string(), |m| m.to_string())));
+            }
+            return;
+        }
+        self.resupply_poor_said = false;
+        out.notes.push(format!(
+            "out of potions: {} resupply step(s) first, then back to step {}",
+            steps.len(),
+            self.idx + 1
+        ));
+        let n = steps.len();
+        for (i, st) in steps.into_iter().enumerate() {
+            self.plan.steps.insert(self.idx + i, st);
+        }
+        // The interrupted step starts over afterwards (its own timers and counts restart; quest counts do not).
+        self.step_started = None;
+        self.kill_base = None;
+        self.item_base = None;
+        self.announced = None;
+        self.resupplying = true;
+        let _ = n;
+    }
+
+    /// The bot finished (or gave up on) the quest conversation it was handed: whether it ran, and whether ACCEPT was
+    /// clicked. The runner decides on the next tick whether the quest really moved on.
+    pub fn quest_finished(&mut self, ran: bool, accepted: bool) {
+        self.quest_result = Some((ran, accepted));
+    }
+
+    /// Our quests as the server last reported them.
+    pub fn set_quests(&mut self, q: Vec<neon_state::QuestRecord>) {
+        self.quests = q;
+    }
+
+    fn quest_record(&self, id: u32) -> Option<&neon_state::QuestRecord> {
+        self.quests.iter().find(|q| q.id == id)
+    }
+
+    /// A quest step that the server says is already where it should be: accepted (in progress or done) for an
+    /// accept, completed for a hand-in.
+    fn quest_already(&self, quest: u32, complete: bool) -> bool {
+        quest != 0
+            && self.quest_record(quest).map_or(false, |q| {
+                if complete {
+                    q.status == 2
+                } else {
+                    q.status >= 1
+                }
+            })
+    }
+
+    fn required_kills(&mut self, quest: u32) -> Vec<(u32, u32)> {
+        self.required
+            .entry(quest)
+            .or_insert_with(|| crate::quest::required_kills(quest))
+            .clone()
+    }
+
+    /// The step's kills are already done by the server's count: a quest asking for these mobs shows enough of each
+    /// in its progress, or is completed. Survives restarts (our own count starts at zero each time).
+    fn kills_done_by_quest(&mut self, mobs: &[MobCount]) -> bool {
+        let quests = self.quests.clone();
+        quests.iter().any(|q| {
+            let req = self.required_kills(q.id);
+            let covers =
+                !req.is_empty() && mobs.iter().all(|m| req.iter().any(|(id, _)| *id == m.id));
+            covers
+                && (q.status == 2
+                    || (q.status == 1
+                        && mobs.iter().all(|m| {
+                            req.iter()
+                                .position(|(id, _)| *id == m.id)
+                                .and_then(|i| q.kills(i))
+                                .map_or(false, |k| k >= m.count)
+                        })))
+        })
+    }
+
+    /// The server's kill count for `mob` on an in-progress quest that asks for it, if any.
+    fn quest_kills(&mut self, mob: u32) -> Option<u32> {
+        let quests = self.quests.clone();
+        quests.iter().filter(|q| q.status == 1).find_map(|q| {
+            let req = self.required_kills(q.id);
+            req.iter()
+                .position(|(id, _)| *id == mob)
+                .and_then(|i| q.kills(i))
+        })
+    }
+
+    /// Our level and EXP, to confirm hand-ins.
+    pub fn set_exp(&mut self, level: Option<u16>, exp: Option<u64>) {
+        self.exp = (level, exp);
+    }
+
+    /// Whether the current quest step is done: the conversation ran, an accept clicked ACCEPT, and a hand-in that pays
+    /// EXP was followed by our EXP (or level) changing. A failure is retried; after QUEST_TRIES the plan stops. A hand-in
+    /// that fails right after a kill step goes back to that step first (the kills were short).
+    fn check_quest(
+        &mut self,
+        now_ms: u64,
+        quest: u32,
+        complete: bool,
+        out: &mut PlanOutput,
+    ) -> bool {
+        if self.quest_done {
+            return true;
+        }
+        // The server's word settles it, whatever the dialog looked like.
+        if self.quest_issued && self.quest_already(quest, complete) {
+            self.quest_result = None;
+            self.quest_verify = None;
+            self.quest_done = true;
+            return true;
+        }
+        if let Some((ran, accepted)) = self.quest_result.take() {
+            let verdict = if !ran {
+                Some(false)
+            } else if !complete && quest != 0 {
+                Some(accepted)
+            } else if let Some((base, _)) = self.quest_verify {
+                self.quest_verify = Some((base, now_ms + QUEST_VERIFY_MS));
+                None // wait for the EXP
+            } else {
+                Some(true)
+            };
+            match verdict {
+                Some(true) => self.quest_done = true,
+                Some(false) => self.quest_failed(
+                    now_ms,
+                    quest,
+                    complete,
+                    if ran {
+                        "ACCEPT was never offered"
+                    } else {
+                        "the conversation failed"
+                    },
+                    out,
+                ),
+                None => {}
+            }
+        }
+        if let Some((base, deadline)) = self.quest_verify.filter(|(_, d)| *d > 0) {
+            let moved = self.exp != base && self.exp.1.is_some();
+            if moved {
+                self.quest_verify = None;
+                self.quest_done = true;
+            } else if now_ms >= deadline {
+                self.quest_verify = None;
+                self.quest_failed(
+                    now_ms,
+                    quest,
+                    complete,
+                    "no EXP came after the conversation",
+                    out,
+                );
+            }
+        }
+        self.quest_done
+    }
+
+    /// After a job advancement conversation: done once the server reports the job. Without any job report from the
+    /// stream the conversation's own success has to do; with a different job after the wait it is tried again.
+    fn check_job(&mut self, now_ms: u64, job: u16, out: &mut PlanOutput) -> bool {
+        if self.job == Some(job) {
+            return true;
+        }
+        if self.job.is_none() {
+            out.notes.push(format!("the stream reports no job: taking the advancement to {job} on the conversation's word"));
+            return true;
+        }
+        let deadline = *self.job_wait.get_or_insert(now_ms + QUEST_VERIFY_MS);
+        if now_ms < deadline {
+            return false;
+        }
+        self.job_wait = None;
+        self.quest_done = false;
+        self.quest_failed(
+            now_ms,
+            0,
+            false,
+            &format!(
+                "the job is still {} instead of {job}",
+                self.job.unwrap_or(0)
+            ),
+            out,
+        );
+        false
+    }
+
+    fn quest_failed(
+        &mut self,
+        now_ms: u64,
+        quest: u32,
+        complete: bool,
+        why: &str,
+        out: &mut PlanOutput,
+    ) {
+        self.quest_failures += 1;
+        let what = if complete { "hand-in" } else { "accept" };
+        if self.quest_failures >= QUEST_TRIES {
+            out.failed = Some(format!(
+                "quest {quest} {what} not confirmed after {QUEST_TRIES} tries ({why})"
+            ));
+            return;
+        }
+        self.quest_issued = false;
+        self.step_started = None;
+        self.quest_retry_at = now_ms + QUEST_RETRY_MS;
+        if complete && self.idx > 0 && matches!(self.plan.steps[self.idx - 1], Step::Kill { .. }) {
+            out.notes.push(format!(
+                "quest {quest} {what} not confirmed ({why}): back to the kill step before it"
+            ));
+            self.idx -= 1;
+            self.announced = None;
+            self.kill_base = None;
+        } else {
+            out.notes.push(format!(
+                "quest {quest} {what} not confirmed ({why}): trying again ({}/{QUEST_TRIES})",
+                self.quest_failures + 1
+            ));
+        }
+    }
+
+    /// Kills per mob template so far (lifetime), for `kill` steps.
+    pub fn set_kills(&mut self, k: std::collections::BTreeMap<u32, u32>) {
+        self.kills_by_mob = k;
+    }
+
+    /// The game camera, for steps that click on the screen.
+    pub fn set_camera(&mut self, c: Option<(i32, i32)>) {
+        self.camera = c;
+    }
+
+    /// Where the character stands, for steps that walk to a spot.
+    pub fn set_player(&mut self, pos: Option<(i32, i32)>) {
+        self.player = pos;
+    }
+
+    /// Advance the plan. `kills` is the lifetime kill counter, `now_ms` is UTC.
+    pub fn tick(
+        &mut self,
+        now_ms: u64,
+        level: Option<u16>,
+        map: Option<u32>,
+        kills: u32,
+        cfg: &mut BrainConfig,
+    ) -> PlanOutput {
+        let mut out = PlanOutput {
+            active: true,
+            step: self.idx,
+            ..Default::default()
+        };
+        if cfg.safe_map.is_none() {
+            cfg.safe_map = self.plan.safe_map;
+        }
+        if self.plan.steps.is_empty() {
+            return out; // empty plan: leave the bot as configured
+        }
+        if self.done {
+            out.active = false;
+            out.finished = true;
+            out.reason = "plan finished".into();
+            return out;
+        }
+        if !self.plan.in_window(now_ms) {
+            out.active = false;
+            out.reason = "outside the scheduled time window".into();
+            return out;
+        }
+        let total = self.plan.steps.len();
+        // Steps can complete back to back in one tick (e.g. a travel to the map we are already in).
+        for _ in 0..=total {
+            self.maybe_resupply(&mut out);
+            let total = self.plan.steps.len();
+            cfg.walk_to = None;
+            cfg.walk_tol = crate::brain::WALK_TO_TOL;
+            let step = self.plan.steps[self.idx].clone();
+            if self.announced != Some(self.idx) {
+                self.announced = Some(self.idx);
+                out.notes.push(format!(
+                    "plan step {}/{}: {}",
+                    self.idx + 1,
+                    total,
+                    describe(&step)
+                ));
+            }
+            let finished = match &step {
+                Step::Travel {
+                    map: target,
+                    safe_map,
+                } => {
+                    cfg.home_map = Some(*target);
+                    if safe_map.is_some() {
+                        cfg.safe_map = *safe_map;
+                    }
+                    cfg.kami = false;
+                    map == Some(*target)
+                }
+                Step::Grind {
+                    map: planned,
+                    until_level,
+                    minutes,
+                    kills: want,
+                    safe_map,
+                    mobs,
+                    follow,
+                    follow_peer,
+                    ..
+                } => {
+                    if let Some(m) = follow_peer.as_ref().and_then(|n| self.peer_maps.get(n)) {
+                        self.follow_map = Some(*m);
+                    }
+                    // Following: a hand-made map change after the grind began moves the grind there.
+                    if *follow && self.step_started.is_some() && !self.resupplying {
+                        if let Some(m) = map.filter(|m| {
+                            *m != self.follow_map.unwrap_or(*planned) && Some(*m) != *safe_map
+                        }) {
+                            out.notes
+                                .push(format!("followed the character to map {m}: grinding there"));
+                            self.follow_map = Some(m);
+                        }
+                    }
+                    let target = &self.follow_map.unwrap_or(*planned);
+                    cfg.home_map = Some(*target);
+                    if let Some(only) = mobs {
+                        if self.saved_mobs.is_none() {
+                            self.saved_mobs = Some(cfg.allowed_mobs.clone());
+                        }
+                        cfg.allowed_mobs = Some(only.iter().copied().collect());
+                        cfg.prefer_allowed = false;
+                    }
+                    if safe_map.is_some() {
+                        cfg.safe_map = *safe_map;
+                    }
+                    cfg.kami = true;
+                    if map == Some(*target) && self.step_started.is_none() {
+                        self.step_started = Some(now_ms);
+                        self.base_kills = kills;
+                    }
+                    let elapsed_min = self
+                        .step_started
+                        .map_or(0, |t| now_ms.saturating_sub(t) / 60_000);
+                    level.zip(*until_level).map_or(false, |(l, u)| l >= u)
+                        || minutes.map_or(false, |m| {
+                            self.step_started.is_some() && elapsed_min >= m as u64
+                        })
+                        || want.map_or(false, |k| {
+                            self.step_started.is_some()
+                                && kills.saturating_sub(self.base_kills) >= k
+                        })
+                }
+                Step::Rest { minutes } => {
+                    cfg.kami = false;
+                    let t = *self.step_started.get_or_insert(now_ms);
+                    now_ms.saturating_sub(t) / 60_000 >= *minutes as u64
+                }
+                Step::Goto { map: target, x, y } => {
+                    cfg.home_map = Some(*target);
+                    cfg.kami = false;
+                    cfg.walk_to = Some((*x, *y));
+                    cfg.walk_tol = GOTO_TOL;
+                    map == Some(*target)
+                        && self.player.map_or(false, |(px, py)| {
+                            (px - x).abs() <= GOTO_TOL + 10 && (py - y).abs() <= 30
+                        })
+                }
+                Step::Kill {
+                    map: target,
+                    mobs,
+                    items,
+                    ..
+                } => {
+                    cfg.home_map = Some(*target);
+                    cfg.kami = true;
+                    if self.saved_mobs.is_none() {
+                        self.saved_mobs = Some(cfg.allowed_mobs.clone());
+                    }
+                    if map == Some(*target) && self.kill_base.is_none() {
+                        self.kill_base = Some(self.kills_by_mob.clone());
+                    }
+                    let base = self
+                        .kill_base
+                        .clone()
+                        .unwrap_or_else(|| self.kills_by_mob.clone());
+                    // The server's quest count when it has one (it survives restarts), else ours since the step began.
+                    let mut missing: Vec<u32> = vec![];
+                    for m in mobs {
+                        let ours = self
+                            .kills_by_mob
+                            .get(&m.id)
+                            .copied()
+                            .unwrap_or(0)
+                            .saturating_sub(base.get(&m.id).copied().unwrap_or(0));
+                        let have = self.quest_kills(m.id).map_or(ours, |k| k.max(ours));
+                        if have < m.count {
+                            missing.push(m.id);
+                        }
+                    }
+                    let by_quest = self.kills_done_by_quest(mobs);
+                    if by_quest
+                        && !(self.kill_base.is_some() && missing.is_empty())
+                        && self.announced_quest_kills != Some(self.idx)
+                    {
+                        self.announced_quest_kills = Some(self.idx);
+                        out.notes
+                            .push("the server's quest count says these kills are done".into());
+                    }
+                    let kills_done = (self.kill_base.is_some() && missing.is_empty()) || by_quest;
+                    // Items: counted from pickups since the step began on its map.
+                    if map == Some(*target) && self.item_base.is_none() {
+                        self.item_base = Some(self.items.clone());
+                    }
+                    let items_done = items.is_empty()
+                        || self.item_base.as_ref().is_some_and(|base| {
+                            items.iter().all(|it| {
+                                self.items
+                                    .get(&it.id)
+                                    .copied()
+                                    .unwrap_or(0)
+                                    .saturating_sub(base.get(&it.id).copied().unwrap_or(0))
+                                    >= it.count
+                            })
+                        });
+                    let done = kills_done && items_done;
+                    // Still short of items with the kills done: keep fighting every mob of the step (they drop them).
+                    if kills_done && !items_done {
+                        missing = mobs.iter().map(|m| m.id).collect();
+                    }
+                    cfg.allowed_mobs = if done {
+                        self.saved_mobs.clone().flatten()
+                    } else {
+                        Some(missing.into_iter().collect())
+                    };
+                    // Without a user mob filter the step's mobs are only preferred: if none is in sight, fight others.
+                    cfg.prefer_allowed = !done && matches!(self.saved_mobs, Some(None));
+                    done
+                }
+                Step::Equip { item, if_bought } => {
+                    cfg.kami = false;
+                    if *if_bought && self.last_bought == 0 {
+                        out.notes
+                            .push(format!("nothing was bought: not equipping {item}"));
+                        true
+                    } else {
+                        if !self.equip_issued {
+                            self.equip_issued = true;
+                            out.equip = Some(item.clone());
+                        }
+                        self.equip_done
+                    }
+                }
+                Step::Ui {
+                    name,
+                    clicks,
+                    repeat,
+                } => {
+                    cfg.kami = false;
+                    if !self.ui_issued {
+                        self.ui_issued = true;
+                        out.ui = Some(crate::ui::UiJob {
+                            name: name.clone(),
+                            clicks: clicks.clone(),
+                            repeat: *repeat,
+                        });
+                    }
+                    self.ui_done
+                }
+                Step::Shop { map: target, .. } if *target == 0 => {
+                    out.notes
+                        .push("shop step skipped: its NPC is not in the map data".into());
+                    true
+                }
+                Step::Shop {
+                    map: target,
+                    npc,
+                    npc_id,
+                    at,
+                    bounds,
+                    sell,
+                    keep,
+                    keep_items,
+                    buy,
+                    reserve,
+                } => {
+                    cfg.home_map = Some(*target);
+                    cfg.kami = false;
+                    if map == Some(*target) {
+                        // An NPC by id: walk up to it first.
+                        let near = if *npc_id != 0 {
+                            cfg.walk_to = Some((at[0], at[1]));
+                            self.player
+                                .map_or(false, |(x, _)| (x - at[0]).abs() <= QUEST_STAND_PX)
+                        } else {
+                            true
+                        };
+                        if !near {
+                            self.step_started = None;
+                        }
+                        // Let the map finish loading and the character land before clicking anything.
+                        let arrived = if near {
+                            *self.step_started.get_or_insert(now_ms)
+                        } else {
+                            now_ms
+                        };
+                        if near
+                            && !self.shop_issued
+                            && now_ms.saturating_sub(arrived) >= SHOP_SETTLE_MS
+                        {
+                            self.shop_issued = true;
+                            let click = if *npc_id == 0 {
+                                *npc
+                            } else {
+                                let p = match self.camera {
+                                    Some(c) => crate::quest::click_point_camera((at[0], at[1]), c),
+                                    None => crate::quest::click_point(
+                                        (at[0], at[1]),
+                                        self.player.unwrap_or_default(),
+                                        *bounds,
+                                    ),
+                                };
+                                [p.0, p.1]
+                            };
+                            let buy = affordable(buy, *reserve, self.mesos);
+                            if *reserve > 0 {
+                                out.notes.push(format!(
+                                    "shop: {} meso(s), keeping {reserve}: buying {}",
+                                    self.mesos.map_or("unknown".to_string(), |m| m.to_string()),
+                                    buy.iter()
+                                        .map(|b| format!("{} of row {}", b.qty, b.slot))
+                                        .collect::<Vec<_>>()
+                                        .join(", ")
+                                ));
+                            }
+                            out.shop = Some(ShopJob {
+                                npc: click,
+                                sell: sell.clone(),
+                                keep: *keep,
+                                keep_items: keep_items.clone(),
+                                buy,
+                            });
+                        }
+                    }
+                    self.shop_done
+                }
+                Step::Quest {
+                    map: target, at, ..
+                } if *target == 0 => {
+                    let _ = at;
+                    out.notes
+                        .push("quest step skipped: its NPC is not in the map data".into());
+                    true
+                }
+                Step::Quest {
+                    until_job: Some(j), ..
+                } if self.job == Some(*j) && !self.quest_issued => {
+                    out.notes.push(format!("job is already {j} (server)"));
+                    true
+                }
+                Step::Quest {
+                    quest, complete, ..
+                } if self.quest_already(*quest, *complete) => {
+                    out.notes.push(format!(
+                        "quest {quest} is already {} (server)",
+                        if *complete { "completed" } else { "accepted" }
+                    ));
+                    true
+                }
+                Step::Quest {
+                    quest,
+                    complete,
+                    map: target,
+                    at,
+                    bounds,
+                    yes,
+                    until_job,
+                    ..
+                } => {
+                    cfg.home_map = Some(*target);
+                    cfg.kami = false;
+                    if map == Some(*target) {
+                        cfg.walk_to = Some((at[0], at[1]));
+                        let arrived = self
+                            .player
+                            .map_or(false, |(x, _)| (x - at[0]).abs() <= QUEST_STAND_PX);
+                        if !arrived {
+                            self.step_started = None;
+                        } else {
+                            let since = *self.step_started.get_or_insert(now_ms);
+                            if !self.quest_issued
+                                && now_ms.saturating_sub(since) >= SHOP_SETTLE_MS
+                                && now_ms >= self.quest_retry_at
+                            {
+                                self.quest_issued = true;
+                                self.quest_verify = None;
+                                if *complete
+                                    && *quest != 0
+                                    && crate::quest::quest_info(*quest, true)
+                                        .map_or(false, |i| i.exp.is_some())
+                                {
+                                    self.quest_verify = Some((self.exp, 0));
+                                }
+                                out.quest = Some(QuestJob {
+                                    quest: *quest,
+                                    camera: self.camera,
+                                    map: *target,
+                                    complete: *complete,
+                                    npc: *at,
+                                    bounds: *bounds,
+                                    player: self.player.unwrap_or_default(),
+                                    yes: *yes,
+                                });
+                            }
+                        }
+                    }
+                    let talked = self.check_quest(now_ms, *quest, *complete, &mut out);
+                    match (talked, until_job) {
+                        (true, Some(j)) => self.check_job(now_ms, *j, &mut out),
+                        _ => talked,
+                    }
+                }
+            };
+            if !finished {
+                out.step = self.idx;
+                return out;
+            }
+            out.notes
+                .push(format!("plan step {}/{} done", self.idx + 1, total));
+            self.step_started = None;
+            self.shop_issued = false;
+            self.shop_done = false;
+            self.quest_issued = false;
+            self.quest_done = false;
+            self.quest_result = None;
+            self.quest_verify = None;
+            self.quest_failures = 0;
+            self.quest_retry_at = 0;
+            self.kill_base = None;
+            self.item_base = None;
+            self.job_wait = None;
+            self.equip_issued = false;
+            self.equip_done = false;
+            self.ui_issued = false;
+            self.ui_done = false;
+            self.follow_map = None;
+            if self.resupplying
+                && matches!(self.plan.steps[self.idx], Step::Shop { .. })
+                && !self.plan.steps[self.idx + 1..]
+                    .iter()
+                    .take_while(|s| matches!(s, Step::Shop { .. } | Step::Travel { .. }))
+                    .any(|s| matches!(s, Step::Shop { .. }))
+            {
+                // The last shop of the trip is done: potions again.
+                self.resupplying = false;
+                self.pots_empty = false;
+                out.resupplied = true;
+            }
+            if let Some(prev) = self.saved_mobs.take() {
+                cfg.allowed_mobs = prev;
+            }
+            cfg.prefer_allowed = false;
+            self.idx += 1;
+            if self.idx >= total {
+                if self.plan.repeat {
+                    self.idx = 0;
+                    self.announced = None;
+                } else {
+                    self.done = true;
+                    cfg.kami = false;
+                    out.active = false;
+                    out.finished = true;
+                    out.reason = "plan finished".into();
+                    return out;
+                }
+            }
+        }
+        out
+    }
+}
+
+pub fn describe(step: &Step) -> String {
+    match step {
+        Step::Travel { map, .. } => format!("travel to map {map}"),
+        Step::Grind {
+            map,
+            until_level,
+            minutes,
+            kills,
+            ..
+        } => {
+            let mut goal = vec![];
+            if let Some(l) = until_level {
+                goal.push(format!("until level {l}"));
+            }
+            if let Some(m) = minutes {
+                goal.push(format!("for {m} min"));
+            }
+            if let Some(k) = kills {
+                goal.push(format!("{k} kills"));
+            }
+            format!("grind in map {map} {}", goal.join(", "))
+        }
+        Step::Rest { minutes } => format!("rest {minutes} min"),
+        Step::Goto { map, x, y } => format!("go to ({x}, {y}) in map {map}"),
+        Step::Kill {
+            map, mobs, items, ..
+        } => {
+            let mut what: Vec<String> = mobs
+                .iter()
+                .map(|m| format!("{}x mob {}", m.count, m.id))
+                .collect();
+            what.extend(items.iter().map(|i| format!("{}x item {}", i.count, i.id)));
+            format!("kill {} in map {map}", what.join(", "))
+        }
+        Step::Equip { item, .. } => format!("equip {item}"),
+        Step::Ui {
+            name,
+            clicks,
+            repeat,
+        } => format!("ui {name}: {} click(s) x{repeat}", clicks.len()),
+        Step::Quest {
+            quest, complete, ..
+        } => format!(
+            "quest {quest}: {}",
+            if *complete { "hand in" } else { "accept" }
+        ),
+        Step::Shop { map, sell, buy, .. } => format!(
+            "shop in map {map}: sell {}, buy {} item types",
+            if sell.is_empty() {
+                "nothing".to_string()
+            } else {
+                sell.join("+")
+            },
+            buy.len()
+        ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MIN: u64 = 60_000;
+
+    fn plan(steps: Vec<Step>) -> Plan {
+        Plan {
+            name: "t".into(),
+            steps,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn travel_then_grind_until_level() {
+        let mut cfg = BrainConfig::default();
+        let mut r = PlanRunner::new(plan(vec![
+            Step::Travel {
+                map: 5,
+                safe_map: None,
+            },
+            Step::Grind {
+                map: 5,
+                until_level: Some(10),
+                minutes: None,
+                kills: None,
+                mobs: None,
+                safe_map: None,
+                resupply: None,
+                follow: false,
+                follow_peer: None,
+            },
+        ]));
+        let o = r.tick(0, Some(7), Some(1), 0, &mut cfg);
+        assert!(o.active && !o.finished);
+        assert_eq!(
+            (cfg.home_map, cfg.kami),
+            (Some(5), false),
+            "walking, not fighting"
+        );
+        assert!(o.notes.iter().any(|n| n.contains("travel to map 5")));
+        // Arrived: the travel step completes and grinding starts in the same tick.
+        let o = r.tick(MIN, Some(7), Some(5), 0, &mut cfg);
+        assert!(cfg.kami, "{o:?}");
+        assert!(
+            o.notes.iter().any(|n| n.contains("step 1/2 done"))
+                && o.notes.iter().any(|n| n.contains("grind"))
+        );
+        // Level reached: plan finishes and the bot stops fighting.
+        let o = r.tick(2 * MIN, Some(10), Some(5), 40, &mut cfg);
+        assert!(o.finished && !o.active && !cfg.kami, "{o:?}");
+        assert!(
+            !r.tick(3 * MIN, Some(10), Some(5), 40, &mut cfg).active,
+            "stays finished"
+        );
+    }
+
+    #[test]
+    fn a_plan_can_resume_at_a_later_step_and_a_grind_step_names_its_rest_town() {
+        let mut cfg = BrainConfig::default();
+        let mut p = plan(vec![
+            Step::Travel {
+                map: 5,
+                safe_map: None,
+            },
+            Step::Grind {
+                map: 6,
+                until_level: Some(10),
+                minutes: None,
+                kills: None,
+                mobs: None,
+                safe_map: Some(7),
+                resupply: None,
+                follow: false,
+                follow_peer: None,
+            },
+        ]);
+        p.start = 1;
+        let mut r = PlanRunner::new(p);
+        assert_eq!(r.summary().1, 2, "begins at the second step");
+        r.tick(0, Some(3), Some(6), 0, &mut cfg);
+        assert_eq!((cfg.home_map, cfg.safe_map), (Some(6), Some(7)));
+        // A plan-wide rest town applies until a step names another.
+        let mut cfg = BrainConfig::default();
+        let mut p = plan(vec![
+            Step::Travel {
+                map: 5,
+                safe_map: None,
+            },
+            Step::Travel {
+                map: 9,
+                safe_map: Some(8),
+            },
+        ]);
+        p.safe_map = Some(4);
+        let mut r = PlanRunner::new(p);
+        r.tick(0, Some(3), Some(1), 0, &mut cfg);
+        assert_eq!(cfg.safe_map, Some(4));
+        r.tick(1, Some(3), Some(5), 0, &mut cfg);
+        assert_eq!(cfg.safe_map, Some(8));
+    }
+
+    #[test]
+    fn grind_by_minutes_counts_from_arrival_not_from_the_start_of_the_step() {
+        let mut cfg = BrainConfig::default();
+        let mut r = PlanRunner::new(plan(vec![Step::Grind {
+            map: 5,
+            until_level: None,
+            minutes: Some(10),
+            kills: None,
+            mobs: None,
+            safe_map: None,
+            resupply: None,
+            follow: false,
+            follow_peer: None,
+        }]));
+        r.tick(0, Some(7), Some(1), 0, &mut cfg); // still walking there
+        r.tick(20 * MIN, Some(7), Some(1), 0, &mut cfg);
+        let o = r.tick(21 * MIN, Some(7), Some(5), 0, &mut cfg); // arrives
+        assert!(!o.finished, "the clock starts on arrival");
+        assert!(!r.tick(30 * MIN, Some(7), Some(5), 0, &mut cfg).finished);
+        assert!(r.tick(31 * MIN, Some(7), Some(5), 0, &mut cfg).finished);
+    }
+
+    #[test]
+    fn a_grind_step_with_mobs_fights_only_those_then_the_filter_comes_back() {
+        let mut cfg = BrainConfig::default();
+        let mut r = PlanRunner::new(plan(vec![
+            Step::Grind {
+                map: 5,
+                until_level: Some(10),
+                minutes: None,
+                kills: None,
+                mobs: Some(vec![3, 5]),
+                safe_map: None,
+                resupply: None,
+                follow: false,
+                follow_peer: None,
+            },
+            Step::Rest { minutes: 1 },
+        ]));
+        r.tick(0, Some(8), Some(5), 0, &mut cfg);
+        assert_eq!(cfg.allowed_mobs, Some([3, 5].into_iter().collect()));
+        assert!(
+            !cfg.prefer_allowed,
+            "a strict filter: no mushrooms when no snail is in sight"
+        );
+        r.tick(MIN, Some(10), Some(5), 0, &mut cfg);
+        assert_eq!(
+            cfg.allowed_mobs, None,
+            "the user's (absent) filter comes back"
+        );
+    }
+
+    #[test]
+    fn grind_by_kills_counts_only_kills_made_on_site() {
+        let mut cfg = BrainConfig::default();
+        let mut r = PlanRunner::new(plan(vec![Step::Grind {
+            map: 5,
+            until_level: None,
+            minutes: None,
+            kills: Some(5),
+            mobs: None,
+            safe_map: None,
+            resupply: None,
+            follow: false,
+            follow_peer: None,
+        }]));
+        r.tick(0, Some(7), Some(5), 100, &mut cfg); // lifetime counter is already 100
+        assert!(!r.tick(MIN, Some(7), Some(5), 104, &mut cfg).finished);
+        assert!(r.tick(2 * MIN, Some(7), Some(5), 105, &mut cfg).finished);
+    }
+
+    #[test]
+    fn rest_waits_then_moves_on_and_repeat_loops() {
+        let mut cfg = BrainConfig::default();
+        let mut p = plan(vec![
+            Step::Rest { minutes: 2 },
+            Step::Travel {
+                map: 9,
+                safe_map: None,
+            },
+        ]);
+        p.repeat = true;
+        let mut r = PlanRunner::new(p);
+        r.tick(0, None, Some(9), 0, &mut cfg);
+        assert!(!cfg.kami);
+        let o = r.tick(2 * MIN, None, Some(9), 0, &mut cfg);
+        // Rest done, travel to map 9 is already satisfied, so the plan wraps to the start.
+        assert!(!o.finished && o.active, "{o:?}");
+        assert_eq!(r.idx, 0, "wrapped around");
+    }
+
+    #[test]
+    fn windows_gate_activity_including_overnight_and_weekdays() {
+        // 2026-10-26 (a Monday) 09:30 UTC, plan in UTC.
+        let monday_0930 =
+            1_792_920_600_000u64 - (1_792_920_600_000u64 % 86_400_000) + (9 * 60 + 30) * MIN;
+        let mut p = plan(vec![Step::Rest { minutes: 1 }]);
+        p.windows = vec![Window {
+            days: vec![0],
+            start: "09:00".into(),
+            end: "17:00".into(),
+        }];
+        let probe = |p: &Plan, t: u64| p.in_window(t);
+        // Find a Monday by construction: pick the day number so that (day+3)%7 == 0.
+        let day = monday_0930 / 86_400_000;
+        let monday_day = day + ((7 - (day + 3) % 7) % 7);
+        let at = |d: u64, h: u64, m: u64| d * 86_400_000 + (h * 60 + m) * MIN;
+        assert!(probe(&p, at(monday_day, 9, 30)));
+        assert!(!probe(&p, at(monday_day, 8, 59)) && !probe(&p, at(monday_day, 17, 0)));
+        assert!(
+            !probe(&p, at(monday_day + 1, 12, 0)),
+            "Tuesday is not listed"
+        );
+        // Overnight window 22:00-06:00 every day.
+        p.windows = vec![Window {
+            days: vec![],
+            start: "22:00".into(),
+            end: "06:00".into(),
+        }];
+        assert!(
+            probe(&p, at(monday_day, 23, 0))
+                && probe(&p, at(monday_day, 5, 59))
+                && !probe(&p, at(monday_day, 12, 0))
+        );
+        // Time zone: UTC-5 moves the window.
+        p.utc_offset_min = -300;
+        assert!(
+            probe(&p, at(monday_day, 3, 0)),
+            "03:00 UTC is 22:00 local the day before"
+        );
+        assert!(!probe(&p, at(monday_day, 12, 0)));
+    }
+
+    #[test]
+    fn outside_the_window_the_bot_is_told_to_stand_still() {
+        let mut cfg = BrainConfig::default();
+        let mut p = plan(vec![Step::Travel {
+            map: 5,
+            safe_map: None,
+        }]);
+        p.windows = vec![Window {
+            days: vec![],
+            start: "00:00".into(),
+            end: "00:01".into(),
+        }];
+        let mut r = PlanRunner::new(p);
+        let o = r.tick(12 * 60 * MIN, None, Some(1), 0, &mut cfg);
+        assert!(
+            !o.active && !o.finished && o.reason.contains("window"),
+            "{o:?}"
+        );
+    }
+
+    #[test]
+    fn summary_names_the_current_step() {
+        let mut cfg = BrainConfig::default();
+        let mut r = PlanRunner::new(Plan {
+            name: "p".into(),
+            steps: vec![
+                Step::Travel {
+                    map: 5,
+                    safe_map: None,
+                },
+                Step::Rest { minutes: 1 },
+            ],
+            ..Default::default()
+        });
+        r.tick(0, None, Some(1), 0, &mut cfg);
+        assert_eq!(
+            r.summary(),
+            ("p".to_string(), 1, 2, "travel to map 5".to_string())
+        );
+        r.tick(1, None, Some(5), 0, &mut cfg); // arrived: moves on to resting
+        assert_eq!(r.summary().1, 2);
+        r.tick(2 * MIN, None, Some(5), 0, &mut cfg);
+        assert_eq!(r.summary(), ("p".to_string(), 2, 2, "finished".to_string()));
+    }
+
+    #[test]
+    fn plans_round_trip_through_json() {
+        let p = Plan {
+            name: "daily".into(),
+            steps: vec![
+                Step::Travel {
+                    map: 10001030,
+                    safe_map: None,
+                },
+                Step::Grind {
+                    map: 10001030,
+                    until_level: Some(10),
+                    minutes: Some(120),
+                    kills: None,
+                    mobs: None,
+                    safe_map: None,
+                    resupply: None,
+                    follow: false,
+                    follow_peer: None,
+                },
+            ],
+            repeat: false,
+            windows: vec![Window {
+                days: vec![0, 1],
+                start: "18:00".into(),
+                end: "23:00".into(),
+            }],
+            utc_offset_min: -240,
+            start: 0,
+            safe_map: None,
+            resupply: vec![],
+        };
+        let json = serde_json::to_string(&p).unwrap();
+        assert!(json.contains(r#""kind":"grind""#));
+        assert_eq!(serde_json::from_str::<Plan>(&json).unwrap(), p);
+        // Minimal hand-written form works too.
+        let q: Plan = serde_json::from_str(r#"{"steps":[{"kind":"rest","minutes":5}]}"#).unwrap();
+        assert_eq!(q.steps, vec![Step::Rest { minutes: 5 }]);
+    }
+
+    #[test]
+    fn shop_step_waits_for_the_map_then_hands_out_one_job() {
+        let step = Step::Shop {
+            map: 7,
+            npc: [10, 20],
+            npc_id: 0,
+            at: [0, 0],
+            bounds: [0; 4],
+            sell: vec!["etc".into()],
+            keep: 0,
+            keep_items: vec![],
+            buy: vec![],
+            reserve: 0,
+        };
+        let mut r = PlanRunner::new(plan(vec![step.clone(), Step::Rest { minutes: 1 }]));
+        let mut cfg = BrainConfig::default();
+        let o = r.tick(0, None, Some(1), 0, &mut cfg);
+        assert!(o.shop.is_none() && cfg.home_map == Some(7), "travels first");
+        let o = r.tick(1_000, None, Some(7), 0, &mut cfg);
+        assert!(o.shop.is_none(), "still settling after arrival");
+        let o = r.tick(1_000 + SHOP_SETTLE_MS, None, Some(7), 0, &mut cfg);
+        assert_eq!(o.shop.as_ref().map(|j| j.npc), Some([10, 20]));
+        let o = r.tick(5_000, None, Some(7), 0, &mut cfg);
+        assert!(
+            o.shop.is_none() && o.step == 0,
+            "one job only, step not done until the bot reports"
+        );
+        r.shop_finished(0);
+        let o = r.tick(6_000, None, Some(7), 0, &mut cfg);
+        assert_eq!(o.step, 1, "moved on to the rest step");
+    }
+
+    #[test]
+    fn shop_step_parses_from_json() {
+        let p: Plan = serde_json::from_str(r#"{"steps":[{"kind":"shop","map":10001042,"npc":[452,518],"sell":["etc"],"buy":[{"slot":0,"qty":20}]}]}"#).unwrap();
+        assert!(matches!(
+            &p.steps[0],
+            Step::Shop {
+                map: 10001042,
+                keep: 0,
+                ..
+            }
+        ));
+        assert!(describe(&p.steps[0]).contains("sell etc"));
+    }
+
+    #[test]
+    fn quest_step_walks_to_the_npc_then_hands_out_one_job() {
+        let step = Step::Quest {
+            quest: 10001,
+            complete: false,
+            map: 7,
+            npc: 101,
+            at: [800, 300],
+            bounds: [0, 3000, 0, 1000],
+            yes: false,
+            until_job: None,
+        };
+        let mut r = PlanRunner::new(plan(vec![step]));
+        let mut cfg = BrainConfig::default();
+        r.set_player(Some((100, 300)));
+        let o = r.tick(0, Some(8), Some(3), 0, &mut cfg);
+        assert!(
+            o.quest.is_none() && cfg.home_map == Some(7) && cfg.walk_to.is_none(),
+            "still travelling to the map"
+        );
+        let o = r.tick(1_000, Some(8), Some(7), 0, &mut cfg);
+        assert!(
+            o.quest.is_none() && cfg.walk_to == Some((800, 300)),
+            "in the map: walk to the NPC"
+        );
+        r.set_player(Some((790, 300)));
+        let o = r.tick(2_000, Some(8), Some(7), 0, &mut cfg);
+        assert!(o.quest.is_none(), "settling after arrival");
+        let o = r.tick(2_000 + SHOP_SETTLE_MS, Some(8), Some(7), 0, &mut cfg);
+        let job = o.quest.expect("job after settling");
+        assert_eq!(
+            (job.quest, job.complete, job.player),
+            (10001, false, (790, 300))
+        );
+        let o = r.tick(9_000, Some(8), Some(7), 0, &mut cfg);
+        assert!(
+            o.quest.is_none() && o.step == 0,
+            "one job only, step not done until the bot reports"
+        );
+        r.quest_finished(true, true);
+        assert!(r.tick(10_000, Some(8), Some(7), 0, &mut cfg).finished);
+    }
+
+    fn at_npc(step: Step) -> (PlanRunner, BrainConfig) {
+        let mut r = PlanRunner::new(plan(vec![
+            Step::Kill {
+                map: 7,
+                mobs: vec![MobCount { id: 3, count: 1 }],
+                items: vec![],
+                resupply: None,
+            },
+            step,
+        ]));
+        r.idx = 1;
+        r.set_player(Some((800, 300)));
+        (r, BrainConfig::default())
+    }
+
+    #[test]
+    fn an_accept_without_accept_is_retried_then_stops_the_plan() {
+        let (mut r, mut cfg) = at_npc(Step::Quest {
+            quest: 10001,
+            complete: false,
+            map: 7,
+            npc: 101,
+            at: [800, 300],
+            bounds: [0, 3000, 0, 1000],
+            yes: false,
+            until_job: None,
+        });
+        let mut t = 0;
+        let mut failed = None;
+        let mut jobs = 0;
+        while t < 120_000 && failed.is_none() {
+            let o = r.tick(t, Some(8), Some(7), 0, &mut cfg);
+            if o.quest.is_some() {
+                jobs += 1;
+                r.quest_finished(true, false); // talked, but no ACCEPT came up
+            }
+            assert!(!o.finished, "never done without ACCEPT");
+            failed = o.failed;
+            t += 500;
+        }
+        assert_eq!(jobs, QUEST_TRIES, "tried {QUEST_TRIES} times");
+        assert!(failed.unwrap().contains("not confirmed"));
+    }
+
+    #[test]
+    fn the_servers_quest_records_settle_quest_and_kill_steps() {
+        let rec = |id, status, progress: &str| neon_state::QuestRecord {
+            id,
+            status,
+            progress: progress.into(),
+        };
+        // Mai's Final Training (1010) asks for 1 Orange Mushroom (9); the server says one is killed.
+        let mut r = PlanRunner::new(plan(vec![
+            Step::Quest {
+                quest: 1010,
+                complete: false,
+                map: 7,
+                npc: 11,
+                at: [800, 300],
+                bounds: [0, 3000, 0, 1000],
+                yes: false,
+                until_job: None,
+            },
+            Step::Kill {
+                map: 7,
+                mobs: vec![MobCount { id: 9, count: 1 }],
+                items: vec![],
+                resupply: None,
+            },
+            Step::Quest {
+                quest: 1010,
+                complete: true,
+                map: 7,
+                npc: 11,
+                at: [800, 300],
+                bounds: [0, 3000, 0, 1000],
+                yes: false,
+                until_job: None,
+            },
+        ]));
+        r.required.insert(1010, vec![(9, 1)]);
+        r.set_quests(vec![rec(1010, 1, "001")]);
+        let mut cfg = BrainConfig::default();
+        r.set_player(Some((100, 300)));
+        let o = r.tick(0, Some(7), Some(3), 0, &mut cfg);
+        assert!(
+            o.notes.iter().any(|n| n.contains("already accepted")),
+            "accept skipped: {o:?}"
+        );
+        assert!(
+            o.notes.iter().any(|n| n.contains("kills are done")),
+            "kills done by the server's count: {o:?}"
+        );
+        assert_eq!(r.idx, 2, "now at the hand-in");
+        // Not handed in yet: the hand-in step runs. Once the server says completed, it is done without a conversation.
+        assert!(!r.tick(1000, Some(7), Some(3), 0, &mut cfg).finished);
+        r.set_quests(vec![rec(1010, 2, "")]);
+        assert!(r.tick(2000, Some(7), Some(3), 0, &mut cfg).finished);
+        // Not enough kills by the server's count: the kill step stays.
+        let mut r = PlanRunner::new(plan(vec![Step::Kill {
+            map: 7,
+            mobs: vec![MobCount { id: 3, count: 10 }],
+            items: vec![],
+            resupply: None,
+        }]));
+        r.required.insert(1009, vec![(3, 10), (4, 10), (5, 5)]);
+        r.set_quests(vec![rec(1009, 1, "007010005")]);
+        assert!(
+            !r.tick(0, Some(4), Some(7), 0, &mut cfg).finished,
+            "7 of 10 Blue Snails"
+        );
+        r.set_quests(vec![rec(1009, 1, "010010005")]);
+        assert!(r.tick(100, Some(4), Some(7), 0, &mut cfg).finished);
+    }
+
+    #[test]
+    fn a_hand_in_is_done_when_exp_moves_and_goes_back_to_the_kills_when_it_does_not() {
+        let step = Step::Quest {
+            quest: 1009,
+            complete: true,
+            map: 7,
+            npc: 11,
+            at: [800, 300],
+            bounds: [0, 3000, 0, 1000],
+            yes: false,
+            until_job: None,
+        };
+        // EXP moves after the conversation: done.
+        let (mut r, mut cfg) = at_npc(step.clone());
+        r.set_exp(Some(4), Some(50));
+        r.tick(0, Some(4), Some(7), 0, &mut cfg);
+        assert!(r
+            .tick(SHOP_SETTLE_MS, Some(4), Some(7), 0, &mut cfg)
+            .quest
+            .is_some());
+        r.quest_verify = Some((r.exp, 0)); // as when the quest data says it pays EXP
+        r.quest_finished(true, false);
+        assert!(
+            !r.tick(SHOP_SETTLE_MS + 500, Some(4), Some(7), 0, &mut cfg)
+                .finished,
+            "waiting for the EXP"
+        );
+        r.set_exp(Some(4), Some(130));
+        assert!(
+            r.tick(SHOP_SETTLE_MS + 1000, Some(4), Some(7), 0, &mut cfg)
+                .finished
+        );
+        // No EXP: the kills were short, so back to the kill step.
+        let (mut r, mut cfg) = at_npc(step);
+        r.set_exp(Some(4), Some(50));
+        r.tick(0, Some(4), Some(7), 0, &mut cfg);
+        assert!(r
+            .tick(SHOP_SETTLE_MS, Some(4), Some(7), 0, &mut cfg)
+            .quest
+            .is_some());
+        r.quest_verify = Some((r.exp, 0));
+        r.quest_finished(true, false);
+        r.tick(SHOP_SETTLE_MS + 500, Some(4), Some(7), 0, &mut cfg);
+        let o = r.tick(
+            SHOP_SETTLE_MS + 500 + QUEST_VERIFY_MS,
+            Some(4),
+            Some(7),
+            0,
+            &mut cfg,
+        );
+        assert!(
+            o.notes.iter().any(|n| n.contains("back to the kill step")),
+            "{o:?}"
+        );
+        assert_eq!(r.idx, 0);
+    }
+
+    #[test]
+    fn unresolved_quest_step_is_skipped() {
+        let p: Plan = serde_json::from_str(
+            r#"{"steps":[{"kind":"quest","quest":99999999,"complete":true}]}"#,
+        )
+        .unwrap();
+        let mut r = PlanRunner::new(p);
+        let o = r.tick(0, Some(8), Some(1), 0, &mut BrainConfig::default());
+        assert!(o.finished && o.notes.iter().any(|n| n.contains("skipped")));
+    }
+
+    #[test]
+    fn kill_step_counts_kills_since_it_began_and_only_targets_missing_mobs() {
+        let step = Step::Kill {
+            map: 7,
+            mobs: vec![MobCount { id: 6, count: 2 }, MobCount { id: 7, count: 1 }],
+            items: vec![],
+            resupply: None,
+        };
+        let mut r = PlanRunner::new(plan(vec![step]));
+        let mut cfg = BrainConfig {
+            allowed_mobs: Some([99].into_iter().collect()),
+            ..BrainConfig::default()
+        };
+        r.set_kills([(6, 5)].into_iter().collect());
+        r.tick(0, Some(8), Some(3), 0, &mut cfg);
+        assert!(
+            cfg.kami && cfg.home_map == Some(7),
+            "fights, but first walks to the map"
+        );
+        r.tick(1, Some(8), Some(7), 0, &mut cfg);
+        assert_eq!(
+            cfg.allowed_mobs,
+            Some([6, 7].into_iter().collect()),
+            "kills from before the step do not count"
+        );
+        r.set_kills([(6, 7), (7, 0)].into_iter().collect());
+        r.tick(2, Some(8), Some(7), 0, &mut cfg);
+        assert_eq!(
+            cfg.allowed_mobs,
+            Some([7].into_iter().collect()),
+            "mob 6 is done, only mob 7 is still attacked"
+        );
+        r.set_kills([(6, 7), (7, 1)].into_iter().collect());
+        let o = r.tick(3, Some(8), Some(7), 0, &mut cfg);
+        assert!(o.finished, "all counts met");
+        assert_eq!(
+            cfg.allowed_mobs,
+            Some([99].into_iter().collect()),
+            "the user's mob filter comes back"
+        );
+    }
+
+    #[test]
+    fn kill_step_parses_from_json() {
+        let p: Plan = serde_json::from_str(r#"{"steps":[{"kind":"kill","map":10000011,"mobs":[{"id":6,"count":8},{"id":7,"count":8}]}]}"#).unwrap();
+        assert!(matches!(&p.steps[0], Step::Kill { map: 10000011, mobs, .. } if mobs.len() == 2));
+    }
+
+    fn quest_step(until_job: Option<u16>) -> Step {
+        Step::Quest {
+            quest: 0,
+            complete: false,
+            map: 7,
+            npc: 511,
+            at: [800, 300],
+            bounds: [0, 3000, 0, 1000],
+            yes: true,
+            until_job,
+        }
+    }
+
+    #[test]
+    fn a_job_advancement_waits_for_the_servers_job() {
+        let (mut r, mut cfg) = at_npc(quest_step(Some(100)));
+        r.set_job(Some(0));
+        let mut t = 0;
+        let mut talks = 0;
+        let mut done = false;
+        // The conversation runs, but the job stays 0: retried, then it changes on the second talk.
+        while t < 200_000 && !done {
+            let o = r.tick(t, Some(10), Some(7), 0, &mut cfg);
+            assert!(o.failed.is_none(), "{o:?}");
+            if o.quest.is_some() {
+                talks += 1;
+                r.quest_finished(true, true);
+                if talks == 2 {
+                    r.set_job(Some(100));
+                }
+            }
+            done = r.summary().1 == 2 && r.summary().3 == "finished" || r.done;
+            t += 1_000;
+        }
+        assert!(done && talks == 2, "talks {talks}");
+        // Already a Warrior: nothing to do.
+        let (mut r, mut cfg) = at_npc(quest_step(Some(100)));
+        r.set_job(Some(100));
+        let o = r.tick(0, Some(10), Some(7), 0, &mut cfg);
+        assert!(o.quest.is_none() && o.finished, "{o:?}");
+    }
+
+    #[test]
+    fn a_kill_step_with_items_keeps_hunting_until_the_items_are_picked_up() {
+        let step = Step::Kill {
+            map: 7,
+            mobs: vec![MobCount { id: 6, count: 1 }],
+            items: vec![ItemCount {
+                id: 4000005,
+                count: 2,
+            }],
+            resupply: None,
+        };
+        let mut r = PlanRunner::new(plan(vec![step]));
+        let mut cfg = BrainConfig::default();
+        r.set_items([(4000005, 5)].into_iter().collect()); // picked up before the step: does not count
+        r.tick(0, None, Some(7), 0, &mut cfg);
+        r.set_kills([(6, 1)].into_iter().collect());
+        let o = r.tick(1, None, Some(7), 1, &mut cfg);
+        assert!(!o.finished, "kills done, items not");
+        assert_eq!(
+            cfg.allowed_mobs,
+            Some([6].into_iter().collect()),
+            "still hunting the step's mobs"
+        );
+        r.set_items([(4000005, 7)].into_iter().collect());
+        assert!(r.tick(2, None, Some(7), 1, &mut cfg).finished);
+        // A stream restart (counts back to zero) does not finish or block the step.
+        let step = Step::Kill {
+            map: 7,
+            mobs: vec![],
+            items: vec![ItemCount { id: 1, count: 2 }],
+            resupply: None,
+        };
+        let mut r = PlanRunner::new(plan(vec![step]));
+        r.set_items([(1, 9)].into_iter().collect());
+        r.tick(0, None, Some(7), 0, &mut cfg);
+        r.set_items([(1, 1)].into_iter().collect());
+        assert!(!r.tick(1, None, Some(7), 0, &mut cfg).finished);
+        r.set_items([(1, 3)].into_iter().collect());
+        assert!(r.tick(2, None, Some(7), 0, &mut cfg).finished);
+    }
+
+    #[test]
+    fn a_shop_named_by_npc_walks_up_to_it_and_clicks_where_the_camera_shows_it() {
+        let step = Step::Shop {
+            map: 7,
+            npc: [0, 0],
+            npc_id: 507,
+            at: [500, 200],
+            bounds: [0, 2000, 0, 1000],
+            sell: vec![],
+            keep: 0,
+            keep_items: vec![],
+            buy: vec![],
+            reserve: 0,
+        };
+        let mut r = PlanRunner::new(plan(vec![step]));
+        let mut cfg = BrainConfig::default();
+        r.set_player(Some((100, 200)));
+        let o = r.tick(0, None, Some(7), 0, &mut cfg);
+        assert!(
+            o.shop.is_none() && cfg.walk_to == Some((500, 200)),
+            "walks over first"
+        );
+        r.set_player(Some((480, 200)));
+        r.set_camera(Some((0, 0)));
+        r.tick(1, None, Some(7), 0, &mut cfg);
+        let o = r.tick(1 + SHOP_SETTLE_MS, None, Some(7), 0, &mut cfg);
+        assert_eq!(
+            o.shop.map(|j| j.npc),
+            Some({
+                let p = crate::quest::click_point_camera((500, 200), (0, 0));
+                [p.0, p.1]
+            })
+        );
+    }
+
+    #[test]
+    fn equip_follows_a_purchase_or_is_skipped() {
+        let shop = Step::Shop {
+            map: 7,
+            npc: [1, 2],
+            npc_id: 0,
+            at: [0, 0],
+            bounds: [0; 4],
+            sell: vec![],
+            keep: 0,
+            keep_items: vec![],
+            buy: vec![Buy {
+                slot: 3,
+                qty: 1,
+                price: 0,
+                item: 0,
+            }],
+            reserve: 0,
+        };
+        let equip = Step::Equip {
+            item: "inv:equip:0:0".into(),
+            if_bought: true,
+        };
+        let mut r = PlanRunner::new(plan(vec![
+            shop.clone(),
+            equip.clone(),
+            Step::Rest { minutes: 1 },
+        ]));
+        let mut cfg = BrainConfig::default();
+        r.tick(0, None, Some(7), 0, &mut cfg);
+        let o = r.tick(SHOP_SETTLE_MS, None, Some(7), 0, &mut cfg);
+        assert!(o.shop.is_some());
+        r.shop_finished(1);
+        let o = r.tick(SHOP_SETTLE_MS + 1, None, Some(7), 0, &mut cfg);
+        assert_eq!(o.equip.as_deref(), Some("inv:equip:0:0"));
+        assert!(
+            r.tick(SHOP_SETTLE_MS + 2, None, Some(7), 0, &mut cfg)
+                .equip
+                .is_none(),
+            "handed out once"
+        );
+        r.equip_finished();
+        r.tick(SHOP_SETTLE_MS + 3, None, Some(7), 0, &mut cfg);
+        assert_eq!(r.summary().1, 3);
+        // Nothing bought (too few mesos): the equip step is skipped.
+        let mut r = PlanRunner::new(plan(vec![shop, equip, Step::Rest { minutes: 1 }]));
+        r.tick(0, None, Some(7), 0, &mut cfg);
+        r.tick(SHOP_SETTLE_MS, None, Some(7), 0, &mut cfg);
+        r.shop_finished(0);
+        let o = r.tick(SHOP_SETTLE_MS + 1, None, Some(7), 0, &mut cfg);
+        assert!(o.equip.is_none() && r.summary().1 == 3, "{o:?}");
+    }
+
+    #[test]
+    fn running_out_of_potions_splices_in_a_shop_trip_then_grinding_goes_on() {
+        let mut p = plan(vec![Step::Grind {
+            map: 5,
+            until_level: Some(20),
+            minutes: None,
+            kills: None,
+            mobs: None,
+            safe_map: None,
+            resupply: None,
+            follow: false,
+            follow_peer: None,
+        }]);
+        p.resupply = vec![Step::Shop {
+            map: 9,
+            npc: [1, 2],
+            npc_id: 0,
+            at: [0, 0],
+            bounds: [0; 4],
+            sell: vec![],
+            keep: 0,
+            keep_items: vec![],
+            buy: vec![Buy {
+                slot: 0,
+                qty: 100,
+                price: 0,
+                item: 0,
+            }],
+            reserve: 0,
+        }];
+        let mut r = PlanRunner::new(p);
+        let mut cfg = BrainConfig::default();
+        r.tick(0, Some(15), Some(5), 0, &mut cfg);
+        assert_eq!(cfg.home_map, Some(5));
+        r.set_pots_empty(true);
+        let o = r.tick(1, Some(15), Some(5), 0, &mut cfg);
+        assert_eq!(cfg.home_map, Some(9), "off to the shop: {o:?}");
+        assert!(o.notes.iter().any(|n| n.contains("resupply")));
+        // Still out of potions while walking there: no second trip spliced in.
+        r.tick(2, Some(15), Some(1), 0, &mut cfg);
+        assert_eq!(r.plan().steps.len(), 2);
+        r.tick(10, Some(15), Some(9), 0, &mut cfg);
+        let o = r.tick(10 + SHOP_SETTLE_MS, Some(15), Some(9), 0, &mut cfg);
+        assert!(o.shop.is_some());
+        r.shop_finished(100);
+        let o = r.tick(20_000, Some(15), Some(9), 0, &mut cfg);
+        assert!(o.resupplied, "{o:?}");
+        assert_eq!(cfg.home_map, Some(5), "back to grinding");
+        // A step with `resupply: []` never leaves.
+        let mut p = plan(vec![Step::Grind {
+            map: 5,
+            until_level: Some(20),
+            minutes: None,
+            kills: None,
+            mobs: None,
+            safe_map: None,
+            resupply: Some(vec![]),
+            follow: false,
+            follow_peer: None,
+        }]);
+        p.resupply = vec![Step::Rest { minutes: 1 }];
+        let mut r = PlanRunner::new(p);
+        r.set_pots_empty(true);
+        r.tick(0, Some(15), Some(5), 0, &mut cfg);
+        assert_eq!(r.plan().steps.len(), 1);
+    }
+
+    #[test]
+    fn the_warrior_plan_resolves_against_the_game_data() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        crate::quest::configure(root.join("data/quests.json"), root.join("data/maps"));
+        let mut p: Plan = serde_json::from_str(
+            &std::fs::read_to_string(root.join("plans/warrior-10-30.json")).unwrap(),
+        )
+        .unwrap();
+        let warnings = crate::quest::resolve(&mut p);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let brain =
+            crate::brain::Brain::new(BrainConfig::default()).with_maps(root.join("data/maps"));
+        let mut here = 10004003; // Dances with Balrog, where the Maple Island plan ends
+        for st in p.steps.iter().chain(p.resupply.iter()) {
+            let map = match st {
+                Step::Travel { map, .. }
+                | Step::Grind { map, .. }
+                | Step::Kill { map, .. }
+                | Step::Shop { map, .. }
+                | Step::Quest { map, .. } => *map,
+                _ => continue,
+            };
+            assert_ne!(map, 0, "unresolved step {st:?}");
+            if map != here {
+                assert!(
+                    brain.route_danger(here, map).is_some(),
+                    "no route {here} -> {map}"
+                );
+            }
+            if !p.resupply.contains(st) {
+                here = map;
+            }
+        }
+        // Perion -> Henesys goes around Deep Valley (Fire Boars) and the Henesys Dungeon Entrance (Lupins).
+        let danger = brain.route_danger(10004003, 10001000).unwrap();
+        assert!(danger <= 25, "level {danger}");
+    }
+}
+
+#[cfg(test)]
+mod reserve_tests {
+    use super::*;
+
+    #[test]
+    fn a_shop_reserve_keeps_the_boat_fare() {
+        let reds = Buy {
+            slot: 0,
+            qty: 100,
+            price: 50,
+            item: 0,
+        };
+        // 305 mesos, keep 150: 155 to spend, 3 Red Potions at 50.
+        assert_eq!(
+            affordable(&[reds.clone()], 150, Some(305)),
+            vec![Buy {
+                qty: 3,
+                ..reds.clone()
+            }]
+        );
+        // Not even one above the reserve, mesos unknown, or no price: nothing.
+        assert!(affordable(&[reds.clone()], 150, Some(190)).is_empty());
+        assert!(affordable(&[reds.clone()], 150, None).is_empty());
+        assert!(affordable(
+            &[Buy {
+                price: 0,
+                ..reds.clone()
+            }],
+            150,
+            Some(5000)
+        )
+        .is_empty());
+        // No reserve: as written when the mesos are unknown; with them known and a price, what they pay for.
+        assert_eq!(affordable(&[reds.clone()], 0, None), vec![reds.clone()]);
+        assert!(
+            affordable(&[reds.clone()], 0, Some(41)).is_empty(),
+            "41 mesos buy no 50-meso potion"
+        );
+    }
+}
+
+#[cfg(test)]
+mod ui_step_tests {
+    use super::*;
+
+    #[test]
+    fn a_ui_step_parses_with_defaults() {
+        let step: Step =
+            serde_json::from_str(r#"{"kind":"ui","name":"cube","clicks":[{"at":[10,20]}]}"#)
+                .unwrap();
+        let Step::Ui { repeat, clicks, .. } = &step else {
+            panic!("not a ui step")
+        };
+        assert_eq!((*repeat, clicks[0].wait_ms), (1, 400));
+    }
+}
+
+#[cfg(test)]
+mod follow_tests {
+    use super::*;
+
+    fn grind(follow: bool) -> PlanRunner {
+        let step = Step::Grind {
+            map: 5,
+            until_level: None,
+            minutes: None,
+            kills: Some(10),
+            mobs: None,
+            safe_map: Some(7),
+            resupply: None,
+            follow,
+            follow_peer: None,
+        };
+        PlanRunner::new(Plan {
+            steps: vec![step],
+            ..Default::default()
+        })
+    }
+
+    #[test]
+    fn a_following_grind_moves_with_the_character_and_keeps_its_kill_count() {
+        let mut cfg = BrainConfig::default();
+        let mut r = grind(true);
+        r.tick(0, Some(3), Some(5), 0, &mut cfg);
+        r.tick(10, Some(3), Some(9), 4, &mut cfg); // moved by hand to map 9 after 4 kills
+        assert_eq!(cfg.home_map, Some(9));
+        r.tick(20, Some(3), Some(9), 9, &mut cfg);
+        assert!(!r.done, "9 kills of 10 so far");
+        r.tick(30, Some(3), Some(9), 10, &mut cfg);
+        assert!(r.done, "the count carried over the map change");
+    }
+
+    #[test]
+    fn a_retreat_to_the_safe_map_or_a_non_following_step_does_not_move_the_grind() {
+        let mut cfg = BrainConfig::default();
+        let mut r = grind(true);
+        r.tick(0, Some(3), Some(5), 0, &mut cfg);
+        r.tick(10, Some(3), Some(7), 0, &mut cfg);
+        assert_eq!(cfg.home_map, Some(5));
+        let mut r = grind(false);
+        r.tick(0, Some(3), Some(5), 0, &mut cfg);
+        r.tick(10, Some(3), Some(9), 0, &mut cfg);
+        assert_eq!(cfg.home_map, Some(5));
+    }
+}
+
+#[cfg(test)]
+mod follow_peer_tests {
+    use super::*;
+
+    #[test]
+    fn a_grind_step_goes_to_the_map_its_peer_is_in() {
+        let step = Step::Grind {
+            map: 5,
+            until_level: None,
+            minutes: None,
+            kills: None,
+            mobs: None,
+            safe_map: None,
+            resupply: None,
+            follow: false,
+            follow_peer: Some("jib01".into()),
+        };
+        let mut r = PlanRunner::new(Plan {
+            steps: vec![step],
+            ..Default::default()
+        });
+        let mut cfg = BrainConfig::default();
+        r.tick(0, Some(3), Some(5), 0, &mut cfg);
+        assert_eq!(cfg.home_map, Some(5), "peer unknown: the planned map");
+        r.set_peer_maps([("jib01".to_string(), 9)].into_iter().collect());
+        r.tick(10, Some(3), Some(5), 0, &mut cfg);
+        assert_eq!(cfg.home_map, Some(9));
+        r.set_peer_maps([("jib01".to_string(), 12)].into_iter().collect());
+        r.tick(20, Some(3), Some(9), 0, &mut cfg);
+        assert_eq!(cfg.home_map, Some(12), "the peer moved on");
+    }
+}

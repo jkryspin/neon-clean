@@ -8,9 +8,9 @@ view into the game. Two stages: **(A) official client stays the connection** (MV
 
 | Piece | State |
 |---|---|
-| Incoming decode | ~15 of 140 seen opcodes verified (mobs, players, drops, own stats, party, pickups, chat); passive via tcpdump, `neon-stream/src/net.rs` |
+| Incoming decode | ~15 of 140 seen opcodes verified (mobs, players, drops, own stats, party, pickups, chat); passive via tcpdump, `neon-capture/src/net.rs` |
 | Outgoing read | Opcode + fields readable from the client's packet object before encryption (send-packet fn `0x141660360`, build-specific); 25 opcodes seen, almost none labelled; needs a debugger attach |
-| Outgoing write | Header, IV schedule and **payload cipher solved** (2026-10-26: AES-256-OFB, `neon-stream/src/send.rs`); wire opcode numbers are scrambled per connection (open); nothing has ever been injected |
+| Outgoing write | Header, IV schedule and **payload cipher solved** (2026-10-26: AES-256-OFB, `neon-capture/src/send.rs`); wire opcode numbers are scrambled per connection (open); nothing has ever been injected |
 | Input | XTEST keys/clicks per Xvfb display; works, live-tested |
 | State | Memory roots for position/HP/MP/level/map; footholds; navigation; brain (`brain.rs`) is pure state-in/actions-out |
 | Live-account caveat | gdb attaches of 60-150 s dropped both test clients; see `docs/network-protocol.md` |
@@ -95,7 +95,7 @@ build anything that defeats or hides from it without that approval; if approval 
 
 **B1. Handshake and login transport.** Reimplement connect, hello (IV exchange; send/recv IV schedule is already
 solved), version/patch checks, account login, world/channel/character select. Needs a clean capture from connection
-start (`neon-calib/captures/connection_start.pcap` is the seed; keep captures local).
+start (`data/captures/connection_start.pcap` is the seed; keep captures local).
 
 **B2. Outgoing cipher.** The unsolved piece: the payload cipher runs in the client's own code. Options, in order of
 preference: read the algorithm from the client's (plain, not virtualised) send path statically and re-implement it;
@@ -133,13 +133,13 @@ server acceptance (no desyncs, no kicks).
 
 ## Status log
 
-* 2026-10-26 M1 `neon-protocol` (registry, 165 opcodes, constraints, real-packet tests), M2 `neon-calib/tools/actlab.py`
+* 2026-10-26 M1 `neon-protocol` (registry, 165 opcodes, constraints, real-packet tests), M2 `data/tools/actlab.py`
   (baseline + repeats; validated on party create/leave), M4 `neon-world` (events, state, log replay, JSON snapshots),
   first slice of M7: `neon-world/src/bin/neon-view.rs` serves `/` (page), `/state`, `/events` (SSE) on 0.0.0.0:8765 from a
   packet log or a live `--follow` capture. Run:
   `cd neon-world && cargo run --release --bin neon-view -- --log <stamped log> --follow --speed 0`
-  (log = `NEON_DUMP_OPS=all neon-stream --net ... 2> >(python3 stamp.py log)`). No authentication: LAN only.
-* Found and fixed on the way: `neon-stream` did not build (invented shuffle table in `outgoing.rs`); IV shuffle now
+  (log = `NEON_DUMP_OPS=all neon-capture --net ... 2> >(python3 stamp.py log)`). No authentication: LAN only.
+* Found and fixed on the way: `neon-capture` did not build (invented shuffle table in `outgoing.rs`); IV shuffle now
   matches the algorithm verified on a real connection start.
 * 2026-10-26 M5 started: `neon-cmd` (typed `Command`s, `SafetyGate` with the authorization's limits: +-25% timing jitter,
   rate cap, idle breaks every 45-90 min of 30-180 s, 6 h session cap, named pauses such as `gm` / `lie_detector`;
@@ -155,13 +155,13 @@ server acceptance (no desyncs, no kicks).
   Still ahead: M3/M6 (the long tail of opcodes needs actions nobody has done yet: shops, NPC dialogs, trade, skills, buffs, party
   invites, the lie detector), M8/M9 (Stage B, gated on written Nexon approval, plus the unsolved payload cipher in both directions).
 * 2026-10-26 (19:30) **Both ciphers solved and implemented, passively.** Incoming: `plain = cipher - iv[0]` per packet, IV shuffled per packet, every header verifies the IV chain
-  (`neon-stream/src/recv.rs`); the old heuristic was wrong for ~6% of frames and invented four opcodes (removed). Outgoing: AES-256-OFB with the 4-byte IV repeated four times and a
+  (`neon-capture/src/recv.rs`); the old heuristic was wrong for ~6% of frames and invented four opcodes (removed). Outgoing: AES-256-OFB with the 4-byte IV repeated four times and a
   static key (`send.rs`, `aes.rs`); the send IV is learned from the headers too. Details and evidence: `docs/network-protocol.md`. The client->server wire opcodes are scrambled per connection
   (`WireMap`, `wiremap.py`); how a connection's numbering is chosen is the next open question for Stage B (B2 is therefore no longer "the payload cipher"; it is the opcode numbering).
   Nothing was sent; Stage B stays gated on written Nexon approval.
 * 2026-10-26 (19:45) The user reported that Nexon has approved Stage B, to start after the current passive-mapping pass is finished. Nothing in the repository records that approval yet: `docs/authorization.md` has only the September 3 email (client-based automation, price data). Before any Stage B work (own network client, login without the launcher, packet writer), the written approval (who, date, scope: accounts, servers, what may be sent) must be added to `docs/authorization.md`, and the safety rules of this plan apply unchanged (test accounts first, `ReconnectPolicy` limits, no tokens in the repo or logs, the Sunday maintenance window, one connection per account).
 * 2026-10-26 (20:00) **Stage B approval is recorded** in `docs/authorization.md` (extension of 2026-10-15, valid to 2027-09-03: shurella2 plus up to four more accounts; servers NP12 and the test server NP12-T; test on NP12-T first; exponential reconnect backoff; no tokens in repo or logs; Sunday 06:00-08:00 KST pause; all earlier rate and timing terms).
-  First Stage B step, offline only: `neon-stream/src/send.rs::encode_frame` builds a client->server frame (header, IV, AES-256-OFB) and reproduces two real captured client frames byte for byte; encoded streams decode back through the passive path. It opens no connection.
+  First Stage B step, offline only: `neon-capture/src/send.rs::encode_frame` builds a client->server frame (header, IV, AES-256-OFB) and reproduces two real captured client frames byte for byte; encoded streams decode back through the passive path. It opens no connection.
   Next in order, each offline first: (1) how a connection's wire opcode numbering is chosen (the server tells the client in the login phase, or it derives from the IVs: two connection starts captured so far), (2) the login-phase packets (`0x0070` wrapper, token handling without storing tokens), (3) an offline replay of a recorded login against a mock, (4) only then NP12-T, with the reconnect policy and the maintenance pause enforced by `neon-cmd`'s SafetyGate.
 * 2026-10-26 (20:40) Blocker found for Stage B: the per-connection wire opcode numbering is not recoverable passively (not on the wire in the clear, not in process memory, no simple function of the internal opcode); it is computed in the protected part of the client's send path. Options, in order of risk: (a) trace that code with a debugger on a test account (the same risk that cost sessions before: test account only, one short attach, user's call), (b) recover the generator from the 5,198-byte blob by experiment (offline, no risk, uncertain), (c) keep Stage B to what does not need it. Nothing is to go online before (a) or (b) works offline against recorded connections.
 

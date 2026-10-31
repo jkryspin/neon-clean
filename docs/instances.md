@@ -11,7 +11,7 @@ desktop client.
 | Prefix | `~/.var/app/io.github.fastrizwaan.WineCharm/data/winecharm/Prefixes/NexonLauncher-NAME` |
 | Display | `Xvfb :<display>` (1600x1000) |
 | Bot session | `--session NAME`: `neon-status.NAME.json`, `logs/NAME.log` |
-| Max HP memory | `neon-calib/seen-max.NAME.json` (`--seen-file`) |
+| Max HP memory | `data/seen-max.NAME.json` (`--seen-file`) |
 
 ## New account
 
@@ -24,7 +24,7 @@ scripts/create-character.sh jib03          # on an empty character screen: STR-f
 ## Run a bot on it
 
 ```bash
-DISPLAY=:103 NEON_STREAM_ARGS="--seen-file neon-calib/seen-max.jib03.json" \
+DISPLAY=:103 NEON_STREAM_ARGS="--seen-file data/seen-max.jib03.json" \
   scripts/run-bot.sh --session jib03 --pid <game pid> -- --plan plans/maple-island-to-perion.json --hp-key Insert --mp-key Home
 ```
 

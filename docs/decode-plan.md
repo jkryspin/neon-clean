@@ -10,7 +10,7 @@ path to actually read the game client's own code for the opcodes passive data ca
 
 "The traffic can be replayed" has two very different bars. Be explicit about which one a task is solving:
 
-- **Tier A - mechanical replay (already works today).** `neon-stream --net-replay` already reconstructs the exact
+- **Tier A - mechanical replay (already works today).** `neon-capture --net-replay` already reconstructs the exact
   wire bytes for a captured session once the cipher state is known, because it preserves raw bytes regardless of
   whether their *meaning* is understood. Every opcode, named or not, already replays at this tier. This tier is
   NOT what's blocking anything further - don't re-derive it.
@@ -131,7 +131,7 @@ after any client update):
   pins down a field's meaning in a way no amount of timing correlation can).
 - **Send path / outgoing opcode construction**: `0x141660360` (packet object constructor, opcode at `+8`),
   frame builder around `0x1407618xx` (encrypts `obj+8`) - see `outgoing-opcode-method` in memory for the
-  send-packet calibration tooling already built on this (`neon-calib/tools/outcap.sh`).
+  send-packet calibration tooling already built on this (`data/tools/outcap.sh`).
 - **Per-connection wire-opcode scramble**: confirmed to live in the protector's virtualized section (not
   statically readable past `0x141664300`) - this is the one known case where static reading has already hit a
   wall; don't re-attempt it without a new idea (see `stage-b-status` in memory). Everything else in this plan is
@@ -165,7 +165,7 @@ evidence, all negative:
 evidence above is reproducible with the three committed tools in minutes.
 
 **What is NOT ruled out** (ideas that don't go through the dispatch, in rough order of promise):
-- Anchoring on *game state* instead of packet bytes: `neon-stream` already knows static roots for HP/MP/level/
+- Anchoring on *game state* instead of packet bytes: `neon-capture` already knows static roots for HP/MP/level/
   position. Code that writes those addresses is, by definition, the tail of whatever handler processed the
   packet that changed them. Finding writers of a known address is a different search than finding opcode
   immediates, and is not obviously blocked.
@@ -213,7 +213,7 @@ That needs the decode work this plan tracks, not more encoder work.
 ## WZ validation (2026-10-27): the client's own data files resolve id fields
 
 The client ships 676 MB of unencrypted game data at `Data/` in classic `PKG1` WZ format. `String_000.wz`
-carries the id->name tables (Mob, Skill, Consume, Eqp, Npc, Map). `neon-calib/tools/wzread.py` parses it:
+carries the id->name tables (Mob, Skill, Consume, Eqp, Npc, Map). `data/tools/wzread.py` parses it:
 strings use the plain XOR-with-incrementing-mask scheme with a ZERO AES key, so no region key is needed; the
 stored 8-bit encrypted version matches many version numbers, so the right one is chosen by requiring every
 root-directory offset to land inside the file (version 779 here).
@@ -270,7 +270,7 @@ User direction: look at the code or inject rather than infer behaviourally. This
 **Corrects an earlier over-claim.** The first static pass concluded "no static opcode->handler table exists".
 That was too strong: `exetable.py` searched for 8-byte POINTERS, but MSVC x64 stores switch tables as 4-byte
 image-relative offsets, so it could not have found a switch-based dispatcher whether or not one exists.
-`neon-calib/tools/exejumptab.py` searches for those. Result: `.rdata` holds ~400 runs of 10-30 consecutive
+`data/tools/exejumptab.py` searches for those. Result: `.rdata` holds ~400 runs of 10-30 consecutive
 valid code RVAs - the right shape - so tables are plentiful, but every large candidate examined was NOT a
 packet switch: `0x1435c77f0` (288 entries, all distinct) is an FFT **bit-reversal permutation**
 (`0x0c, 0x8c, 0x4c, 0xcc, 0x2c...`); others repeat `0x140010401`/`0x140050000` (bit-masks that land in code
@@ -278,11 +278,11 @@ range). "Large and all-distinct" is not evidence of a switch. The filters I firs
 distinct >= n/4) rejected every table, so an initial "0 tables" was a filter bug, not a finding - caught by
 measuring the actual run-length distribution instead of trusting the empty result.
 
-**What genuinely works: object roots -> vtables -> readable methods.** neon-stream already tracks static roots
+**What genuinely works: object roots -> vtables -> readable methods.** neon-capture already tracks static roots
 (`0x143bf8e78` stats, `0x143bf05a0` player state). Dereferencing a root and reading its vtable needs no RTTI
 (which the protector relocated) and no debugger, only `/proc/PID/mem` reads. For the stats object **all 80
 virtual methods are in readable code** - game classes' own methods are NOT virtualised, only the
-opcode->handler edge is. `neon-calib/tools/exevtable.py ROOT` dumps the vtable and finds call sites of a slot;
+opcode->handler edge is. `data/tools/exevtable.py ROOT` dumps the vtable and finds call sites of a slot;
 `exejumptab.py` finds switch tables. Rip-relative xrefs to a root (28 for the stats root) land in clean,
 unobfuscated compiler output: ordinary prologues, `int3` padding, `test rcx,rcx / je` null checks.
 

@@ -60,7 +60,7 @@ Loaded anti-cheat modules when REAL (99 total modules in process):
 
 ## Phase 4: God Mode (iframe Timer)
 
-**File:** `neon-stream/src/scanner.rs` (GodModeScanner + GodModeFreezer)
+**File:** `neon-capture/src/scanner.rs` (GodModeScanner + GodModeFreezer)
 **Status:** ⚠️ FRAMEWORK — Freeze is a placeholder (no platform-specific memory write yet)
 
 - [x] Add differential memory scan to `scanner.rs` (`on_damage`, `on_stable`)
@@ -85,7 +85,7 @@ Loaded anti-cheat modules when REAL (99 total modules in process):
     ```
 - [ ] **TODO:** Wire freeze loop into main game loop
   ```rust
-  // In neon-stream main loop:
+  // In neon-capture main loop:
   if god_mode.confirmed {
       freezer.tick(&scanner);
   }
@@ -95,7 +95,7 @@ Loaded anti-cheat modules when REAL (99 total modules in process):
 
 ## Phase 5: Wire Opcode Mapping
 
-**Files:** `neon-probe/probe-opcodes.c`, `neon-calib/tools/wiremap-probe.py`
+**Files:** `neon-probe/probe-opcodes.c`, `data/tools/wiremap-probe.py`
 **Status:** ✅ DONE (probe v4.1 + wire correlation complete)
 
 - [x] Rewrite `probe-opcodes.c` with inline hook technique (v4.1 — nearby springboard)
@@ -112,10 +112,10 @@ Loaded anti-cheat modules when REAL (99 total modules in process):
 
 ## Phase 6: Packet Injection Features
 
-**Files:** `neon-stream/src/packet_actuator.rs`, `neon-stream/src/outgoing.rs`
+**Files:** `neon-capture/src/packet_actuator.rs`, `neon-capture/src/outgoing.rs`
 **Status:** ⚠️ FRAMEWORK — Socket discovery is the missing piece
 
-- [x] Add `PacketActuator` to `neon-stream` (`packet_actuator.rs`)
+- [x] Add `PacketActuator` to `neon-capture` (`packet_actuator.rs`)
 - [x] Implement Kami (MoveSelf 0x00db teleport to mob)
 - [x] Implement Skill Injection (AttackSkill 0x00e1 with skill ID)
 - [x] Implement Full Map Attack (extended attack range)
@@ -204,7 +204,7 @@ Loaded anti-cheat modules when REAL (99 total modules in process):
 - [x] Configure build file (`builds/warrior.json` — framework exists)
 - [x] Configure grinding plan (`plans/warrior-10-30.json` — documented in warrior-10-30.md)
 - [ ] Run bot with god mode + auto attack + potions + loot (requires all above phases)
-- [ ] Monitor via web panel (WebSocket sync in `neon-stream` main loop)
+- [ ] Monitor via web panel (WebSocket sync in `neon-capture` main loop)
 - [ ] Warrior reaches level 30
 - [ ] Screenshot proof
 

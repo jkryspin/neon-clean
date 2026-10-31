@@ -1,12 +1,12 @@
 # Network source: mobs and other players
 
 Memory scanning never found a usable mob or player pool (everything led to render or UI data), so
-`neon-stream --net` reads them from the game's own TCP connection instead. It is **passive**: it
+`neon-capture --net` reads them from the game's own TCP connection instead. It is **passive**: it
 captures packets with `sudo -n tcpdump` and never touches the game process.
 
 ```bash
-nice -n 19 ./neon-stream/target/release/neon-stream --net --chains neon-calib/chains.json
-./neon-stream/target/release/neon-stream --chains neon-calib/chains.json --net-replay capture.pcap   # offline check
+nice -n 19 ./neon-capture/target/release/neon-capture --net --chains data/chains.json
+./neon-capture/target/release/neon-capture --chains data/chains.json --net-replay capture.pcap   # offline check
 ```
 
 Requires passwordless `sudo tcpdump`. Game connection: server ports 8500-8700 (seen: 8578/8579),
@@ -18,7 +18,7 @@ Every server->client message is `[4-byte header][payload]`.
 
 * **Length:** read the header as two little-endian u16 halves `a`, `b`; `len = a ^ b` (any length).
   A real packet always has `len >= 2` (opcode). Length 0 appears at every offset inside
-  constant-filled bodies, so it must never extend a framing chain (`neon-stream` regression test).
+  constant-filled bodies, so it must never extend a framing chain (`neon-capture` regression test).
 * **Small packets:** the most-common-byte constant fails on short or number-heavy packets, so the first
   block uses the opcode rule instead (every opcode seen has a high byte 0..4: try `raw[1]-h` for h in 0..4 and
   take the candidate giving the most zero bytes). This fixed 405 of 3,835 packets in a test window.
@@ -58,7 +58,7 @@ y=274; Henesys Hunting Ground I platforms are y = 215, -85, -325, -565).
 
 Mob template ids are the small decimals documented at meowdb.com/msclassic (2 Snail, 3 Blue Snail,
 4 Shroom, 5 Red Snail, 6 Stump, 7 Slime, 8 Pig, 9 Orange Mushroom, 10 Ribbon Pig, 13 Green Mushroom,
-14 Bubbling; full list in `neon-calib/mob-ids.json`).
+14 Bubbling; full list in `data/mob-ids.json`).
 
 ## Party list (0x00a7)
 
@@ -78,7 +78,7 @@ My character id is in my own `0x022d` spawn (name `shurelia2` -> `0x51a5a`).
 
 ## Not identified yet
 
-* ~~Player removal~~: identified on 2026-10-26 as incoming `0x0209` (13 bytes, char id then zeros); evidence in `neon-protocol/opcodes.toml`. (`neon-stream` still expires players after 15 s without a packet; `neon-world` removes them on `0x0209`.)
+* ~~Player removal~~: identified on 2026-10-26 as incoming `0x0209` (13 bytes, char id then zeros); evidence in `neon-protocol/opcodes.toml`. (`neon-capture` still expires players after 15 s without a packet; `neon-world` removes them on `0x0209`.)
 * **Stat-update bits other than HP/EXP:** the sizes of LEVEL/STR/DEX/INT/LUK/AP/SP/MESO are unverified, so a
   packet mixing them with HP or EXP is only decoded up to the first unknown bit. (EXP verified over three kills:
   55 -> 59 -> 70 -> 78 on the wire and on screen; the 15-byte variants carried HP 141 and 138.)
@@ -89,7 +89,7 @@ My character id is in my own `0x022d` spawn (name `shurelia2` -> `0x51a5a`).
 
 ## Validation
 
-* 12 unit tests in `neon-stream/src/net.rs` use real captured packets (`tests/fixtures/net_packets.json`).
+* 12 unit tests in `neon-capture/src/net.rs` use real captured packets (`tests/fixtures/net_packets.json`).
 * Replay of a 45 s capture: 7,743 packets framed with 0 resyncs, 315 mob spawns, 270 kills,
   75 player spawns.
 * Live: while standing in the hunting ground the stream listed 9 mobs of the correct documented
@@ -108,7 +108,7 @@ My character id is in my own `0x022d` spawn (name `shurelia2` -> `0x51a5a`).
   (`01 00 01 00 00 00 01 00 30 | 2d ef c2 e1 | 09 27 cf 40 01 04` -> IV `2d ef c2 e1`; note the one-byte offset from the
   naive "recvIV then sendIV" reading). After every packet the IV is advanced by the **classic MapleStory shuffle**
   (`IV' = shuffle(IV)`, constants `f2 53 50 c6`, rotate-left 3, using the 256-byte table at `MapleStory.exe` file
-  offset `0x3bb3d00`: `ec 3f 77 a4 45 d0 71 bf ...`). Implemented in `neon-calib/tools/mcrypt_check.py` (after fix) and
+  offset `0x3bb3d00`: `ec 3f 77 a4 45 d0 71 bf ...`). Implemented in `data/tools/mcrypt_check.py` (after fix) and
   re-derived in the notes below.
 * **Header seed.** `a = ((iv[2] << 8) | iv[3]) ^ 0xdf00`. Checked on all 93 client packets of a capture that begins at
   the handshake: the XOR between `a` and `(iv[2]<<8|iv[3])` is the single constant `0xdf00` for every frame (pings
@@ -116,11 +116,11 @@ My character id is in my own `0x022d` spawn (name `shurelia2` -> `0x51a5a`).
 * **Live IV location.** The current send IV is the 4 bytes at process address `0x2c44c90` (natural order,
   `iv[0..3]` = `c90..c93`) in the client's heap; it is rewritten about 1 ms before each packet leaves. Found by freezing
   the process (SIGSTOP), snapshotting writable memory three times and looking for a 16-bit value whose changes track the
-  header seeds (`neon-calib/tools/ivsnap.py`, `ivdiff.py`), then confirmed by sampling the bytes at 1 kHz against a
+  header seeds (`data/tools/ivsnap.py`, `ivdiff.py`), then confirmed by sampling the bytes at 1 kHz against a
   simultaneous capture: 18/25 packets matched, the rest being packets sent from another thread. Eight bytes
   after it (`c94..c97`) change every ~100 ms and are unrelated. The address is for this client build/run; re-find it
   with the tools if it moves.
-* The capture that starts at the connection handshake (`neon-calib/captures/connection_start.pcap`, used by `mcrypt_check.py`) contains
+* The capture that starts at the connection handshake (`data/captures/connection_start.pcap`, used by `mcrypt_check.py`) contains
   real session traffic: it is git-ignored, keep it local.
 * Measured traffic: ~4 client packets/s, so own-position updates would be 2-3 Hz at best, against ~20 Hz from memory.
 
@@ -188,7 +188,7 @@ World v1.0.1 build; **all addresses are for this build**):
 * How it was located: caught the host `sendmsg` on the game socket (fd to port 8578), broke on `send`, recovered real
   return addresses on the Windows stack (a qword in the code section whose preceding bytes are `call`), and walked up
   to the function that takes the packet.
-* `neon-calib/tools/outcap.sh PID SECONDS out.json` records every packet's opcode and the wire length of the following
+* `data/tools/outcap.sh PID SECONDS out.json` records every packet's opcode and the wire length of the following
   send. Results: `docs/outgoing-opcodes.json`, rendered by `scripts/opcode-doc.py` into `docs/opcodes.md`. Payload bytes
   are not committed (some packets carry the launcher login token).
 * Caveats: the packet's own length is not read yet (the wire length of the next send is only a hint); the breakpoint
@@ -207,7 +207,7 @@ offline with `objdump -D -b binary -mi386:x86-64 --adjust-vma=...`:
   `this+0x70` (`0x141673a40`) and loops. **No decryption happens there**: it is done later on the accumulated stream
   (where is not known: `0x141663c00` was read and is socket close/reset logic, not the cipher; the consumer of the accumulation buffer at `this+0x70` has not been found). So "block" in the earlier notes is the
   cipher's own 1456/1460-byte block, not a TCP segment.
-* Tested and rejected on `neon-calib/captures/connection_start.pcap`: the per-block constant K is not a byte of the receive IV
+* Tested and rejected on `data/captures/connection_start.pcap`: the per-block constant K is not a byte of the receive IV
   chain (`09 27 cf 40`, advanced with the verified send-side shuffle) at any chain offset for any byte position (best 3 hits of
   55 reliable blocks, chance level), whether the blocks are counted on the raw stream or from any start offset 0-29. Only block 0
   matches (K = 0x09 = iv[0]; its plaintext reads `0b 00 00 00 01 00 00 00 17 00 00 00 ...`). The stream also begins with six
@@ -249,8 +249,8 @@ Following the receive path (framer `0x14075c780` -> `0x14075ccb0` decrypt -> IV 
   frames, 0 header mismatches over the whole stream; the old heuristic had the wrong K in 23 of them (6%), including frames whose opcode it read wrongly.
 * Why the earlier test failed ("K is not a byte of the receive IV chain"): the IV advances once per *packet*, not per cipher block, and the
   connection-start capture's stream begins with pre-game bytes that do not frame like in-game traffic.
-* Implementation: `neon-stream/src/recv.rs` (`find_iv`, `RecvCipher`), used by `NetDecoder`; heuristic fallback until synced and after lost bytes.
-  Tests use a committed fixture of real headers (`neon-stream/tests/fixtures/recv_headers.json`: 60 header halves, their K, two tiny frames, no names).
+* Implementation: `neon-capture/src/recv.rs` (`find_iv`, `RecvCipher`), used by `NetDecoder`; heuristic fallback until synced and after lost bytes.
+  Tests use a committed fixture of real headers (`neon-capture/tests/fixtures/recv_headers.json`: 60 header halves, their K, two tiny frames, no names).
 
 ## SOLVED (2026-10-26 18:50): the client->server cipher too, passively
 
@@ -259,24 +259,24 @@ Following the receive path (framer `0x14075c780` -> `0x14075ccb0` decrypt -> IV 
   Verified on a live capture: 270 consecutive frames, the whole chain reproduced.
 * Body: **AES-256-OFB**. First block = the 4-byte IV repeated four times; each 1456/1460-byte chunk restarts from that same block.
   Key: the 8 words at stride 16 of the client's static table (`0x143bb4e80`, 128 bytes, the key schedule `0x140ce9d80` reads offsets
-  0, 0x10, ... 0x70; each word is a single byte 0..255): `0f 1b c5 46 f3 be ff 75` as words, i.e. the 32 bytes in `neon-stream/src/send.rs` (`KEY`).
+  0, 0x10, ... 0x70; each word is a single byte 0..255): `0f 1b c5 46 f3 be ff 75` as words, i.e. the 32 bytes in `neon-capture/src/send.rs` (`KEY`).
   (Reading 32 consecutive bytes of the table, as first assumed, gives the wrong key.)
 * Proof: the twelve 2-byte frames of a 2-minute capture (one every 10 s, twelve different IVs) all decrypt to the same plaintext `86 87`, which chance cannot produce;
   every other frame decrypts to a structured packet (repeating counters, small ids).
 * **The wire plaintext is not the client's internal packet object.** The internal object (read at `+8` with gdb; the registry's outgoing entries and
   `docs/outgoing-opcodes.json`) has opcode `0x02f0` for a keepalive; on the wire the same packet is `86 87`. Wire opcodes are a different numbering
   (the client maps internal opcodes before sending; the mapping is not known yet), and payloads can differ. So the registry's `out` entries describe the client's
-  internal view; wire-level outgoing opcodes are logged separately (`*.wire`, printed as `wire op` by `neon-stream`, split off by `stamp.py`).
+  internal view; wire-level outgoing opcodes are logged separately (`*.wire`, printed as `wire op` by `neon-capture`, split off by `stamp.py`).
   Wire opcodes seen in the first capture (jib01 standing in Amherst, 2 min): `0x7cec` x213 (lengths 48/12/111: periodic, counter-like), `0x0009c` x12 (149 bytes, 10 s),
   `0x8786` x12 (2 bytes, 10 s keepalive), `0x00c5` x12 (4 bytes, `c5 00 NN 01` with NN counting 0, 1, 2, ...), others once.
-* Implementation: `neon-stream/src/aes.rs` (AES-256, FIPS-197 vector test), `neon-stream/src/send.rs` (framer, IV sync, decrypt; tests with real header fixtures
+* Implementation: `neon-capture/src/aes.rs` (AES-256, FIPS-197 vector test), `neon-capture/src/send.rs` (framer, IV sync, decrypt; tests with real header fixtures
   `tests/fixtures/send_headers.json`), used by `NetDecoder` for outbound segments. Nothing in this path sends anything.
 * Consequence for Stage B (headless without the client): both directions are now readable, so a protocol-faithful client is a matter of writing, not of cryptography;
   that step stays gated on written Nexon approval (`docs/headless-plan.md`).
 
 ### Wire opcodes vs internal opcodes: first three pairs (2026-10-26 19:10)
 
-A marks test on jib01 (6 repeats each, random gaps, `neon-calib/tools/marklab.py` over the incoming log and the new `.wire` log) found one wire opcode per action:
+A marks test on jib01 (6 repeats each, random gaps, `data/tools/marklab.py` over the incoming log and the new `.wire` log) found one wire opcode per action:
 
 | Action | Wire opcode | Internal opcode (registry) | Evidence |
 |---|---|---|---|
@@ -295,7 +295,7 @@ checked with a screenshot) produced no repeating wire or incoming opcode in 4 re
 The table above (keepalive `0x8786`, attack `0x25d8`, move `0x5f28`) is the numbering of **one connection** (jib01). On shurella2 the same keepalive is `0xf5e8`
 (138 of them, answering the 138 incoming pings); `0x00c5`, `0x009c`, `0x0070` and `0x00ba` have the same number on both accounts. So a fixed wire-to-internal table is wrong;
 the registry no longer has `wire_opcode`. Instead `neon_protocol::WireMap` is the translation of one connection (`{"8786": "02f0", ...}`), written next to the log as
-`<log>.wire.map` by `neon-calib/tools/wiremap.py` (which derives only what the traffic itself proves: the keepalive as the 2-byte reply to the ping, the attack by its bytes) and read by Neon View
+`<log>.wire.map` by `data/tools/wiremap.py` (which derives only what the traffic itself proves: the keepalive as the 2-byte reply to the ping, the attack by its bytes) and read by Neon View
 (live: every 3 s; replay: with the session). Unmapped wire packets are not shown; they are never guessed.
 
 What the first wire captures established (all in `opcodes.toml` summaries or here):
@@ -306,11 +306,11 @@ What the first wire captures established (all in `opcodes.toml` summaries or her
 * The 1 s ticks `0x003d`, `0x002c`, `0x006e`, `0x023f` I had registered from the old logs never existed (heuristic mis-decryptions; removed).
 
 ### Robustness check (2026-10-26 19:35)
-`neon-stream --net-replay` now prints `recv_exact`, `recv_heuristic`, `recv_chain_breaks`, `send_decrypted`, `send_chain_breaks`. On a fresh 90 s capture of a hunting character (shurella2): 4,953 incoming
+`neon-capture --net-replay` now prints `recv_exact`, `recv_heuristic`, `recv_chain_breaks`, `send_decrypted`, `send_chain_breaks`. On a fresh 90 s capture of a hunting character (shurella2): 4,953 incoming
 frames, 4,941 decrypted exactly (the other 12 are the frames before the IV is learned), 0 chain breaks, 0 framer resyncs, 3,580 events; on a town capture (jib01, 2 min): 373 incoming (361 exact) and 270 outgoing frames decrypted, 0 breaks.
 
 ### Pre-game stage (login) is framed differently (noted 2026-10-26)
-In `neon-calib/captures/connection_start.pcap` the bytes after the 21-byte hello do not follow the in-game framing (no 4-byte header whose first half satisfies `a ^ 0xfffe == iv[3]<<8|iv[2]` at any offset
+In `data/captures/connection_start.pcap` the bytes after the 21-byte hello do not follow the in-game framing (no 4-byte header whose first half satisfies `a ^ 0xfffe == iv[3]<<8|iv[2]` at any offset
 up to 3,000, for any 4-byte window of the hello as IV). They are additive with `K = 0x09 = iv[0]` of the hello's receive IV and look like `[u32 length][body]`
 (`14 09 09 09 | ...` is `0b 00 00 00` + 9: length 11). The client->server side of that capture follows the in-game header rule from its first packet, and decrypts exactly (AES-256-OFB): its first
 frames use opcode `0x0070` as a login-phase wrapper (a GUID-shaped string appears in the ninth frame; it is a login token, so it is not recorded anywhere in the repo).
@@ -355,7 +355,7 @@ What remains: the table is sent inside the encrypted in-game frames (which the j
   My earlier statements that the chain "does not exist" and that "the first frames are 0x0039, 0x003a, 0x0234" were wrong (the framer had only synchronised at offset 2,956, and its first 12 frames were heuristic).
 * Decoding exactly from offset 218 gives 94 consecutive frames (then a chain break I did not investigate), starting: `0x003a` (6 bytes), `0x0032` (5,198 bytes, entropy 7.96 bits/byte: an opaque random-looking blob), `0x00ab` (10, 42), `0x002e` (2), `0x0118` (38 bytes, contains "Maple Event"), `0x0194` (36 bytes, a session-like string), `0x01a9` (3,336, set-field), `0x01a5`, `0x001e`, `0x00c1`, `0x01ca`, `0x0098`, `0x05f5` (1,342 bytes, mostly zeros), ...
 * **The wire opcode numbers of this connection do not appear in them** (jib02's `0x51f8`, `0x90b6`, `0xd34b`, `0xd5b8`, as little-endian u16 or u32, in all 94 frames, 19 KB), and the 5,198-byte blob holds no constant xor or difference table for them (checked at several bases and strides). So if the server sends the numbering, it is inside that random-looking blob under another transform, or it is computed locally from something in it (its 2,598 u16 values are as distinct as random ones). Next offline step: treat the blob as key material (does `AES(key)(hello IV)` or a hash of it reproduce the three known numbers through some per-opcode function?).
-* Consequence for the tools: `RecvCipher` can start at a connection start (IV = hello receive IV, first frame special, then chain), so a capture that begins before the hello decodes every frame exactly, including the first twelve. That is not implemented yet in `neon-stream` (it learns the IV from headers 12 frames in).
+* Consequence for the tools: `RecvCipher` can start at a connection start (IV = hello receive IV, first frame special, then chain), so a capture that begins before the hello decodes every frame exactly, including the first twelve. That is not implemented yet in `neon-capture` (it learns the IV from headers 12 frames in).
 * **Implemented (20:35):** `recv::second_frame` finds the first ordinary frame from the hello (test on 330 real stream-start bytes), and `NetDecoder` uses it for a flow that begins with the hello: the cipher starts from the shuffled hello IV, so a capture that starts before the hello decodes **every** frame exactly. jib02's whole connection: 1,175 frames, 1,175 exact, 0 heuristic, 0 breaks (it was 1,164 + 12 heuristic before). Mid-stream captures behave as before (IV learned from 12 headers).
 
 ### The numbering is not stored in the client's memory either (2026-10-26 20:40, jib02, read-only /proc/PID/mem, 2 GB)
@@ -370,7 +370,7 @@ No construction matches all three. Not tried: a seeded generator (LCG, xorshift,
 Assuming `wire(op) = f^op(seed)` with `f(x) = (a*x + c) mod 2^16` and the same `a, c` in the client on every connection (only the seed differing), the two connections (jib01, jib02) fix the six-step relation between `0xdb` and `0xe1` uniquely (`A6, C6` solved exactly), and no `a, c` reproduces it together with the `0xe1` -> `0x2f0` step on both connections. A generator with a wider state (32 bits, truncated) or a non-linear one is not excluded; it needs more pairs per connection (every extra (internal, wire) pair is one more equation) or the code.
 
 ### Debugger traces of the send path on jib02 (2026-10-26 20:20-20:33; four short attaches, jib02 stayed in game each time)
-Tools: `scripts/capture-wire.sh` / `capture-wire2.sh` (guarded like `capture-out.sh`: test account only, 18 s, 5 minutes between attaches) with `neon-calib/tools/outwire.py` and `outwire2.py`. Findings:
+Tools: `scripts/capture-wire.sh` / `capture-wire2.sh` (guarded like `capture-out.sh`: test account only, 18 s, 5 minutes between attaches) with `data/tools/outwire.py` and `outwire2.py`. Findings:
 * A write watch on the packet object's plaintext (`obj + 8`, set when the object reaches `0x141660360`) fired once: the opcode bytes `26 03` (internal `0x0326`) became `93 03` (wire `0x0393`) by a byte store at `0x14075fa7a`, inside a plain-x86 buffer routine at `0x14075fa20` that shifts the buffer's bytes (it moves bytes one position at a time through 1,024-byte chunks addressed by `0x80402011` division magic). So at least that packet's opcode is rewritten by ordinary code, not by the protected part; at that moment `r9` still held the internal opcode `0x0326`.
 * The cipher dispatcher `0x140762ec0` was not reached while the watch/breakpoint was set in the first trace, and **the entry of `0x14075fa20` was never hit in two further traces during attack, jump and movement key presses**: the routine that rewrote that first packet is not on the path of the ordinary game packets. The watch caught a different (early, perhaps login-time) packet.
 * So the mapping for ordinary packets still has to be found; the next trace should watch the plaintext of an ordinary packet (a movement packet, internal `0x00db`) rather than the first one the process happens to build: set the watch only when the object's internal opcode (`+0x434`) is `0x00db`, `0x00e1` or `0x02f0`.
@@ -413,7 +413,7 @@ not be assumed to be the same packet. Left undocumented in the registry on purpo
 internal opcode, which this wire capture does not know.
 
 ### Climbing a rope/ladder, attempted (2026-10-26 22:00, jib01)
-Walked to the ladder at map 1010 (Amherst), x=991 per neon-calib/maps/1010.json, and climbed it; the memory reader confirms it (grounded: false, y goes negative while x stays pinned at 991, matching the ladder's recorded x and y range). The outgoing MoveSelf (0x00db, wire 0x5f28 on this connection) packets during the climb have header fields (tick, x, y, count) that parse fine with the registered offsets, but the per-fragment byte layout documented for ordinary walking (end_x/end_y at fixed offsets within each 21-byte fragment) does NOT produce plausible coordinates for these climbing frames (wildly out-of-range values), so climbing clearly uses a different fragment layout (or a different stance encoding) that was not worked out in the time available. Not registering anything from this to avoid a wrong field claim; flagged as the next concrete step for the rope/ladder flag question.
+Walked to the ladder at map 1010 (Amherst), x=991 per data/maps/1010.json, and climbed it; the memory reader confirms it (grounded: false, y goes negative while x stays pinned at 991, matching the ladder's recorded x and y range). The outgoing MoveSelf (0x00db, wire 0x5f28 on this connection) packets during the climb have header fields (tick, x, y, count) that parse fine with the registered offsets, but the per-fragment byte layout documented for ordinary walking (end_x/end_y at fixed offsets within each 21-byte fragment) does NOT produce plausible coordinates for these climbing frames (wildly out-of-range values), so climbing clearly uses a different fragment layout (or a different stance encoding) that was not worked out in the time available. Not registering anything from this to avoid a wrong field claim; flagged as the next concrete step for the rope/ladder flag question.
 
 ### PlayerSpawn/AvatarModified avatar-look blob: not decoded (2026-10-26 22:15, a documented dead end)
 Tried to find face/hair/skin inside the ~280 unexplained bytes between the name and the equip list. Comparing the SAME player's

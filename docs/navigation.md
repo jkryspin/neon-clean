@@ -10,16 +10,16 @@ The client ships every map's footholds, ladders/ropes and portals in its own dat
 .../Nexon/Library/maplestorycw/appdata/Data/Map/Map/Map0/Map0_000.wz   (maps 0xxxxxxxx; id 10001010 = 010001010.img)
 ```
 
-`neon-calib/tools/wzmap.py` parses the WZ archive (unencrypted `PKG1`, version-hashed offsets, no
-dependencies) and writes `neon-calib/maps/<mapid>.json` (334 maps, ~6 MB, 3 s). Re-run it after a client patch:
+`data/tools/wzmap.py` parses the WZ archive (unencrypted `PKG1`, version-hashed offsets, no
+dependencies) and writes `data/maps/<mapid>.json` (334 maps, ~6 MB, 3 s). Re-run it after a client patch:
 
 ```bash
-python3 -I neon-calib/tools/wzmap.py "<path to Map0_000.wz>" neon-calib/maps
+python3 -I data/tools/wzmap.py "<path to Map0_000.wz>" data/maps
 ```
 
 Verified against live play: platform heights in Henesys Hunting Ground I (215, -85, -325, -565) and the
 east portal at x=1625 match the measured values. This replaces the in-memory foothold scan (which is
-still in `neon-stream` as a fallback) and also gives ladders/ropes, which memory never did.
+still in `neon-capture` as a fallback) and also gives ladders/ropes, which memory never did.
 
 ## The graph (`neon-loader/src/nav.rs`)
 
@@ -83,11 +83,11 @@ map's footholds: walking with acceleration and a slide, jumps, gravity, landing,
 panel's map draws it as a dashed ghost joined to the real position, with the running error under the map.
 
 * `neon-loader --sim-log FILE` logs one line per frame (`ts dt dir jump down climb ax ay agr sx sy sgr age err`).
-* `neon-calib/tools/simcal.py OUT.trace` records a fixed set of moves in a town (walks, standing/running jumps,
+* `data/tools/simcal.py OUT.trace` records a fixed set of moves in a town (walks, standing/running jumps,
   direction+jump together, run-ups of 0.08/0.15/0.3 s, release in the air, air control, key taps) as a decision trace.
 * `neon-loader --sim-replay TRACE MAP --sim-log OUT [--sim-resync-ms 1000]` replays any decision trace through it.
 * `neon-loader --sim-fit MAP TRACE...` fits all constants by coordinate descent on the average error (1 s windows,
-  re-synced on the ground). `neon-calib/tools/simfit.py LOG` summarises a log.
+  re-synced on the ground). `data/tools/simfit.py LOG` summarises a log.
 
 Findings from two recordings on Lith Harbor's flat floor (x 1112-2218, y 647), 2026-10-25:
 

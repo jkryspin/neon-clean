@@ -31,12 +31,12 @@ module only reads/writes values and runs on its own thread.
 
 ## Open puzzle: where HP lives
 
-Read-only material: `docs/data-sources.md`, `neon-calib/chains.json`.
+Read-only material: `docs/data-sources.md`, `data/chains.json`.
 
 - The static `stats_object` root (`0x143bf8e78`) and the position root
   (`0x143bf05a0`) read **0** in every Windows session tried, although the exe hash is
   the calibrated `1942A7B3…`, the module base is `0x140000000`, `.data` matches the file
-  and no remapped copy of the image exists. `neon-stream --verify` will therefore report
+  and no remapped copy of the image exists. `neon-capture --verify` will therefore report
   nothing useful here.
 - Blind search results that are real but *not* the HP field:
   - adjacent `u32` pairs `(x, max_hp)` — 48 private hits, writing them does not move the

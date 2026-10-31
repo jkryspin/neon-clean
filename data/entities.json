@@ -1,0 +1,11 @@
+{
+  "_comment": "Entity memory roots. No container root is proven yet; the Contact tab uses the collision-rectangle signature scan. Add a chain here when one is verified across restart and map change, with the same status vocabulary as chains.json.",
+  "image_base": "0x140000000",
+  "chains": {},
+  "sources": {
+    "contacts": {
+      "how": "neon-capture/src/rects.rs signature scan, filtered against map footholds",
+      "status": "ACTIVE fallback; not classified (mob vs player vs NPC vs drop)"
+    }
+  }
+}

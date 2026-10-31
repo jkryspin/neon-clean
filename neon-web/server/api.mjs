@@ -1,41 +1,23 @@
-// Local API for the Neon web UI (used by the Vite dev/preview server, no extra dependencies).
+// Read-only bridge from the web UI to neon-ce's loopback API.
 //
-// Everything is file based: the bot (neon-loader) writes neon-status[.<session>].json and watches
-// neon-control[.<session>].json; this module reads the first and writes the second. Mutating routes
-// validate their input and are meant for localhost only (the dev server binds 127.0.0.1 unless told otherwise).
+// neon-ce owns the game data; this module only reads it. Control files
+// (`neon-control*.json`) are still written so a running bot picks up pause/stop.
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { createStream } from './stream.mjs'
 
 const SESSION_RE = /^[a-zA-Z0-9_-]{1,32}$/
 const PROFILE_RE = /^[a-zA-Z0-9 _.-]{1,48}$/
 const MAX_BODY = 256 * 1024
+const CE = process.env.NEON_CE_URL || 'http://127.0.0.1:8790'
 
 export function createApi(root) {
-  const calib = path.join(root, 'neon-calib')
+  const data = fs.existsSync(path.join(root, 'data')) ? path.join(root, 'data') : path.join(root, 'neon-calib')
   const profilesDir = path.join(root, 'profiles')
   const historyDir = path.join(root, 'history')
   const runDir = path.join(root, 'run')
-  // Live views, one per display. A session that is an instance (neon-instances.json) is drawn on its own Xvfb display.
-  const games = new Map()
-  const displayOf = session => {
-    try {
-      const reg = JSON.parse(fs.readFileSync(path.join(root, 'neon-instances.json'), 'utf8'))
-      const d = reg[session]?.display
-      if (Number.isInteger(d)) return `:${d}`
-    } catch { /* no registry */ }
-    return ':0'
-  }
-  const gameFor = url => {
-    const d = displayOf(url.searchParams.get('session') || '')
-    if (!games.has(d)) games.set(d, createStream(d))
-    return games.get(d)
-  }
-  const suffix = s => (s === 'main' ? '' : `.${s}`)
-  const statusPath = s => path.join(root, `neon-status${suffix(s)}.json`)
-  const controlPath = s => path.join(root, `neon-control${suffix(s)}.json`)
+  const cePids = new Map()
 
   const json = (res, code, body) => {
     res.statusCode = code
@@ -55,63 +37,51 @@ export function createApi(root) {
     const s = url.searchParams.get('session') || 'main'
     return SESSION_RE.test(s) ? s : null
   }
-  const body = req => new Promise((resolve, reject) => {
-    let size = 0
-    const chunks = []
-    req.on('data', c => {
-      size += c.length
-      if (size > MAX_BODY) { reject(new Error('body too large')); req.destroy(); return }
-      chunks.push(c)
-    })
-    req.on('end', () => {
-      try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}) } catch (e) { reject(new Error('invalid JSON')) }
-    })
-    req.on('error', reject)
-  })
+  const suffix = s => (s === 'main' ? '' : `.${s}`)
+  const controlPath = s => path.join(root, `neon-control${suffix(s)}.json`)
+  const statusPath = s => path.join(root, `neon-status${suffix(s)}.json`)
 
-  // ---- static reference data (map and mob names, spawn lists) ---------------------------------
+  async function ceJson(p) {
+    const res = await fetch(`${CE}${p}`, { cache: 'no-store' })
+    if (!res.ok) throw new Error(`ce ${res.status}`)
+    return res.json()
+  }
+
   let metaCache = null
   function meta() {
     if (metaCache) return metaCache
-    const mapNames = readJson(path.join(calib, 'map-names.json'), {})
-    const mobNames = readJson(path.join(calib, 'mob-names.json'), {})
+    const mapNames = readJson(path.join(data, 'map-names.json'), {})
+    const mobNames = readJson(path.join(data, 'mob-names.json'), {})
     const maps = []
     let files = []
-    try { files = fs.readdirSync(path.join(calib, 'maps')) } catch { /* no map data yet */ }
+    try { files = fs.readdirSync(path.join(data, 'maps')) } catch { /* no maps */ }
     for (const f of files) {
       if (!f.endsWith('.json')) continue
       const id = f.slice(0, -5)
-      const g = readJson(path.join(calib, 'maps', f), {})
+      const g = readJson(path.join(data, 'maps', f), {})
       const n = mapNames[id] || {}
       maps.push({
-        id: Number(id),
-        name: (n.name || '').trim(),
-        street: n.street || '',
-        region: n.region || '',
-        mobs: Object.fromEntries(Object.entries(g.mobs || {}).map(([k, v]) => [k, v])),
+        id: Number(id), name: (n.name || '').trim(), street: n.street || '', region: n.region || '',
+        mobs: Object.fromEntries(Object.entries(g.mobs || {})),
         portals: (g.portals || []).filter(p => p.type === 2 && p.to_map).map(p => p.to_map),
-        platforms: (g.footholds || []).length,
-        ropes: (g.ladders || []).length,
+        platforms: (g.footholds || []).length, ropes: (g.ladders || []).length,
       })
     }
     maps.sort((a, b) => a.id - b.id)
-    const exp = readJson(path.join(calib, 'exp-table.json'), {}).exp_to_next_level || {}
+    const exp = readJson(path.join(data, 'exp-table.json'), {}).exp_to_next_level || {}
     metaCache = { maps, mobNames, expToNext: exp }
     return metaCache
   }
 
-  // ---- quests ---------------------------------------------------------------------------------
-  // neon-calib/quests.json comes from the client's QuestData (neon-calib/tools/wzquests.py). "easy" = nothing to
-  // kill or collect, so the bot can do it by talking alone; prerequisites that are other quests are listed.
   function questList(level, onlyMoney) {
-    const quests = readJson(path.join(calib, 'quests.json'), {})
-    const npcNames = readJson(path.join(calib, 'npc-names.json'), {})
-    const mapNames = readJson(path.join(calib, 'map-names.json'), {})
+    const quests = readJson(path.join(data, 'quests.json'), {})
+    const npcNames = readJson(path.join(data, 'npc-names.json'), {})
+    const mapNames = readJson(path.join(data, 'map-names.json'), {})
     const where = {}
     let files = []
-    try { files = fs.readdirSync(path.join(calib, 'maps')) } catch { /* no map data */ }
+    try { files = fs.readdirSync(path.join(data, 'maps')) } catch { /* no maps */ }
     for (const f of files) {
-      const g = readJson(path.join(calib, 'maps', f), {})
+      const g = readJson(path.join(data, 'maps', f), {})
       for (const n of g.npcs || []) if (!where[n.id]) where[n.id] = Number(f.replace('.json', ''))
     }
     const rows = []
@@ -135,13 +105,9 @@ export function createApi(root) {
     return rows.slice(0, 200)
   }
 
-  // ---- best maps for a level ----------------------------------------------------------------
-  // A mob is "safe" when it is weaker than you (level < yours), "fair" when it is about your level and
-  // "dangerous" when it clearly out-levels you. Value is EXP per HP: how much EXP a unit of fighting buys.
   function bestMaps(level, fromMap) {
     const { maps } = meta()
-    const info = readJson(path.join(calib, 'mob-info.json'), { mobs: {} }).mobs
-    // Portal hops from where you stand (breadth first), so far-away maps rank lower.
+    const info = readJson(path.join(data, 'mob-info.json'), { mobs: {} }).mobs
     const hops = new Map([[fromMap, 0]])
     const byId = new Map(maps.map(m => [m.id, m]))
     for (const q = [fromMap]; q.length;) {
@@ -162,25 +128,14 @@ export function createApi(root) {
       }
       if (safe < 5) continue
       const total = safe + fair + danger
-      rows.push({
-        id: m.id, name: m.name, safe, fair, danger, dangerPct: Math.round((100 * danger) / total),
-        safeMobs: [...new Set(safeMobs)], dangerMobs: [...new Set(dangerMobs)],
-        score: Math.round((value - penalty) * 100) / 100,
-        hops: hops.has(m.id) ? hops.get(m.id) : null,
-      })
+      rows.push({ id: m.id, name: m.name, safe, fair, danger, dangerPct: Math.round((100 * danger) / total), safeMobs: [...new Set(safeMobs)], dangerMobs: [...new Set(dangerMobs)], score: Math.round((value - penalty) * 100) / 100, hops: hops.get(m.id) ?? null })
     }
-    // Reachable first (a map you cannot walk to is not a recommendation), then by score with a small distance cost.
-    return rows
-      .filter(r => r.hops !== null)
-      .sort((a, b) => (b.score - b.hops * 0.5) - (a.score - a.hops * 0.5))
-      .slice(0, 10)
+    return rows.filter(r => r.hops !== null).sort((a, b) => (b.score - b.hops * 0.5) - (a.score - a.hops * 0.5)).slice(0, 10)
   }
 
-  // ---- route with danger report ---------------------------------------------------------------
-  // The walk between maps crosses every map on the way. Report which of them have mobs that out-level you.
   function routeInfo(level, from, to) {
     const { maps } = meta()
-    const info = readJson(path.join(calib, 'mob-info.json'), { mobs: {} }).mobs
+    const info = readJson(path.join(data, 'mob-info.json'), { mobs: {} }).mobs
     const byId = new Map(maps.map(m => [m.id, m]))
     const prev = new Map([[from, null]])
     for (const q = [from]; q.length;) {
@@ -194,57 +149,34 @@ export function createApi(root) {
     const steps = ids.map(id => {
       const m = byId.get(id)
       const danger = Object.entries(m.mobs).filter(([k]) => info[k] && info[k].level > level + 1)
-      return {
-        id, name: m.name, dangerous: danger.reduce((a, [, n]) => a + n, 0),
-        dangerMobs: danger.map(([k, n]) => `${info[k].name} ×${n}`),
-      }
+      return { id, name: m.name, dangerous: danger.reduce((a, [, n]) => a + n, 0), dangerMobs: danger.map(([k, n]) => `${info[k].name} ×${n}`) }
     })
-    // The start and end maps are not "walked through" in the risky sense; the ones between them are.
     const through = steps.slice(1, -1).filter(s => s.dangerous > 0)
     return { reachable: true, steps, risky: through.length > 0, riskyMaps: through.map(s => s.name) }
   }
 
-  // ---- sessions -----------------------------------------------------------------------------
-  // A bot is up while its run-bot.sh process lives (run/NAME.pid), even when it is not writing its status: idle
-  // breaks, NPC conversations, stat-window clicks and shop trips block the writer for seconds to minutes.
-  function botAlive(name) {
-    try {
-      const pid = Number(fs.readFileSync(path.join(runDir, `${name}.pid`), 'utf8').trim())
-      if (!pid) return false
-      process.kill(pid, 0)
-      return true
-    } catch { return false }
-  }
-
-  function listSessions() {
-    const out = []
-    for (const f of fs.readdirSync(root)) {
-      const m = /^neon-status(?:\.([a-zA-Z0-9_-]+))?\.json$/.exec(f)
-      if (!m) continue
-      const name = m[1] || 'main'
-      const s = readJson(path.join(root, f))
-      if (!s) continue
-      const pidFile = path.join(runDir, `${name}.pid`)
-      out.push({
-        name,
-        updated: s.updated,
-        running: botAlive(name) || (!!s.running && Date.now() - s.updated < 5000),
-        busy: botAlive(name) && Date.now() - s.updated >= 5000,
-        mode: s.mode,
-        dry_run: s.dry_run,
-        level: s.state?.player?.level ?? null,
-        map: s.state?.player?.map_id ?? null,
-        hp: s.state?.player?.hp ?? null,
-        max_hp: s.state?.player?.max_hp ?? null,
-        kills: s.stats?.mobs_killed ?? 0,
-        exp_per_hour: s.progress?.exp_per_hour ?? 0,
-        // Every run-bot.sh writes a pid file; only one started with --supervise restarts the bot.
-        supervised: (() => {
-          try { return fs.readFileSync(`/proc/${fs.readFileSync(pidFile, 'utf8').trim()}/cmdline`, 'utf8').split('\0').includes('--supervise') } catch { return false }
-        })(),
-      })
+  async function live(session) {
+    const status = readJson(statusPath(session))
+    let ce = null
+    try { ce = await ceJson('/api/live') } catch { /* CE not running */ }
+    if (status && Date.now() - (status.updated || 0) < 4000) {
+      return { ...status, alive: true, using: 'bot' }
     }
-    return out
+    if (!ce) {
+      if (status) return { ...status, alive: false, using: 'bot' }
+      const err = new Error('no status file yet')
+      err.status = 404
+      throw err
+    }
+    return {
+      updated: ce.ts_ms || Date.now(), running: !ce.error, alive: !ce.error, mode: 'running', dry_run: false,
+      state: {
+        player: { x: ce.x ?? 0, y: ce.y ?? 0, map_id: ce.map_id ?? null, level: ce.level ?? null, hp: ce.hp ?? null, max_hp: ce.max_hp ?? null, mp: ce.mp ?? null },
+        mobs: (ce.contacts || []).map(c => ({ x: c.x, y: c.y, id: null })), others: [], drops: [], footholds: [],
+      },
+      stats: { mobs_killed: 0, kills_by_mob: {} }, progress: { exp_gained: 0, exp_per_hour: 0, session_minutes: 0 },
+      events: [], series: [], rules: [], using: 'ce', error: ce.error || null,
+    }
   }
 
   function mergeControl(session, patch) {
@@ -264,43 +196,56 @@ export function createApi(root) {
   function tailLines(file, max) {
     let text = ''
     try { text = fs.readFileSync(file, 'utf8') } catch { return [] }
-    // Parse first: a half-written last line must not displace the real last record.
     const rows = text.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
     if (rows.length <= max) return rows
     const step = Math.ceil(rows.length / max)
     return rows.filter((_, i) => i % step === 0 || i === rows.length - 1)
   }
 
-  function startSession(session, args) {
-    const pidFile = path.join(runDir, `${session}.pid`)
-    if (fs.existsSync(pidFile)) {
-      const pid = Number(fs.readFileSync(pidFile, 'utf8'))
-      try { process.kill(pid, 0); return { ok: false, error: 'already running' } } catch { fs.rmSync(pidFile, { force: true }) }
+  function ceExe() {
+    return process.env.NEON_CE_EXE || path.join(root, 'target', 'debug', 'neon-ce.exe')
+  }
+
+  async function startSession(session) {
+    try {
+      const s = await ceJson('/api/health')
+      if (s.ok) return { ok: true, note: 'neon-ce already running' }
+    } catch { /* not running */ }
+    let pid = null
+    try { pid = Number(fs.readFileSync(path.join(runDir, `${session}.pid`), 'utf8')) } catch { /* none */ }
+    if (pid) {
+      try { process.kill(pid, 0); return { ok: false, error: 'already running' } } catch { /* stale */ }
     }
-    const safe = (args || []).filter(a => typeof a === 'string' && /^[\w.:,=/@+-]{1,200}$/.test(a))
-    // Starting afresh clears an old stop request so the new run is not stopped on arrival.
     mergeControl(session, { clearStop: true, paused: false })
-    fs.mkdirSync(path.join(root, 'logs'), { recursive: true })
-    const log = fs.openSync(path.join(root, 'logs', `${session}.web.log`), 'a')
-    const child = spawn(path.join(root, 'scripts', 'run-bot.sh'), ['--supervise', '--session', session, '--', ...safe], {
-      cwd: root, detached: true, stdio: ['ignore', log, log],
-    })
+    fs.mkdirSync(runDir, { recursive: true })
+    const child = spawn(ceExe(), [], { cwd: root, detached: true, stdio: 'ignore' })
     child.unref()
+    cePids.set(session, child.pid)
+    fs.writeFileSync(path.join(runDir, `${session}.pid`), String(child.pid))
     return { ok: true, pid: child.pid }
   }
 
   function stopSession(session) {
     mergeControl(session, { stop: true })
-    const pidFile = path.join(runDir, `${session}.pid`)
-    if (fs.existsSync(pidFile)) {
-      const pid = Number(fs.readFileSync(pidFile, 'utf8'))
-      // Give the loader a moment to stop on its own (it releases every key), then end the supervisor.
-      setTimeout(() => { try { process.kill(-pid, 'SIGTERM') } catch { try { process.kill(pid, 'SIGTERM') } catch { /* gone */ } } }, 2500)
-    }
+    const pid = cePids.get(session)
+    if (pid) { try { process.kill(pid) } catch { /* gone */ } }
     return { ok: true }
   }
 
-  // ---- routing -------------------------------------------------------------------------------
+  const body = req => new Promise((resolve, reject) => {
+    let size = 0
+    const chunks = []
+    req.on('data', c => {
+      size += c.length
+      if (size > MAX_BODY) { reject(new Error('body too large')); req.destroy(); return }
+      chunks.push(c)
+    })
+    req.on('end', () => {
+      try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}) } catch { reject(new Error('invalid JSON')) }
+    })
+    req.on('error', reject)
+  })
+
   const handler = async function handler(req, res, next) {
     const url = new URL(req.url, 'http://localhost')
     const p = url.pathname
@@ -309,21 +254,12 @@ export function createApi(root) {
       if (req.method === 'GET' && p === '/api/live') {
         const s = sessionOf(url)
         if (!s) return json(res, 400, { error: 'bad session' })
-        const file = statusPath(s)
-        try {
-          const d = JSON.parse(fs.readFileSync(file, 'utf8'))
-          d.alive = botAlive(s)
-          return json(res, 200, d)
-        } catch {
-          return json(res, 404, { error: 'no status file yet', path: path.basename(file) })
-        }
+        return json(res, 200, await live(s))
       }
-      // Live view of the game window (read-only screen grabs); see server/stream.mjs.
-      if (req.method === 'GET' && p === '/api/stream') return gameFor(url).stream(req, res, url)
-      if (req.method === 'GET' && p === '/api/frame.jpg') return await gameFor(url).frame(req, res, url)
-      if (req.method === 'GET' && p === '/api/stream/status') return json(res, 200, gameFor(url).status())
-      if (req.method === 'GET' && p === '/api/sessions') return json(res, 200, listSessions())
       if (req.method === 'GET' && p === '/api/meta') return json(res, 200, meta())
+      if (req.method === 'GET' && p === '/api/sessions') {
+        return json(res, 200, [{ name: 'main', updated: Date.now(), running: true, mode: 'running', using: 'ce' }])
+      }
       if (req.method === 'GET' && p === '/api/route') {
         const level = Number(url.searchParams.get('level')), from = Number(url.searchParams.get('from')), to = Number(url.searchParams.get('to'))
         if (![level, from, to].every(Number.isInteger) || level < 1) return json(res, 400, { error: 'level, from and to must be integers' })
@@ -336,7 +272,7 @@ export function createApi(root) {
       }
       if (req.method === 'GET' && p === '/api/best-maps') {
         const level = Number(url.searchParams.get('level')), from = Number(url.searchParams.get('from') || 10001000)
-        if (!Number.isInteger(level) || level < 1 || level > 200) return json(res, 400, { error: 'bad level' })
+        if (!Number.isInteger(level) || level < 1) return json(res, 400, { error: 'bad level' })
         return json(res, 200, bestMaps(level, from))
       }
       if (p === '/api/control') {
@@ -348,27 +284,21 @@ export function createApi(root) {
       if (req.method === 'GET' && p === '/api/history') {
         const s = sessionOf(url)
         if (!s) return json(res, 400, { error: 'bad session' })
-        const max = Math.min(Number(url.searchParams.get('limit')) || 400, 2000)
-        return json(res, 200, tailLines(path.join(historyDir, `${s}.jsonl`), max))
+        return json(res, 200, tailLines(path.join(historyDir, `${s}.jsonl`), Math.min(Number(url.searchParams.get('limit')) || 400, 2000)))
       }
       if (req.method === 'POST' && p === '/api/session/start') {
         const b = await body(req)
         const s = SESSION_RE.test(b.session || 'main') ? (b.session || 'main') : null
-        if (!s) return json(res, 400, { error: 'bad session' })
-        return json(res, 200, startSession(s, b.args))
+        return s ? json(res, 200, await startSession(s)) : json(res, 400, { error: 'bad session' })
       }
       if (req.method === 'POST' && p === '/api/session/stop') {
         const b = await body(req)
         const s = SESSION_RE.test(b.session || 'main') ? (b.session || 'main') : null
-        if (!s) return json(res, 400, { error: 'bad session' })
-        return json(res, 200, stopSession(s))
+        return s ? json(res, 200, stopSession(s)) : json(res, 400, { error: 'bad session' })
       }
       if (p === '/api/profiles') {
         fs.mkdirSync(profilesDir, { recursive: true })
-        if (req.method === 'GET') {
-          const list = fs.readdirSync(profilesDir).filter(f => f.endsWith('.json')).map(f => ({ name: f.slice(0, -5), ...readJson(path.join(profilesDir, f), {}) }))
-          return json(res, 200, list)
-        }
+        if (req.method === 'GET') return json(res, 200, fs.readdirSync(profilesDir).filter(f => f.endsWith('.json')).map(f => ({ name: f.slice(0, -5), ...readJson(path.join(profilesDir, f), {}) })))
         if (req.method === 'POST') {
           const b = await body(req)
           if (!PROFILE_RE.test(b.name || '')) return json(res, 400, { error: 'bad profile name' })
@@ -382,9 +312,15 @@ export function createApi(root) {
           return json(res, 200, { ok: true })
         }
       }
+      if (req.method === 'GET' && p === '/api/stream/status') {
+        return json(res, 200, { viewers: 0, capturing: false })
+      }
+      if (req.method === 'GET' && (p === '/api/stream' || p === '/api/frame.jpg')) {
+        return json(res, 200, { ok: false, error: 'live frame capture is not wired on Windows yet' })
+      }
       return json(res, 404, { error: 'unknown route' })
     } catch (e) {
-      return json(res, 400, { error: String(e.message || e) })
+      return json(res, e.status || 400, { error: String(e.message || e) })
     }
   }
   handler.meta = meta

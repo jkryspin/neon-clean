@@ -1,0 +1,37 @@
+[package]
+name = "neon-ce"
+version.workspace = true
+edition.workspace = true
+description = "Neon workbench: live data, entities, bot, cheat engine, packets"
+
+[[bin]]
+name = "neon-ce"
+path = "src/main.rs"
+
+[dependencies]
+neon-win = { path = "../../crates/neon-win" }
+neon-capture = { path = "../../crates/neon-capture" }
+neon-bot = { path = "../../crates/neon-bot" }
+neon-state = { path = "../../crates/neon-state" }
+neon-protocol = { path = "../../crates/neon-protocol" }
+neon-world = { path = "../../crates/neon-world" }
+neon-view = { path = "../../crates/neon-view" }
+anyhow = "1"
+eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Security",
+] }
