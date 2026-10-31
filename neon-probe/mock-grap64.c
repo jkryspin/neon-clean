@@ -8,10 +8,15 @@
  * imports. Wrong DLL present." So this mock reproduces the export shape: base 1,
  * nine NONAME ordinals, ordinal 9 being the entry point the game calls.
  *
+ * Return convention: the client calls ordinal 9 from its fail-fast helpers and
+ * tests the result (`test eax,eax; je ok; int 29h`), so NONZERO means failure
+ * and success is 0. Every export returns 0.
+ *
  * See docs/anticheat-mock.md. The real grap64.dll is backed up as
  * grap64.dll.orig by scripts/mock-anticheat.sh.
  *
- * Build: make mock-grap64-win.dll   (x86_64-w64-mingw32-gcc + mock-grap64.def)
+ * Build: cl /nologo /LD /MT /O2 /W3 mock-grap64.c /link /DEF:mock-grap64.def
+ *          /OUT:mock-grap64-win.dll
  */
 #include <windows.h>
 #include <stdio.h>
@@ -27,22 +32,24 @@ static void logmsg(const char *m) {
 }
 
 /* Nine ordinal-only exports (mock-grap64.def maps them to ordinals 1..9). */
-long long grap_ord1(void) { return 1; }
-long long grap_ord2(void) { return 1; }
-long long grap_ord3(void) { return 1; }
-long long grap_ord4(void) { return 1; }
-long long grap_ord5(void) { return 1; }
-long long grap_ord6(void) { return 1; }
-long long grap_ord7(void) { return 1; }
-long long grap_ord8(void) { return 1; }
-long long grap_ord9(void) { logmsg("grap ordinal 9 called"); return 1; }
+long long grap_ord1(void) { return 0; }
+long long grap_ord2(void) { return 0; }
+long long grap_ord3(void) { return 0; }
+long long grap_ord4(void) { return 0; }
+long long grap_ord5(void) { return 0; }
+long long grap_ord6(void) { return 0; }
+long long grap_ord7(void) { return 0; }
+long long grap_ord8(void) { return 0; }
+long long grap_ord9(void) { logmsg("grap ordinal 9 called"); return 0; }
 
 BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
     (void)reserved;
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(h);
         char path[MAX_PATH];
-        snprintf(path, sizeof path, "Z:\\tmp\\neon-mock-grap64.%lu.log",
+        CreateDirectoryW(L"C:\\Neon", NULL);
+        CreateDirectoryW(L"C:\\Neon\\logs", NULL);
+        snprintf(path, sizeof path, "C:\\Neon\\logs\\mock-grap64.%lu.log",
                  (unsigned long)GetCurrentProcessId());
         g_log = fopen(path, "a");
         logmsg("mock grap64 attached");

